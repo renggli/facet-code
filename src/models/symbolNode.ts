@@ -38,7 +38,7 @@ export function isTypeKind(kind: vscode.SymbolKind): boolean {
 }
 
 export function filterMembers(
-  members: FacetSymbolNode[],
+  members: readonly FacetSymbolNode[],
   category: MemberCategory = MemberCategory.All,
   side: ClassSide = 'both'
 ): FacetSymbolNode[] {
@@ -56,7 +56,7 @@ export function filterMembers(
   });
 }
 
-export function unionMembers(types: FacetSymbolNode[]): FacetSymbolNode[] {
+export function unionMembers(types: readonly FacetSymbolNode[]): FacetSymbolNode[] {
   const result: FacetSymbolNode[] = [];
   const seen = new Set<string>();
 

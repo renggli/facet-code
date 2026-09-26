@@ -1,46 +1,129 @@
 {
-	"name": "facet-code",
-	"displayName": "Facet Code",
-	"description": "Structural, column-based code browser.",
-	"version": "0.0.1",
-	"engines": {
-		"vscode": "^1.138.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [],
-	"main": "./out/extension.js",
-	"icon": "media/facet-logo.png",
-	"contributes": {
-		"commands": [
-			{
-				"command": "facet-code.helloWorld",
-				"title": "Hello World"
-			}
-		]
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"watch": "tsc -watch -p ./",
-		"pretest": "npm run compile && npm run lint",
-		"lint": "eslint src",
-		"test:unit": "mocha --ui tdd out/test/unit/**/*.test.js",
-		"test": "npm run test:unit"
-	},
-	"devDependencies": {
-		"@types/vscode": "^1.138.0",
-		"@types/mocha": "^10.0.10",
-		"@types/node": "24.x",
-		"typescript-eslint": "^8.61.1",
-		"eslint": "^10.5.0",
-		"typescript": "^6.0.3",
-		"@vscode/test-cli": "^0.0.15",
-		"@vscode/test-electron": "^3.0.0"
-	},
-	"overrides": {
-		"diff": "^8.0.4",
-		"serialize-javascript": "^7.0.6"
-	}
+  "name": "facet-code",
+  "displayName": "Facet Code",
+  "description": "Structural, configurable code browser for VS Code.",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.138.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "icon": "media/facet-logo.png",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "facet-container",
+          "title": "Facet",
+          "icon": "media/facet-logo.png"
+        }
+      ]
+    },
+    "views": {
+      "facet-container": [
+        {
+          "id": "facet.views.types",
+          "name": "Types",
+          "icon": "$(symbol-class)"
+        },
+        {
+          "id": "facet.views.categories",
+          "name": "Categories",
+          "icon": "$(filter)"
+        },
+        {
+          "id": "facet.views.members",
+          "name": "Members",
+          "icon": "$(symbol-method)"
+        },
+        {
+          "id": "facet.views.relations",
+          "name": "Relations",
+          "icon": "$(references)"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "facet.toggleSide",
+        "title": "Facet: Toggle Instance / Class Side",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "facet.toggleHierarchy",
+        "title": "Facet: Toggle Flat / Inherited Hierarchy",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "facet.toggleLayout",
+        "title": "Facet: Toggle Flat / Tree Layout",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.selectCategory",
+        "title": "Facet: Select Category"
+      },
+      {
+        "command": "facet.relations.switchMode",
+        "title": "Facet: Switch Relations Mode",
+        "icon": "$(settings)"
+      },
+      {
+        "command": "facet.revealRange",
+        "title": "Facet: Reveal in Editor"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "facet.toggleSide",
+          "when": "view == facet.views.members || view == facet.views.types",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.toggleHierarchy",
+          "when": "view == facet.views.members || view == facet.views.types",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.toggleLayout",
+          "when": "view == facet.views.members",
+          "group": "navigation@3"
+        },
+        {
+          "command": "facet.relations.switchMode",
+          "when": "view == facet.views.relations",
+          "group": "navigation@4"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test:unit": "mocha --ui tdd out/test/unit/**/*.test.js",
+    "test": "npm run test:unit"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.138.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "typescript-eslint": "^8.61.1",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  }
 }

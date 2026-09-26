@@ -12,7 +12,7 @@ export class MembersTreeProvider implements vscode.TreeDataProvider<FacetSymbolN
   private _onDidChangeTreeData = new vscode.EventEmitter<FacetSymbolNode | undefined | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  private selectedTypes: FacetSymbolNode[] = [];
+  private selectedTypes: readonly FacetSymbolNode[] = [];
   private activeCategory: MemberCategory = MemberCategory.All;
   private classSide: ClassSide = 'both';
   private layoutMode: LayoutMode = 'list';
@@ -21,7 +21,7 @@ export class MembersTreeProvider implements vscode.TreeDataProvider<FacetSymbolN
     this._onDidChangeTreeData.fire();
   }
 
-  setSelectedTypes(types: FacetSymbolNode[]): void {
+  setSelectedTypes(types: readonly FacetSymbolNode[]): void {
     this.selectedTypes = types;
     this.refresh();
   }

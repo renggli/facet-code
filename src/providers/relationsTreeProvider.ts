@@ -14,7 +14,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
   private _onDidChangeTreeData = new vscode.EventEmitter<RelationItem | undefined | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  private selectedMembers: FacetSymbolNode[] = [];
+  private selectedMembers: readonly FacetSymbolNode[] = [];
   private mode: RelationsMode = 'references';
   private cachedItems: RelationItem[] = [];
 
@@ -31,12 +31,12 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
     return this.mode;
   }
 
-  setSelectedMembers(members: FacetSymbolNode[]): void {
+  setSelectedMembers(members: readonly FacetSymbolNode[]): void {
     this.selectedMembers = members;
     void this.fetchRelations();
   }
 
-  getSelectedMembers(): FacetSymbolNode[] {
+  getSelectedMembers(): readonly FacetSymbolNode[] {
     return this.selectedMembers;
   }
 

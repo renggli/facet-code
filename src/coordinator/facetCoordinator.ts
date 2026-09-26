@@ -87,7 +87,7 @@ export class FacetCoordinator implements vscode.Disposable {
     }
   }
 
-  public selectTypes(types: FacetSymbolNode[]): void {
+  public selectTypes(types: readonly FacetSymbolNode[]): void {
     this.membersProvider.setSelectedTypes(types);
     const counts = this.membersProvider.getCategoryCounts();
     this.categoriesProvider.setCounts(counts);
@@ -105,7 +105,7 @@ export class FacetCoordinator implements vscode.Disposable {
     this.membersProvider.setActiveCategory(category);
   }
 
-  public selectMembers(members: FacetSymbolNode[]): void {
+  public selectMembers(members: readonly FacetSymbolNode[]): void {
     this.relationsProvider.setSelectedMembers(members);
   }
 
