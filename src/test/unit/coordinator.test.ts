@@ -140,12 +140,10 @@ suite('FacetCoordinator Test Suite', () => {
       id: 'facet.pane.2',
       title: 'Members',
       role: 'members',
-      inputSource: 'previous',
-      followSelection: true,
-      followCursor: true,
-      showIcons: true,
-      showContext: true,
-      filters: { ...createDefaultFilters(), constants: false },
+      inputSource: 'pane',
+      selectionSource: 'none',
+      sort: 'alphabetical',
+      filters: { ...createDefaultFilters(), constant: false },
       display: 'flat',
       visible: true
     };
@@ -162,7 +160,7 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('coordinator respects showIcons, showContext, and followSelection settings', async () => {
+  test('coordinator always renders icons, context description, and reveal commands on slot tree items', async () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
     const membersProvider = new MembersTreeProvider();
@@ -187,36 +185,23 @@ suite('FacetCoordinator Test Suite', () => {
       children: []
     };
 
-    const fullConfig: PaneConfig = {
+    const config: PaneConfig = {
       id: 'facet.pane.2',
       title: 'Members',
       role: 'members',
-      inputSource: 'previous',
-      followSelection: true,
-      followCursor: true,
-      showIcons: true,
-      showContext: true,
+      inputSource: 'pane',
+      selectionSource: 'none',
+      sort: 'alphabetical',
       filters: createDefaultFilters(),
       display: 'flat',
       visible: true
     };
 
-    const fullItem = coordinator.getSlotTreeItem(fullConfig, node);
-    assert.ok(fullItem.iconPath !== undefined);
-    assert.strictEqual(fullItem.description, 'static (orderId: string): void');
-    assert.ok(fullItem.command !== undefined);
-
-    const minimalConfig: PaneConfig = {
-      ...fullConfig,
-      followSelection: false,
-      showIcons: false,
-      showContext: false
-    };
-
-    const minimalItem = coordinator.getSlotTreeItem(minimalConfig, node);
-    assert.strictEqual(minimalItem.iconPath, undefined);
-    assert.strictEqual(minimalItem.description, undefined);
-    assert.strictEqual(minimalItem.command, undefined);
+    const item = coordinator.getSlotTreeItem(config, node);
+    assert.ok(item.iconPath !== undefined);
+    assert.strictEqual(item.description, 'static (orderId: string): void');
+    assert.ok(item.command !== undefined);
+    assert.strictEqual(item.command?.command, 'facet.revealRange');
 
     coordinator.dispose();
   });
@@ -264,11 +249,9 @@ suite('FacetCoordinator Test Suite', () => {
       id: 'facet.pane.1',
       title: 'Types',
       role: 'types',
-      inputSource: 'project',
-      followSelection: true,
-      followCursor: true,
-      showIcons: true,
-      showContext: true,
+      inputSource: 'global',
+      selectionSource: 'cursor',
+      sort: 'alphabetical',
       filters: createDefaultFilters(),
       display: 'hierarchy',
       visible: true
@@ -364,11 +347,9 @@ suite('FacetCoordinator Test Suite', () => {
       id: 'facet.pane.1',
       title: 'Types',
       role: 'types',
-      inputSource: 'project',
-      followSelection: true,
-      followCursor: true,
-      showIcons: true,
-      showContext: true,
+      inputSource: 'global',
+      selectionSource: 'cursor',
+      sort: 'alphabetical',
       filters: createDefaultFilters(),
       display: 'hierarchy',
       visible: true
@@ -389,5 +370,199 @@ suite('FacetCoordinator Test Suite', () => {
     (vscode.workspace as any).fs = origFs;
     coordinator.dispose();
   });
+
+  test('coordinator handles files pane role and regexp filtering', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    const origFindFiles = vscode.workspace.findFiles;
+    const testFiles = [
+      vscode.Uri.file('/workspace/src/app.ts'),
+      vscode.Uri.file('/workspace/src/utils.ts'),
+      vscode.Uri.file('/workspace/src/components/button.tsx'),
+      vscode.Uri.file('/workspace/test/app.test.ts'),
+      vscode.Uri.file('/workspace/README.md')
+    ];
+
+    (vscode.workspace as any).findFiles = async () => testFiles;
+
+    const filesPaneConfig: PaneConfig = {
+      id: 'facet.pane.1',
+      title: 'Files',
+      role: 'files',
+      inputSource: 'global',
+      selectionSource: 'none',
+      sort: 'alphabetical',
+      filters: createDefaultFilters(),
+      filePattern: '.*\\.ts$',
+      display: 'flat',
+      visible: true
+    };
+
+    const matched = await coordinator.getSlotChildren(filesPaneConfig);
+    assert.strictEqual(matched.length, 3);
+    const paths = matched.map((u: vscode.Uri) => u.path);
+    assert.ok(paths.includes('/workspace/src/app.ts'));
+    assert.ok(paths.includes('/workspace/src/utils.ts'));
+    assert.ok(paths.includes('/workspace/test/app.test.ts'));
+    assert.ok(!paths.includes('/workspace/src/components/button.tsx'));
+    assert.ok(!paths.includes('/workspace/README.md'));
+
+    const treeItem = coordinator.getSlotTreeItem(filesPaneConfig, matched[0]);
+    assert.strictEqual(treeItem.collapsibleState, vscode.TreeItemCollapsibleState.None);
+    assert.ok(treeItem.command);
+    assert.strictEqual(treeItem.command.command, 'vscode.open');
+
+    (vscode.workspace as any).findFiles = origFindFiles;
+    coordinator.dispose();
+  });
+
+  test('downstream pane receives union of types across multiple selected files', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    const file1Uri = vscode.Uri.file('/workspace/src/file1.ts');
+    const file2Uri = vscode.Uri.file('/workspace/src/file2.ts');
+
+    const file1Doc = {
+      uri: file1Uri,
+      version: 1,
+      getText: () => 'export class ClassOne { run(): void {} }'
+    };
+    const file2Doc = {
+      uri: file2Uri,
+      version: 1,
+      getText: () => 'export class ClassTwo { execute(): void {} }'
+    };
+
+    const origOpenTextDocument = vscode.workspace.openTextDocument;
+    (vscode.workspace as any).openTextDocument = async (uri: vscode.Uri) => {
+      if (uri.fsPath.includes('file1')) {
+        return file1Doc;
+      }
+      return file2Doc;
+    };
+
+    const typesPaneConfig: PaneConfig = {
+      id: 'facet.pane.2',
+      title: 'Types',
+      role: 'types',
+      inputSource: 'pane',
+      selectionSource: 'none',
+      sort: 'alphabetical',
+      filters: createDefaultFilters(),
+      display: 'flat',
+      visible: true
+    };
+
+    coordinator.setSlotSelection('facet.pane.1', [file1Uri, file2Uri]);
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'files' });
+
+    const types = await coordinator.getSlotChildren(typesPaneConfig);
+    assert.strictEqual(types.length, 2);
+    const names = types.map((t: FacetSymbolNode) => t.name);
+    assert.ok(names.includes('ClassOne'));
+    assert.ok(names.includes('ClassTwo'));
+
+    (vscode.workspace as any).openTextDocument = origOpenTextDocument;
+    coordinator.dispose();
+  });
+
+  test('cursor position tracking updates and reveals target nodes across downstream panes', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    const { PanePipelineManager } = require('../../coordinator/panePipelineManager');
+    const manager = new PanePipelineManager(coordinator);
+
+    const revealed: { slotId: string; node: any }[] = [];
+    coordinator.onRevealInView((event) => {
+      revealed.push(event);
+    });
+
+    const fileUri = vscode.Uri.file('/workspace/src/test.ts');
+    const testMember: FacetSymbolNode = {
+      name: 'calculate',
+      kind: vscode.SymbolKind.Method,
+      uri: fileUri,
+      range: new vscode.Range(5, 2, 7, 3),
+      selectionRange: new vscode.Range(5, 9, 5, 18),
+      category: MemberCategory.InstanceMethods,
+      isStatic: false,
+      children: []
+    };
+
+    const testType: FacetSymbolNode = {
+      name: 'Calculator',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: new vscode.Range(0, 0, 10, 1),
+      selectionRange: new vscode.Range(0, 13, 0, 23),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [testMember]
+    };
+
+    (coordinator as any).cachedDocumentSymbols = [testType];
+    (coordinator as any).cachedDocumentUri = fileUri.toString();
+
+    // Panes: Pane 1 Types (cursor), Pane 2 Members (cursor)
+    const panes = manager.getVisiblePanes();
+    panes[0].selectionSource = 'cursor';
+    panes[1].selectionSource = 'cursor';
+
+    const mockEditor = {
+      document: {
+        uri: fileUri,
+        version: 1,
+        getText: () => ''
+      },
+      selection: {
+        active: new vscode.Position(6, 4)
+      }
+    };
+
+    await coordinator.handleSelectionChange(mockEditor as any);
+
+    assert.ok(revealed.length >= 2);
+    const slot1Reveal = revealed.find((r) => r.slotId === panes[0].id);
+    const slot2Reveal = revealed.find((r) => r.slotId === panes[1].id);
+
+    assert.ok(slot1Reveal);
+    assert.strictEqual(slot1Reveal.node.name, 'Calculator');
+
+    assert.ok(slot2Reveal);
+    assert.strictEqual(slot2Reveal.node.name, 'calculate');
+
+    coordinator.dispose();
+  });
 });
+
 

@@ -97,7 +97,17 @@ export function getSymbolIcon(kind: vscode.SymbolKind): vscode.ThemeIcon {
 
 export function extractTypeHeader(lines: string[], startLine: number): string {
   const collected: string[] = [];
-  for (let i = startLine; i < Math.min(startLine + 10, lines.length); i++) {
+  let actualStart = startLine;
+  if (!/\b(class|interface|struct|enum)\b/.test(lines[startLine] || '')) {
+    for (let j = Math.max(0, startLine - 3); j <= Math.min(startLine + 3, lines.length - 1); j++) {
+      if (/\b(class|interface|struct|enum)\b/.test(lines[j])) {
+        actualStart = j;
+        break;
+      }
+    }
+  }
+
+  for (let i = actualStart; i < Math.min(actualStart + 10, lines.length); i++) {
     const line = lines[i].replace(/\/\/.*$/, '');
     collected.push(line.trim());
     if (line.includes('{') || (line.includes(':') && !line.includes('::'))) {
@@ -116,7 +126,7 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
     if (extendsMatch) {
       const parts = extendsMatch[1]
         .split(',')
-        .map((s) => s.trim().replace(/<.*>/g, '').split('.').pop()!)
+        .map((s) => s.trim().replace(/<[^>]*>/g, '').split('.').pop()!)
         .filter(Boolean);
       superTypes.push(...parts);
     }
@@ -126,28 +136,24 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
     if (colonMatch && !extendsMatch) {
       const parts = colonMatch[1]
         .split(',')
-        .map((s) => s.trim().replace(/<.*>/g, '').replace(/^(?:public|private|protected)\s+/, '').split('.').pop()!)
+        .map((s) => s.trim().replace(/<[^>]*>/g, '').replace(/^(?:public|private|protected)\s+/, '').split('.').pop()!)
         .filter(Boolean);
       superTypes.push(...parts);
     }
   } else {
-    // Class inheritance: class Dog extends Animal (do NOT parse implements or mixins!)
-    const extendsMatch = /\bextends\s+([A-Za-z0-9_$.<>]+)/.exec(header);
+    // Class inheritance: class Dog extends Animal (ignores generic args and interfaces)
+    const extendsMatch = /\bextends\s+([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)*)/.exec(header);
     if (extendsMatch) {
-      const name = extendsMatch[1].replace(/<.*>/g, '').split('.').pop()!.trim();
+      const name = extendsMatch[1].split('.').pop()!.trim();
       if (name) {
         superTypes.push(name);
       }
     }
 
     // C# / C++: class Dog : Animal, IPet (only the first type can be a base class, interfaces ignored)
-    const colonMatch = /:\s*(?:public\s+|private\s+|protected\s+)?([A-Za-z0-9_$.<>]+)/.exec(header);
+    const colonMatch = /:\s*(?:public\s+|private\s+|protected\s+)?([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)*)/.exec(header);
     if (colonMatch && !extendsMatch) {
-      const name = colonMatch[1]
-        .replace(/^(?:public|private|protected)\s+/, '')
-        .replace(/<.*>/g, '')
-        .split('.').pop()!
-        .trim();
+      const name = colonMatch[1].split('.').pop()!.trim();
       if (name && !/^I[A-Z]/.test(name)) {
         superTypes.push(name);
       }
@@ -167,39 +173,63 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
   return [...new Set(superTypes)];
 }
 
-export function buildTypeHierarchy(types: readonly FacetSymbolNode[]): FacetSymbolNode[] {
-  const typeMap = new Map<string, FacetSymbolNode>();
+export function buildTypeHierarchy(
+  types: readonly FacetSymbolNode[],
+  allowedSubclassKinds?: vscode.SymbolKind[]
+): FacetSymbolNode[] {
+  const typeMap = new Map<string, FacetSymbolNode[]>();
   for (const t of types) {
-    typeMap.set(t.name, t);
+    const list = typeMap.get(t.name) || [];
+    list.push(t);
+    typeMap.set(t.name, list);
     t.subTypes = [];
   }
 
-  const childNames = new Set<string>();
+  const childKeys = new Set<string>();
 
   for (const t of types) {
+    if (allowedSubclassKinds && !allowedSubclassKinds.includes(t.kind)) {
+      continue;
+    }
+
     if (t.superTypes && t.superTypes.length > 0) {
       for (const superName of t.superTypes) {
-        const parent = typeMap.get(superName);
-        if (parent) {
-          // Strictly prevent classes and interfaces from being mixed in hierarchy
-          if (t.kind === vscode.SymbolKind.Class && parent.kind === vscode.SymbolKind.Interface) {
-            continue;
-          }
-          if (t.kind === vscode.SymbolKind.Interface && parent.kind === vscode.SymbolKind.Class) {
-            continue;
-          }
+        const parents = typeMap.get(superName);
+        if (parents && parents.length > 0) {
+          for (const parent of parents) {
+            // Strictly prevent classes and interfaces from being mixed in hierarchy
+            if (t.kind === vscode.SymbolKind.Class && parent.kind === vscode.SymbolKind.Interface) {
+              continue;
+            }
+            if (t.kind === vscode.SymbolKind.Interface && parent.kind === vscode.SymbolKind.Class) {
+              continue;
+            }
 
-          if (!parent.subTypes) {
-            parent.subTypes = [];
+            if (!parent.subTypes) {
+              parent.subTypes = [];
+            }
+            if (!parent.subTypes.some((sub) => sub.name === t.name && sub.uri?.toString() === t.uri?.toString())) {
+              t.parent = parent;
+              parent.subTypes.push(t);
+            }
+            childKeys.add(`${t.name}::${t.uri?.toString() || ''}`);
           }
-          if (!parent.subTypes.some((sub) => sub.name === t.name)) {
-            parent.subTypes.push(t);
-          }
-          childNames.add(t.name);
         }
       }
     }
   }
 
-  return types.filter((t) => !childNames.has(t.name));
+  const rootSeen = new Set<string>();
+  const uniqueRoots: FacetSymbolNode[] = [];
+  for (const t of types) {
+    const key = `${t.name}::${t.uri?.toString() || ''}`;
+    if (!childKeys.has(key)) {
+      if (!rootSeen.has(key)) {
+        rootSeen.add(key);
+        uniqueRoots.push(t);
+      }
+    }
+  }
+
+  return uniqueRoots;
 }

@@ -200,11 +200,11 @@ export class Calculator {
       children: []
     };
 
-    assert.strictEqual(matchesPaneFilters(classNode, { classes: true }), true);
-    assert.strictEqual(matchesPaneFilters(classNode, { classes: false }), false);
+    assert.strictEqual(matchesPaneFilters(classNode, { class: true }), true);
+    assert.strictEqual(matchesPaneFilters(classNode, { class: false }), false);
 
-    assert.strictEqual(matchesPaneFilters(methodNode, { methods: true }), true);
-    assert.strictEqual(matchesPaneFilters(methodNode, { methods: false }), false);
+    assert.strictEqual(matchesPaneFilters(methodNode, { method: true }), true);
+    assert.strictEqual(matchesPaneFilters(methodNode, { method: false }), false);
   });
 
   test('extractSuperTypes correctly parses extends without mixing implements for classes', () => {

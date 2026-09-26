@@ -51,7 +51,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const manager = new PanePipelineManager(coordinator);
     assert.strictEqual(manager.getPanes().length, 6);
     assert.strictEqual(manager.getVisiblePanes().length, 3);
-    assert.strictEqual(manager.getVisiblePanes()[0].inputSource, 'project');
+    assert.strictEqual(manager.getVisiblePanes()[0].inputSource, 'global');
     assert.strictEqual(manager.getVisiblePanes()[0].role, 'types');
 
     coordinator.dispose();
@@ -110,13 +110,13 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(visible[0].role, 'types');
     assert.strictEqual(visible[0].title, 'Types');
     assert.strictEqual(visible[0].display, 'hierarchy');
-    assert.strictEqual(visible[0].inputSource, 'project');
+    assert.strictEqual(visible[0].inputSource, 'global');
 
     assert.strictEqual(visible[1].role, 'members');
-    assert.strictEqual(visible[1].inputSource, 'previous');
+    assert.strictEqual(visible[1].inputSource, 'pane');
 
     assert.strictEqual(visible[2].role, 'references');
-    assert.strictEqual(visible[2].inputSource, 'previous');
+    assert.strictEqual(visible[2].inputSource, 'pane');
 
     coordinator.dispose();
   });
@@ -139,11 +139,9 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
       id: 'facet.pane.1',
       title: 'Types',
       role: 'types',
-      inputSource: 'project',
-      followSelection: true,
-      followCursor: true,
-      showIcons: true,
-      showContext: true,
+      inputSource: 'global',
+      selectionSource: 'cursor',
+      sort: 'alphabetical',
       filters: createDefaultFilters(),
       display: 'hierarchy',
       visible: true
@@ -156,9 +154,9 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(children.length, 1);
     assert.strictEqual(children[0].name, 'PipelineTestClass');
 
-    // Switch role to members with input cursor or mockClass
+    // Switch role to members with input pane or mockClass
     slotConfig.role = 'members';
-    slotConfig.inputSource = 'previous';
+    slotConfig.inputSource = 'pane';
     (coordinator as any).getPreviousPane = () => undefined;
     (coordinator as any).getPreviousPaneSelection = () => [mockClass];
 
@@ -192,10 +190,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.ok(addedAfter);
     assert.strictEqual(manager.getVisiblePanes().length, 4);
     assert.strictEqual(manager.getVisiblePanes()[1].role, 'callers');
-    assert.strictEqual(addedAfter.followSelection, true);
-    assert.strictEqual(addedAfter.followCursor, true);
-    assert.strictEqual(addedAfter.showIcons, true);
-    assert.strictEqual(addedAfter.showContext, true);
+    assert.strictEqual(addedAfter.selectionSource, 'none');
 
     // Add before pane 1
     (manager as any).promptRolePicker = async () => ({ label: 'Hierarchy', role: 'hierarchy' });
@@ -203,10 +198,29 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.ok(addedBefore);
     assert.strictEqual(manager.getVisiblePanes().length, 5);
     assert.strictEqual(manager.getVisiblePanes()[0].role, 'hierarchy');
-    assert.strictEqual(addedBefore.followSelection, true);
-    assert.strictEqual(addedBefore.followCursor, true);
-    assert.strictEqual(addedBefore.showIcons, true);
-    assert.strictEqual(addedBefore.showContext, true);
+    assert.strictEqual(addedBefore.selectionSource, 'cursor');
+    coordinator.dispose();
+  });
+
+  test('PanePipelineManager supports Files role addition and configuration', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    const manager = new PanePipelineManager(coordinator);
+    (manager as any).promptRolePicker = async () => ({ label: 'Files', role: 'files' });
+
+    const addedBefore = await manager.addPaneBefore('facet.pane.1');
+    assert.ok(addedBefore);
+    assert.strictEqual(addedBefore.role, 'files');
+    assert.strictEqual(manager.getVisiblePanes()[0].role, 'files');
 
     coordinator.dispose();
   });

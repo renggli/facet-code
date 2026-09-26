@@ -22,4 +22,8 @@ export class SlotTreeProvider implements vscode.TreeDataProvider<any> {
   getChildren(element?: any): Promise<any[]> {
     return this.coordinator.getSlotChildren(this.config, element);
   }
+
+  getParent(element: any): any | undefined {
+    return this.coordinator.getSlotParent(this.config, element);
+  }
 }

@@ -19,7 +19,7 @@
 			"activitybar": [
 				{
 					"id": "facet-container",
-					"title": "Facet",
+					"title": "Facets",
 					"icon": "media/facet-logo.png"
 				}
 			]
@@ -170,7 +170,7 @@
 		"watch": "tsc -watch -p ./",
 		"pretest": "npm run compile && npm run lint",
 		"lint": "eslint src",
-		"test:unit": "mocha --ui tdd out/test/unit/**/*.test.js",
+		"test:unit": "mocha -r ./out/test/unit/mockVscode.js --ui tdd out/test/unit/**/*.test.js",
 		"test": "npm run test:unit"
 	},
 	"devDependencies": {

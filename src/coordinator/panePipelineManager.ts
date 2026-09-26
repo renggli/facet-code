@@ -3,8 +3,12 @@ import {
   PaneConfig,
   PaneRole,
   PaneInputSource,
+  SelectionSource,
+  SortOption,
   DisplayMode,
   PaneFilters,
+  ALL_SYMBOL_FILTER_OPTIONS,
+  SymbolKindKey,
   createDefaultFilters,
   createDefaultPanes
 } from '../models/paneConfig';
@@ -73,17 +77,17 @@ export class PanePipelineManager {
       return undefined;
     }
 
+    const isTypesOrHierarchy = rolePick.role === 'types' || rolePick.role === 'hierarchy';
     const newPane: PaneConfig = {
       id: '',
       title: rolePick.label,
       role: rolePick.role,
-      inputSource: idx === 0 ? 'project' : 'previous',
-      followSelection: true,
-      followCursor: true,
-      showIcons: true,
-      showContext: true,
+      inputSource: idx === 0 ? 'global' : 'pane',
+      selectionSource: idx === 0 ? 'cursor' : 'none',
+      sort: 'alphabetical',
       filters: createDefaultFilters(),
-      display: 'flat',
+      display: isTypesOrHierarchy ? 'hierarchy' : 'flat',
+      subclassTypes: isTypesOrHierarchy ? ['class', 'struct'] : undefined,
       visible: true
     };
 
@@ -116,17 +120,17 @@ export class PanePipelineManager {
       return undefined;
     }
 
+    const isTypesOrHierarchy = rolePick.role === 'types' || rolePick.role === 'hierarchy';
     const newPane: PaneConfig = {
       id: '',
       title: rolePick.label,
       role: rolePick.role,
-      inputSource: 'previous',
-      followSelection: true,
-      followCursor: true,
-      showIcons: true,
-      showContext: true,
+      inputSource: 'pane',
+      selectionSource: 'none',
+      sort: 'alphabetical',
       filters: createDefaultFilters(),
-      display: 'flat',
+      display: isTypesOrHierarchy ? 'hierarchy' : 'flat',
+      subclassTypes: isTypesOrHierarchy ? ['class', 'struct'] : undefined,
       visible: true
     };
 
@@ -171,6 +175,11 @@ export class PanePipelineManager {
       return;
     }
 
+    const visible = this.getVisiblePanes();
+    const paneIndex = visible.findIndex((p) => p.id === slotId);
+    const isFirstPane = paneIndex === 0;
+    const supportsHierarchy = pane.role === 'types' || pane.role === 'hierarchy';
+
     const items: (vscode.QuickPickItem & { action?: string })[] = [
       { label: 'General Settings', kind: vscode.QuickPickItemKind.Separator },
       {
@@ -189,31 +198,39 @@ export class PanePipelineManager {
         action: 'input'
       },
       {
-        label: `${pane.followSelection ? '$(check)' : '   '} Follow Selection`,
-        action: 'followSelection'
+        label: '$(inspect) Selection Source',
+        description: `Current: ${this.getSelectionSourceLabel(pane.selectionSource)}`,
+        action: 'selectionSource'
       },
       {
-        label: `${pane.followCursor ? '$(check)' : '   '} Follow Cursor`,
-        action: 'followCursor'
-      },
-      {
-        label: `${pane.showIcons ? '$(check)' : '   '} Show Icons`,
-        action: 'showIcons'
-      },
-      {
-        label: `${pane.showContext ? '$(check)' : '   '} Show Context`,
-        action: 'showContext'
+        label: '$(sort-precedence) Sort',
+        description: `Current: ${this.getSortLabel(pane.sort)}`,
+        action: 'sort'
       },
       {
         label: '$(filter) Filters...',
         description: this.getFiltersSummary(pane),
         action: 'filters'
-      },
-      {
-        label: '$(list-tree) Display',
+      }
+    ];
+
+    if (pane.role === 'files') {
+      items.push({
+        label: '$(regex) Regexp Filter...',
+        description: pane.filePattern ? `/${pane.filePattern}/` : 'None',
+        action: 'filePattern'
+      });
+    }
+
+    if (supportsHierarchy) {
+      items.push({
+        label: '$(list-tree) Display...',
         description: pane.display === 'hierarchy' ? 'Hierarchy' : 'Flat',
         action: 'display'
-      },
+      });
+    }
+
+    items.push(
       { label: 'Pipeline Settings', kind: vscode.QuickPickItemKind.Separator },
       {
         label: '$(add) Add Previous Pane',
@@ -236,7 +253,7 @@ export class PanePipelineManager {
         description: 'Project Browser, Implementations, Callers, Outline',
         action: 'preset'
       }
-    ];
+    );
 
     const picked = await vscode.window.showQuickPick(items, {
       placeHolder: `Configure Pane: ${pane.title}`
@@ -269,31 +286,28 @@ export class PanePipelineManager {
         break;
       }
       case 'input': {
-        const inputPick = await vscode.window.showQuickPick(
-          [
-            {
-              label: 'Project',
-              description: 'Global workspace symbols (default for first pane)',
-              source: 'project' as PaneInputSource
-            },
-            {
-              label: 'Cursor',
-              description: 'Symbol at editor cursor position',
-              source: 'cursor' as PaneInputSource
-            },
-            {
-              label: 'Previous Pane',
-              description: 'Symbols output from previous visible pane (default for later panes)',
-              source: 'previous' as PaneInputSource
-            },
-            {
-              label: 'File',
-              description: 'Symbols in current active file',
-              source: 'file' as PaneInputSource
-            }
-          ],
-          { placeHolder: 'Select Input Source' }
-        );
+        const inputOptions: { label: string; description: string; source: PaneInputSource }[] = [
+          {
+            label: 'Global',
+            description: 'Workspace-wide symbols',
+            source: 'global'
+          },
+          {
+            label: 'File',
+            description: 'Symbols in active editor document',
+            source: 'file'
+          }
+        ];
+        if (!isFirstPane) {
+          inputOptions.push({
+            label: 'Pane',
+            description: 'Symbols from previous visible pane',
+            source: 'pane'
+          });
+        }
+        const inputPick = await vscode.window.showQuickPick(inputOptions, {
+          placeHolder: 'Select Input Source'
+        });
         if (inputPick) {
           pane.inputSource = inputPick.source;
           this._onDidUpdatePanes.fire();
@@ -301,50 +315,81 @@ export class PanePipelineManager {
         }
         break;
       }
-      case 'followSelection': {
-        pane.followSelection = !pane.followSelection;
-        this._onDidUpdatePanes.fire();
-        this.coordinator.refreshSlot(pane.id);
+      case 'selectionSource': {
+        const selPick = await vscode.window.showQuickPick(
+          [
+            {
+              label: 'Cursor',
+              description: 'Symbol at editor cursor (selects all previous panes)',
+              source: 'cursor' as SelectionSource
+            },
+            {
+              label: 'All',
+              description: 'Select all symbols in this pane',
+              source: 'all' as SelectionSource
+            },
+            {
+              label: 'None',
+              description: 'No automatic selection synchronization',
+              source: 'none' as SelectionSource
+            }
+          ],
+          { placeHolder: 'Select Selection Source' }
+        );
+        if (selPick) {
+          pane.selectionSource = selPick.source;
+          this._onDidUpdatePanes.fire();
+          this.coordinator.handlePaneSelectionSourceChange(pane.id);
+        }
         break;
       }
-      case 'followCursor': {
-        pane.followCursor = !pane.followCursor;
-        this._onDidUpdatePanes.fire();
-        break;
-      }
-      case 'showIcons': {
-        pane.showIcons = !pane.showIcons;
-        this._onDidUpdatePanes.fire();
-        this.coordinator.refreshSlot(pane.id);
-        break;
-      }
-      case 'showContext': {
-        pane.showContext = !pane.showContext;
-        this._onDidUpdatePanes.fire();
-        this.coordinator.refreshSlot(pane.id);
+      case 'sort': {
+        const sortPick = await vscode.window.showQuickPick(
+          [
+            {
+              label: 'Alphabetical',
+              description: 'Sort symbols alphabetically by name',
+              sort: 'alphabetical' as SortOption
+            },
+            {
+              label: 'File Order',
+              description: 'Sort symbols by appearance in source file',
+              sort: 'fileOrder' as SortOption
+            },
+            {
+              label: 'Grouped',
+              description: 'Group symbols by kind/category (e.g. classes, methods, fields)',
+              sort: 'grouped' as SortOption
+            }
+          ],
+          { placeHolder: 'Select Sort Order' }
+        );
+        if (sortPick) {
+          pane.sort = sortPick.sort;
+          this._onDidUpdatePanes.fire();
+          this.coordinator.refreshSlot(pane.id);
+        }
         break;
       }
       case 'filters': {
         await this.configureFilters(pane);
         break;
       }
-      case 'display': {
-        const dispPick = await vscode.window.showQuickPick(
-          [
-            { label: 'Flat', description: 'Alphabetical selector list', mode: 'flat' as DisplayMode },
-            {
-              label: 'Hierarchy',
-              description: 'Structured nested tree / inheritance',
-              mode: 'hierarchy' as DisplayMode
-            }
-          ],
-          { placeHolder: 'Select Display Mode' }
-        );
-        if (dispPick) {
-          pane.display = dispPick.mode;
+      case 'filePattern': {
+        const pattern = await vscode.window.showInputBox({
+          value: pane.filePattern || '',
+          prompt: 'Enter regular expression filter for files (e.g. .*\\.ts$ or test)',
+          placeHolder: 'e.g. .*\\.ts$'
+        });
+        if (pattern !== undefined) {
+          pane.filePattern = pattern.trim() || undefined;
           this._onDidUpdatePanes.fire();
-          await this.coordinator.sync();
+          this.coordinator.refreshSlot(pane.id);
         }
+        break;
+      }
+      case 'display': {
+        await this.configureDisplay(pane);
         break;
       }
       case 'addPrevious': {
@@ -366,28 +411,56 @@ export class PanePipelineManager {
     }
   }
 
+  private async configureDisplay(pane: PaneConfig): Promise<void> {
+    const dispPick = await vscode.window.showQuickPick(
+      [
+        {
+          label: 'Hierarchy',
+          description: 'Tree hierarchy of subclasses and subtypes',
+          mode: 'hierarchy' as DisplayMode
+        },
+        {
+          label: 'Flat',
+          description: 'Alphabetical list without nesting',
+          mode: 'flat' as DisplayMode
+        }
+      ],
+      { placeHolder: 'Select Display Mode' }
+    );
+    if (!dispPick) {
+      return;
+    }
+
+    pane.display = dispPick.mode;
+
+    if (pane.display === 'hierarchy') {
+      const subclassOptions: { label: string; key: SymbolKindKey; picked: boolean }[] = [
+        { label: 'Class', key: 'class', picked: (pane.subclassTypes || ['class', 'struct']).includes('class') },
+        { label: 'Interface', key: 'interface', picked: (pane.subclassTypes || ['class', 'struct']).includes('interface') },
+        { label: 'Struct', key: 'struct', picked: (pane.subclassTypes || ['class', 'struct']).includes('struct') },
+        { label: 'Enum', key: 'enum', picked: (pane.subclassTypes || ['class', 'struct']).includes('enum') }
+      ];
+
+      const selectedSubclasses = await vscode.window.showQuickPick(subclassOptions, {
+        canPickMany: true,
+        placeHolder: 'Select what types to show as subclasses'
+      });
+
+      if (selectedSubclasses) {
+        pane.subclassTypes = selectedSubclasses.map((s) => s.key);
+      }
+    }
+
+    this._onDidUpdatePanes.fire();
+    await this.coordinator.sync();
+  }
+
   private async configureFilters(pane: PaneConfig): Promise<void> {
-    const isTypes = pane.role === 'types';
-    const filterOptions: { label: string; key: keyof PaneFilters; picked: boolean }[] = isTypes
-      ? [
-          { label: 'Classes', key: 'classes', picked: pane.filters.classes !== false },
-          { label: 'Interfaces', key: 'interfaces', picked: pane.filters.interfaces !== false },
-          { label: 'Enums', key: 'enums', picked: pane.filters.enums !== false },
-          { label: 'Structs', key: 'structs', picked: pane.filters.structs !== false },
-          { label: 'Functions', key: 'functions', picked: pane.filters.functions !== false }
-        ]
-      : [
-          { label: 'Methods', key: 'methods', picked: pane.filters.methods !== false },
-          { label: 'Constructors', key: 'constructors', picked: pane.filters.constructors !== false },
-          { label: 'Fields', key: 'fields', picked: pane.filters.fields !== false },
-          {
-            label: 'Properties & Accessors',
-            key: 'properties',
-            picked: pane.filters.properties !== false
-          },
-          { label: 'Variables', key: 'variables', picked: pane.filters.variables !== false },
-          { label: 'Constants', key: 'constants', picked: pane.filters.constants !== false }
-        ];
+    const filterOptions = ALL_SYMBOL_FILTER_OPTIONS.map((opt) => ({
+      label: opt.label,
+      key: opt.key,
+      picked: pane.filters[opt.key] !== false
+    }));
 
     const selected = await vscode.window.showQuickPick(filterOptions, {
       canPickMany: true,
@@ -449,21 +522,25 @@ export class PanePipelineManager {
         const p1 = this.panes[0];
         p1.title = 'Types';
         p1.role = 'types';
-        p1.inputSource = 'project';
+        p1.inputSource = 'global';
+        p1.selectionSource = 'cursor';
         p1.display = 'hierarchy';
+        p1.subclassTypes = ['class', 'struct'];
         p1.visible = true;
 
         const p2 = this.panes[1];
         p2.title = 'Members';
         p2.role = 'members';
-        p2.inputSource = 'previous';
+        p2.inputSource = 'pane';
+        p2.selectionSource = 'none';
         p2.display = 'flat';
         p2.visible = true;
 
         const p3 = this.panes[2];
         p3.title = 'References';
         p3.role = 'references';
-        p3.inputSource = 'previous';
+        p3.inputSource = 'pane';
+        p3.selectionSource = 'none';
         p3.display = 'flat';
         p3.visible = true;
         break;
@@ -473,21 +550,25 @@ export class PanePipelineManager {
         const p1 = this.panes[0];
         p1.title = 'Types';
         p1.role = 'types';
-        p1.inputSource = 'project';
+        p1.inputSource = 'global';
+        p1.selectionSource = 'cursor';
         p1.display = 'hierarchy';
+        p1.subclassTypes = ['class', 'struct'];
         p1.visible = true;
 
         const p2 = this.panes[1];
         p2.title = 'Members';
         p2.role = 'members';
-        p2.inputSource = 'previous';
+        p2.inputSource = 'pane';
+        p2.selectionSource = 'none';
         p2.display = 'flat';
         p2.visible = true;
 
         const p3 = this.panes[2];
         p3.title = 'Implementations';
         p3.role = 'implementations';
-        p3.inputSource = 'previous';
+        p3.inputSource = 'pane';
+        p3.selectionSource = 'none';
         p3.display = 'flat';
         p3.visible = true;
         break;
@@ -497,21 +578,25 @@ export class PanePipelineManager {
         const p1 = this.panes[0];
         p1.title = 'Types';
         p1.role = 'types';
-        p1.inputSource = 'project';
+        p1.inputSource = 'global';
+        p1.selectionSource = 'cursor';
         p1.display = 'hierarchy';
+        p1.subclassTypes = ['class', 'struct'];
         p1.visible = true;
 
         const p2 = this.panes[1];
         p2.title = 'Members';
         p2.role = 'members';
-        p2.inputSource = 'previous';
+        p2.inputSource = 'pane';
+        p2.selectionSource = 'none';
         p2.display = 'flat';
         p2.visible = true;
 
         const p3 = this.panes[2];
         p3.title = 'Callers';
         p3.role = 'callers';
-        p3.inputSource = 'previous';
+        p3.inputSource = 'pane';
+        p3.selectionSource = 'none';
         p3.display = 'flat';
         p3.visible = true;
         break;
@@ -522,13 +607,16 @@ export class PanePipelineManager {
         p1.title = 'Types';
         p1.role = 'types';
         p1.inputSource = 'file';
+        p1.selectionSource = 'cursor';
         p1.display = 'hierarchy';
+        p1.subclassTypes = ['class', 'struct'];
         p1.visible = true;
 
         const p2 = this.panes[1];
         p2.title = 'Members';
         p2.role = 'members';
-        p2.inputSource = 'previous';
+        p2.inputSource = 'pane';
+        p2.selectionSource = 'none';
         p2.display = 'flat';
         p2.visible = true;
         break;
@@ -544,6 +632,11 @@ export class PanePipelineManager {
   ): Promise<{ label: string; role: PaneRole } | undefined> {
     return vscode.window.showQuickPick(
       [
+        {
+          label: 'Files',
+          description: 'Workspace files matching regexp pattern',
+          role: 'files' as PaneRole
+        },
         {
           label: 'Types',
           description: 'Classes, Interfaces, Enums, Structs',
@@ -581,6 +674,8 @@ export class PanePipelineManager {
 
   private getRoleLabel(role: PaneRole): string {
     switch (role) {
+      case 'files':
+        return 'Files';
       case 'types':
         return 'Types';
       case 'members':
@@ -598,24 +693,39 @@ export class PanePipelineManager {
 
   private getInputLabel(input: PaneInputSource): string {
     switch (input) {
-      case 'project':
-        return 'Project (Global)';
-      case 'cursor':
-        return 'Cursor (Editor Caret)';
-      case 'previous':
-        return 'Previous Pane';
+      case 'global':
+        return 'Global';
       case 'file':
-        return 'File (Active Editor)';
+        return 'File';
+      case 'pane':
+        return 'Pane';
+    }
+  }
+
+  private getSelectionSourceLabel(source: SelectionSource): string {
+    switch (source) {
+      case 'cursor':
+        return 'Cursor';
+      case 'all':
+        return 'All';
+      case 'none':
+        return 'None';
+    }
+  }
+
+  private getSortLabel(sort: SortOption): string {
+    switch (sort) {
+      case 'alphabetical':
+        return 'Alphabetical';
+      case 'fileOrder':
+        return 'File Order';
+      case 'grouped':
+        return 'Grouped';
     }
   }
 
   private getFiltersSummary(pane: PaneConfig): string {
-    const isTypes = pane.role === 'types';
-    const keys = isTypes
-      ? (['classes', 'interfaces', 'enums', 'structs', 'functions'] as const)
-      : (['methods', 'constructors', 'fields', 'properties', 'variables', 'constants'] as const);
-
-    const active = keys.filter((k) => pane.filters[k] !== false);
-    return `${active.length}/${keys.length} active`;
+    const active = ALL_SYMBOL_FILTER_OPTIONS.filter((opt) => pane.filters[opt.key] !== false);
+    return `${active.length}/${ALL_SYMBOL_FILTER_OPTIONS.length} active`;
   }
 }

@@ -134,7 +134,7 @@ export class SymbolResolver {
     return typeNodes;
   }
 
-  private extractTypesOnly(nodes: FacetSymbolNode[]): FacetSymbolNode[] {
+  public extractTypesOnly(nodes: FacetSymbolNode[]): FacetSymbolNode[] {
     const result: FacetSymbolNode[] = [];
     const walk = (list: FacetSymbolNode[]) => {
       for (const node of list) {
