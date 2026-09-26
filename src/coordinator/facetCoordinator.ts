@@ -14,7 +14,7 @@ import {
   extractTypeHeader,
   buildTypeHierarchy
 } from '../models/symbolNode';
-import { PaneConfig, matchesPaneFilters } from '../models/paneConfig';
+import { PaneConfig, SortOption, matchesPaneFilters } from '../models/paneConfig';
 import { PanePipelineManager } from './panePipelineManager';
 
 export class FacetCoordinator implements vscode.Disposable {
@@ -153,17 +153,13 @@ export class FacetCoordinator implements vscode.Disposable {
       this._onRevealInView.fire({ slotId: pane.id, node: itemToSet });
 
       for (const other of visible) {
-        if (other.id !== pane.id && other.inputSource === 'pane') {
+        if (other.id !== pane.id && other.inputSource === 'previousPane') {
           const upstream = this.getPreviousPane(other.id);
           if (upstream && upstream.id === pane.id) {
             this.refreshSlot(other.id);
           }
         }
       }
-    }
-
-    if (this.scope === 'file') {
-      this.scheduleSync();
     }
   }
 
@@ -224,7 +220,7 @@ export class FacetCoordinator implements vscode.Disposable {
         if (this.pipelineManager) {
           const visible = this.pipelineManager.getVisiblePanes();
           for (const other of visible) {
-            if (other.id !== slotId && other.inputSource === 'pane') {
+            if (other.id !== slotId && other.inputSource === 'previousPane') {
               const upstream = this.getPreviousPane(other.id);
               if (upstream && upstream.id === slotId) {
                 this.refreshSlot(other.id);
@@ -318,21 +314,35 @@ export class FacetCoordinator implements vscode.Disposable {
       if (selection.length === 1) {
         const first = selection[0];
         if (first instanceof vscode.Uri) {
-          await vscode.commands.executeCommand('vscode.open', first);
+          const currentDoc = this.currentEditor?.document;
+          if (!currentDoc || currentDoc.uri.fsPath !== first.fsPath) {
+            await vscode.commands.executeCommand('vscode.open', first);
+          }
         } else if (first.uri && (first.selectionRange || first.range)) {
-          await vscode.commands.executeCommand(
-            'facet.revealRange',
-            first.uri,
-            first.selectionRange || first.range
+          const targetRange: vscode.Range = first.selectionRange || first.range;
+          const currentDoc = this.currentEditor?.document;
+          const currentSel = this.currentEditor?.selection;
+          const sameFile = currentDoc && currentDoc.uri.fsPath === first.uri.fsPath;
+          const alreadyAtTarget = sameFile && currentSel && (
+            currentSel.contains(targetRange.start) ||
+            (currentSel.start.line === targetRange.start.line && currentSel.start.character === targetRange.start.character)
           );
+
+          if (!alreadyAtTarget) {
+            await vscode.commands.executeCommand(
+              'facet.revealRange',
+              first.uri,
+              targetRange
+            );
+          }
         }
       }
 
-      // Refresh downstream panes whose input is 'pane' and upstream is this slot
+      // Refresh downstream panes whose input is 'previousPane' and upstream is this slot
       if (this.pipelineManager) {
         const visible = this.pipelineManager.getVisiblePanes();
         for (const other of visible) {
-          if (other.id !== slotId && other.inputSource === 'pane') {
+          if (other.id !== slotId && other.inputSource === 'previousPane') {
             const upstream = this.getPreviousPane(other.id);
             if (upstream && upstream.id === slotId) {
               this.refreshSlot(other.id);
@@ -352,63 +362,7 @@ export class FacetCoordinator implements vscode.Disposable {
     if (!this.pipelineManager) {
       return undefined;
     }
-    const current = this.pipelineManager.getPane(slotId);
-    if (!current) {
-      return undefined;
-    }
-
     const visible = this.pipelineManager.getVisiblePanes();
-
-    // 1. Explicit inputPaneId binding
-    if (current.inputPaneId) {
-      const explicit = visible.find((p) => p.id === current.inputPaneId && p.id !== slotId);
-      if (explicit) {
-        return explicit;
-      }
-    }
-
-    // 2. Role-based upstream chaining fallback
-    // Types / Hierarchy looks for a visible Files pane
-    if (current.role === 'types' || current.role === 'hierarchy') {
-      const filesPane = visible.find((p) => p.role === 'files' && p.id !== slotId);
-      if (filesPane) {
-        return filesPane;
-      }
-    }
-
-    // Members looks for a visible Types or Hierarchy pane (or Files pane)
-    if (current.role === 'members') {
-      const typePane = visible.find(
-        (p) => (p.role === 'types' || p.role === 'hierarchy') && p.id !== slotId
-      );
-      if (typePane) {
-        return typePane;
-      }
-      const filesPane = visible.find((p) => p.role === 'files' && p.id !== slotId);
-      if (filesPane) {
-        return filesPane;
-      }
-    }
-
-    // Relations (references / implementations / callers) looks for Members pane, then Types
-    if (
-      current.role === 'references' ||
-      current.role === 'implementations' ||
-      current.role === 'callers'
-    ) {
-      const memberPane = visible.find((p) => p.role === 'members' && p.id !== slotId);
-      if (memberPane) {
-        return memberPane;
-      }
-      const typePane = visible.find(
-        (p) => (p.role === 'types' || p.role === 'hierarchy') && p.id !== slotId
-      );
-      if (typePane) {
-        return typePane;
-      }
-    }
-
-    // 3. Fallback: preceding visible pane in sequence
     const idx = visible.findIndex((p) => p.id === slotId);
     return idx > 0 ? visible[idx - 1] : undefined;
   }
@@ -449,7 +403,7 @@ export class FacetCoordinator implements vscode.Disposable {
   private async getFileChildren(config: PaneConfig): Promise<vscode.Uri[]> {
     let files: vscode.Uri[] = [];
 
-    if (config.inputSource === 'global') {
+    if (config.inputSource === 'project') {
       if (this.cachedWorkspaceFiles.length === 0) {
         try {
           this.cachedWorkspaceFiles = await vscode.workspace.findFiles(
@@ -461,11 +415,31 @@ export class FacetCoordinator implements vscode.Disposable {
         }
       }
       files = [...this.cachedWorkspaceFiles];
-    } else if (config.inputSource === 'file') {
+    } else if (config.inputSource === 'openEditors') {
+      const openUris = new Map<string, vscode.Uri>();
+      if (vscode.window.tabGroups && vscode.window.tabGroups.all) {
+        for (const group of vscode.window.tabGroups.all) {
+          for (const tab of group.tabs) {
+            const input = tab.input as any;
+            if (input && input.uri instanceof vscode.Uri) {
+              openUris.set(input.uri.fsPath, input.uri);
+            }
+          }
+        }
+      }
+      if (openUris.size === 0 && vscode.workspace.textDocuments) {
+        for (const doc of vscode.workspace.textDocuments) {
+          if (doc.uri.scheme === 'file') {
+            openUris.set(doc.uri.fsPath, doc.uri);
+          }
+        }
+      }
+      files = Array.from(openUris.values());
+    } else if (config.inputSource === 'activeEditor') {
       if (this.currentEditor?.document.uri) {
         files = [this.currentEditor.document.uri];
       }
-    } else if (config.inputSource === 'pane') {
+    } else if (config.inputSource === 'previousPane') {
       const prevSel = this.getPreviousPaneSelection(config.id);
       files = prevSel
         .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
@@ -490,48 +464,78 @@ export class FacetCoordinator implements vscode.Disposable {
       }
     }
 
-    // Sort files
-    if (config.sort === 'alphabetical') {
-      files.sort((a, b) => {
+    // Stable sort files with deterministic secondary tie-breaker (full path)
+    files.sort((a, b) => {
+      const pathA = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(a) : a.fsPath;
+      const pathB = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(b) : b.fsPath;
+      if (config.sort === 'name') {
         const nameA = a.path.split('/').pop() || '';
         const nameB = b.path.split('/').pop() || '';
-        return nameA.localeCompare(nameB);
-      });
-    } else {
-      files.sort((a, b) => {
-        const pathA = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(a) : a.fsPath;
-        const pathB = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(b) : b.fsPath;
-        return pathA.localeCompare(pathB);
-      });
-    }
+        const diff = nameA.localeCompare(nameB);
+        if (diff !== 0) {
+          return diff;
+        }
+      }
+      return pathA.localeCompare(pathB);
+    });
 
     return files;
   }
 
-  private sortItems<T extends FacetSymbolNode>(items: T[], sort: PaneConfig['sort']): T[] {
+  private sortItems<T extends FacetSymbolNode>(items: T[], sort: SortOption): T[] {
     const copy = items.slice();
-    if (sort === 'alphabetical') {
-      return copy.sort((a, b) => a.name.localeCompare(b.name));
-    }
-    if (sort === 'fileOrder') {
-      return copy.sort((a, b) => {
-        const lineDiff = (a.range?.start?.line ?? 0) - (b.range?.start?.line ?? 0);
-        if (lineDiff !== 0) {
-          return lineDiff;
-        }
-        return (a.range?.start?.character ?? 0) - (b.range?.start?.character ?? 0);
-      });
-    }
-    if (sort === 'grouped') {
-      return copy.sort((a, b) => {
+    return copy.sort((a, b) => {
+      const uriA = a.uri ? (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(a.uri) : a.uri.fsPath) : '';
+      const uriB = b.uri ? (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(b.uri) : b.uri.fsPath) : '';
+      const uriDiff = uriA.localeCompare(uriB);
+
+      const lineDiff = (a.range?.start?.line ?? 0) - (b.range?.start?.line ?? 0);
+      const charDiff = (a.range?.start?.character ?? 0) - (b.range?.start?.character ?? 0);
+
+      if (sort === 'category') {
         const kindDiff = a.kind - b.kind;
         if (kindDiff !== 0) {
           return kindDiff;
         }
+        const nameDiff = a.name.localeCompare(b.name);
+        if (nameDiff !== 0) {
+          return nameDiff;
+        }
+        if (uriDiff !== 0) {
+          return uriDiff;
+        }
+        if (lineDiff !== 0) {
+          return lineDiff;
+        }
+        return charDiff;
+      }
+
+      if (sort === 'position') {
+        if (uriDiff !== 0) {
+          return uriDiff;
+        }
+        if (lineDiff !== 0) {
+          return lineDiff;
+        }
+        if (charDiff !== 0) {
+          return charDiff;
+        }
         return a.name.localeCompare(b.name);
-      });
-    }
-    return copy;
+      }
+
+      // Default: 'name'
+      const nameDiff = a.name.localeCompare(b.name);
+      if (nameDiff !== 0) {
+        return nameDiff;
+      }
+      if (uriDiff !== 0) {
+        return uriDiff;
+      }
+      if (lineDiff !== 0) {
+        return lineDiff;
+      }
+      return charDiff;
+    });
   }
 
   private async getTypeChildren(config: PaneConfig, element?: any): Promise<any[]> {
@@ -553,14 +557,43 @@ export class FacetCoordinator implements vscode.Disposable {
 
     let rawTypes: FacetSymbolNode[] = [];
 
-    if (config.inputSource === 'global') {
+    if (config.inputSource === 'project') {
       if (this.cachedWorkspaceTypes.length === 0) {
         this.cachedWorkspaceTypes = await this.resolver.resolveWorkspaceTypes('');
       }
       rawTypes = this.cachedWorkspaceTypes;
-    } else if (config.inputSource === 'file') {
+    } else if (config.inputSource === 'activeEditor') {
       rawTypes = this.cachedDocumentSymbols.filter((s) => isTypeKind(s.kind));
-    } else if (config.inputSource === 'pane') {
+    } else if (config.inputSource === 'openEditors') {
+      const openUris = new Map<string, vscode.Uri>();
+      if (vscode.window.tabGroups && vscode.window.tabGroups.all) {
+        for (const group of vscode.window.tabGroups.all) {
+          for (const tab of group.tabs) {
+            const input = tab.input as any;
+            if (input && input.uri instanceof vscode.Uri) {
+              openUris.set(input.uri.fsPath, input.uri);
+            }
+          }
+        }
+      }
+      if (openUris.size === 0 && vscode.workspace.textDocuments) {
+        for (const doc of vscode.workspace.textDocuments) {
+          if (doc.uri.scheme === 'file') {
+            openUris.set(doc.uri.fsPath, doc.uri);
+          }
+        }
+      }
+      for (const uri of openUris.values()) {
+        try {
+          const doc = await vscode.workspace.openTextDocument(uri);
+          const symbols = await this.resolver.resolveDocumentSymbols(doc);
+          const types = this.resolver.extractTypesOnly(symbols);
+          rawTypes.push(...types);
+        } catch {
+          // ignore
+        }
+      }
+    } else if (config.inputSource === 'previousPane') {
       const prev = this.getPreviousPaneSelection(config.id);
       const symbolTypes = prev.filter((s) => s && isTypeKind(s.kind));
       if (symbolTypes.length > 0) {
@@ -625,7 +658,7 @@ export class FacetCoordinator implements vscode.Disposable {
 
     let targetTypes: FacetSymbolNode[] = [];
 
-    if (config.inputSource === 'pane') {
+    if (config.inputSource === 'previousPane') {
       const prevSel = this.getPreviousPaneSelection(config.id);
       targetTypes = prevSel.filter((s) => isTypeKind(s.kind));
 
@@ -658,10 +691,37 @@ export class FacetCoordinator implements vscode.Disposable {
           }
         }
       }
-    } else if (config.inputSource === 'file') {
+    } else if (config.inputSource === 'activeEditor') {
       targetTypes = this.cachedDocumentSymbols.filter((s) => isTypeKind(s.kind));
-    } else if (config.inputSource === 'global') {
-      targetTypes = this.cachedWorkspaceTypes;
+    } else if (config.inputSource === 'openEditors') {
+      const openUris = new Map<string, vscode.Uri>();
+      if (vscode.window.tabGroups && vscode.window.tabGroups.all) {
+        for (const group of vscode.window.tabGroups.all) {
+          for (const tab of group.tabs) {
+            const input = tab.input as any;
+            if (input && input.uri instanceof vscode.Uri) {
+              openUris.set(input.uri.fsPath, input.uri);
+            }
+          }
+        }
+      }
+      if (openUris.size === 0 && vscode.workspace.textDocuments) {
+        for (const doc of vscode.workspace.textDocuments) {
+          if (doc.uri.scheme === 'file') {
+            openUris.set(doc.uri.fsPath, doc.uri);
+          }
+        }
+      }
+      for (const uri of openUris.values()) {
+        try {
+          const doc = await vscode.workspace.openTextDocument(uri);
+          const symbols = await this.resolver.resolveDocumentSymbols(doc);
+          const types = this.resolver.extractTypesOnly(symbols);
+          targetTypes.push(...types);
+        } catch {
+          // ignore
+        }
+      }
     }
 
     // Lazy hydration for workspace types with unpopulated children
@@ -692,20 +752,15 @@ export class FacetCoordinator implements vscode.Disposable {
   ): Promise<any[]> {
     let targets: FacetSymbolNode[] = [];
 
-    if (config.inputSource === 'file') {
-      const cur = this.findMemberAtCursor() || this.findEnclosingTypeAtCursor();
-      targets = cur ? [cur] : [];
-    } else {
-      const prevSel = this.getPreviousPaneSelection(config.id);
-      targets = prevSel.filter((s) => s && s.name && s.uri);
+    const prevSel = this.getPreviousPaneSelection(config.id);
+    targets = prevSel.filter((s) => s && s.name && s.uri);
 
-      if (targets.length === 0) {
-        const prevPane = this.getPreviousPane(config.id);
-        if (prevPane) {
-          const prevItems = await this.getSlotChildren(prevPane);
-          if (prevItems.length > 0 && prevItems[0].uri) {
-            targets = [prevItems[0]];
-          }
+    if (targets.length === 0) {
+      const prevPane = this.getPreviousPane(config.id);
+      if (prevPane) {
+        const prevItems = await this.getSlotChildren(prevPane);
+        if (prevItems.length > 0 && prevItems[0].uri) {
+          targets = [prevItems[0]];
         }
       }
     }

@@ -140,9 +140,9 @@ suite('FacetCoordinator Test Suite', () => {
       id: 'facet.pane.2',
       title: 'Members',
       role: 'members',
-      inputSource: 'pane',
+      inputSource: 'previousPane',
       selectionSource: 'none',
-      sort: 'alphabetical',
+      sort: 'name',
       filters: { ...createDefaultFilters(), constant: false },
       display: 'flat',
       visible: true
@@ -189,9 +189,9 @@ suite('FacetCoordinator Test Suite', () => {
       id: 'facet.pane.2',
       title: 'Members',
       role: 'members',
-      inputSource: 'pane',
+      inputSource: 'previousPane',
       selectionSource: 'none',
-      sort: 'alphabetical',
+      sort: 'name',
       filters: createDefaultFilters(),
       display: 'flat',
       visible: true
@@ -249,9 +249,9 @@ suite('FacetCoordinator Test Suite', () => {
       id: 'facet.pane.1',
       title: 'Types',
       role: 'types',
-      inputSource: 'global',
+      inputSource: 'project',
       selectionSource: 'cursor',
-      sort: 'alphabetical',
+      sort: 'name',
       filters: createDefaultFilters(),
       display: 'hierarchy',
       visible: true
@@ -347,9 +347,9 @@ suite('FacetCoordinator Test Suite', () => {
       id: 'facet.pane.1',
       title: 'Types',
       role: 'types',
-      inputSource: 'global',
+      inputSource: 'project',
       selectionSource: 'cursor',
-      sort: 'alphabetical',
+      sort: 'name',
       filters: createDefaultFilters(),
       display: 'hierarchy',
       visible: true
@@ -397,7 +397,7 @@ suite('FacetCoordinator Test Suite', () => {
 
     const filesPaneConfig = createFilesPane('facet.pane.1', {
       filePattern: '.*\\.ts$',
-      sort: 'alphabetical'
+      sort: 'name'
     });
 
     const matched = await coordinator.getSlotChildren(filesPaneConfig);
@@ -457,9 +457,9 @@ suite('FacetCoordinator Test Suite', () => {
       id: 'facet.pane.2',
       title: 'Types',
       role: 'types',
-      inputSource: 'pane',
+      inputSource: 'previousPane',
       selectionSource: 'none',
-      sort: 'alphabetical',
+      sort: 'name',
       filters: createDefaultFilters(),
       display: 'flat',
       visible: true

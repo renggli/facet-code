@@ -51,7 +51,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const manager = new PanePipelineManager(coordinator);
     assert.strictEqual(manager.getPanes().length, 6);
     assert.strictEqual(manager.getVisiblePanes().length, 3);
-    assert.strictEqual(manager.getVisiblePanes()[0].inputSource, 'global');
+    assert.strictEqual(manager.getVisiblePanes()[0].inputSource, 'project');
     assert.strictEqual(manager.getVisiblePanes()[0].role, 'types');
 
     coordinator.dispose();
@@ -131,7 +131,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('PanePipelineManager delete preserves slot ordering and remaps inputPaneId cleanly', async () => {
+  test('PanePipelineManager delete preserves slot ordering and upstream chaining', async () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
     const membersProvider = new MembersTreeProvider();
@@ -145,8 +145,6 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
 
     const manager = new PanePipelineManager(coordinator);
     // Initial visible: [pane.1 (types), pane.2 (members), pane.3 (references)]
-    // Set pane.3 explicit inputPaneId to pane.2
-    manager.getVisiblePanes()[2].inputPaneId = 'facet.pane.2';
 
     // Delete pane.1 (Types)
     await manager.removePane('facet.pane.1');
@@ -158,18 +156,20 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(visibleAfter[0].role, 'members');
     assert.strictEqual(visibleAfter[1].id, 'facet.pane.2');
     assert.strictEqual(visibleAfter[1].role, 'references');
-    // inputPaneId should have been remapped from facet.pane.2 to facet.pane.1
-    assert.strictEqual(visibleAfter[1].inputPaneId, 'facet.pane.1');
 
-    // Check upstream resolution in coordinator
+    // Upstream chaining is strictly relative to previous visible pane
     const upstream = coordinator.getPreviousPane('facet.pane.2');
     assert.strictEqual(upstream?.id, 'facet.pane.1');
     assert.strictEqual(upstream?.role, 'members');
 
+    // First pane has no previous pane
+    const upstreamFirst = coordinator.getPreviousPane('facet.pane.1');
+    assert.strictEqual(upstreamFirst, undefined);
+
     coordinator.dispose();
   });
 
-  test('FacetCoordinator resolves upstream pane via role-based fallback when drag-and-dropped', async () => {
+  test('FacetCoordinator resolves upstream pane strictly relative to preceding visible pane', async () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
     const membersProvider = new MembersTreeProvider();
@@ -186,17 +186,20 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     await manager.addPaneToEnd('files');
     // Current visible: [pane.1 (types), pane.2 (members), pane.3 (references), pane.4 (files)]
 
-    // Types pane looks for files role fallback
-    const upstreamForTypes = coordinator.getPreviousPane('facet.pane.1');
-    assert.strictEqual(upstreamForTypes?.role, 'files');
+    // pane.1 has no previous pane
+    assert.strictEqual(coordinator.getPreviousPane('facet.pane.1'), undefined);
 
-    // Members pane looks for types role fallback
+    // pane.2 upstream is pane.1
     const upstreamForMembers = coordinator.getPreviousPane('facet.pane.2');
-    assert.strictEqual(upstreamForMembers?.role, 'types');
+    assert.strictEqual(upstreamForMembers?.id, 'facet.pane.1');
 
-    // References pane looks for members role fallback
+    // pane.3 upstream is pane.2
     const upstreamForReferences = coordinator.getPreviousPane('facet.pane.3');
-    assert.strictEqual(upstreamForReferences?.role, 'members');
+    assert.strictEqual(upstreamForReferences?.id, 'facet.pane.2');
+
+    // pane.4 upstream is pane.3
+    const upstreamForFiles = coordinator.getPreviousPane('facet.pane.4');
+    assert.strictEqual(upstreamForFiles?.id, 'facet.pane.3');
 
     coordinator.dispose();
   });

@@ -10,9 +10,9 @@ export type PaneRole =
   | 'callers'
   | 'hierarchy';
 
-export type PaneInputSource = 'global' | 'file' | 'pane';
+export type PaneInputSource = 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
 export type SelectionSource = 'none' | 'all' | 'cursor';
-export type SortOption = 'alphabetical' | 'fileOrder' | 'grouped';
+export type SortOption = 'position' | 'name' | 'category';
 export type DisplayMode = 'flat' | 'hierarchy';
 
 export type SymbolKindKey =
@@ -131,22 +131,21 @@ export interface BasePaneConfig {
   id: string; // e.g. 'facet.pane.1'
   title: string;
   visible: boolean;
-  inputPaneId?: string;
 }
 
 export interface FilesPaneConfig extends BasePaneConfig {
   role: 'files';
-  inputSource: 'global' | 'file' | 'pane';
+  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
-  sort: 'alphabetical' | 'fileOrder';
+  sort: 'position' | 'name';
   filePattern?: string;
 }
 
 export interface TypesPaneConfig extends BasePaneConfig {
   role: 'types';
-  inputSource: 'global' | 'file' | 'pane';
+  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
-  sort: 'alphabetical' | 'fileOrder' | 'grouped';
+  sort: 'position' | 'name' | 'category';
   display: 'flat' | 'hierarchy';
   subclassTypes?: SymbolKindKey[];
   filters: PaneFilters;
@@ -154,39 +153,39 @@ export interface TypesPaneConfig extends BasePaneConfig {
 
 export interface MembersPaneConfig extends BasePaneConfig {
   role: 'members';
-  inputSource: 'global' | 'file' | 'pane';
+  inputSource: 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
-  sort: 'alphabetical' | 'fileOrder' | 'grouped';
+  sort: 'position' | 'name' | 'category';
   display: 'flat' | 'hierarchy';
   filters: PaneFilters;
 }
 
 export interface ReferencesPaneConfig extends BasePaneConfig {
   role: 'references';
-  inputSource: 'file' | 'pane';
+  inputSource: 'previousPane';
   selectionSource: 'all' | 'none';
-  sort: 'alphabetical' | 'fileOrder';
+  sort: 'position' | 'name';
 }
 
 export interface ImplementationsPaneConfig extends BasePaneConfig {
   role: 'implementations';
-  inputSource: 'file' | 'pane';
+  inputSource: 'previousPane';
   selectionSource: 'all' | 'none';
-  sort: 'alphabetical' | 'fileOrder';
+  sort: 'position' | 'name';
 }
 
 export interface CallersPaneConfig extends BasePaneConfig {
   role: 'callers';
-  inputSource: 'file' | 'pane';
+  inputSource: 'previousPane';
   selectionSource: 'all' | 'none';
-  sort: 'alphabetical' | 'fileOrder';
+  sort: 'position' | 'name';
 }
 
 export interface HierarchyPaneConfig extends BasePaneConfig {
   role: 'hierarchy';
-  inputSource: 'global' | 'file' | 'pane';
+  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
-  sort: 'alphabetical' | 'fileOrder' | 'grouped';
+  sort: 'position' | 'name' | 'category';
   display: 'hierarchy';
   subclassTypes?: SymbolKindKey[];
   filters: PaneFilters;
@@ -226,9 +225,9 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
     id,
     title: 'Files',
     role: 'files',
-    inputSource: 'global',
+    inputSource: 'project',
     selectionSource: 'none',
-    sort: 'alphabetical',
+    sort: 'name',
     visible: true,
     ...overrides
   };
@@ -239,9 +238,9 @@ export function createTypesPane(id: string, overrides?: Partial<TypesPaneConfig>
     id,
     title: 'Types',
     role: 'types',
-    inputSource: 'global',
+    inputSource: 'project',
     selectionSource: 'cursor',
-    sort: 'alphabetical',
+    sort: 'name',
     display: 'hierarchy',
     subclassTypes: ['class', 'struct'],
     filters: createDefaultFilters(TYPE_FILTER_KEYS),
@@ -255,9 +254,9 @@ export function createMembersPane(id: string, overrides?: Partial<MembersPaneCon
     id,
     title: 'Members',
     role: 'members',
-    inputSource: 'pane',
+    inputSource: 'previousPane',
     selectionSource: 'none',
-    sort: 'alphabetical',
+    sort: 'name',
     display: 'flat',
     filters: createDefaultFilters(MEMBER_FILTER_KEYS),
     visible: true,
@@ -273,9 +272,9 @@ export function createReferencesPane(
     id,
     title: 'References',
     role: 'references',
-    inputSource: 'pane',
+    inputSource: 'previousPane',
     selectionSource: 'none',
-    sort: 'alphabetical',
+    sort: 'name',
     visible: true,
     ...overrides
   };
@@ -289,9 +288,9 @@ export function createImplementationsPane(
     id,
     title: 'Implementations',
     role: 'implementations',
-    inputSource: 'pane',
+    inputSource: 'previousPane',
     selectionSource: 'none',
-    sort: 'alphabetical',
+    sort: 'name',
     visible: true,
     ...overrides
   };
@@ -302,9 +301,9 @@ export function createCallersPane(id: string, overrides?: Partial<CallersPaneCon
     id,
     title: 'Callers',
     role: 'callers',
-    inputSource: 'pane',
+    inputSource: 'previousPane',
     selectionSource: 'none',
-    sort: 'alphabetical',
+    sort: 'name',
     visible: true,
     ...overrides
   };
@@ -318,9 +317,9 @@ export function createHierarchyPane(
     id,
     title: 'Hierarchy',
     role: 'hierarchy',
-    inputSource: 'pane',
+    inputSource: 'previousPane',
     selectionSource: 'cursor',
-    sort: 'alphabetical',
+    sort: 'name',
     display: 'hierarchy',
     subclassTypes: ['class', 'struct'],
     filters: createDefaultFilters(TYPE_FILTER_KEYS),

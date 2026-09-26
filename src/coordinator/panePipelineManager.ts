@@ -58,29 +58,15 @@ export class PanePipelineManager {
     const totalSlots = 6;
     const clampedVisible = newVisible.slice(0, totalSlots);
 
-    // Build old slotId -> new slotId mapping
-    const oldIdToNewId = new Map<string, string>();
-    for (let i = 0; i < clampedVisible.length; i++) {
-      const oldId = clampedVisible[i].id;
-      const newId = `facet.pane.${i + 1}`;
-      if (oldId) {
-        oldIdToNewId.set(oldId, newId);
-      }
-    }
-
     const updatedPanes: PaneConfig[] = [];
     for (let i = 0; i < clampedVisible.length; i++) {
       const p = clampedVisible[i];
       p.id = `facet.pane.${i + 1}`;
       p.visible = true;
 
-      // Remap explicit inputPaneId if present
-      if (p.inputPaneId) {
-        p.inputPaneId = oldIdToNewId.get(p.inputPaneId);
-      }
-
-      if (i === 0 && p.inputSource === 'pane' && !p.inputPaneId) {
-        p.inputSource = 'global';
+      // If the first visible pane was set to previousPane, default it to project/activeEditor
+      if (i === 0 && p.inputSource === 'previousPane') {
+        p.inputSource = (p.role === 'members' ? 'openEditors' : 'project') as any;
       }
       updatedPanes.push(p);
     }
@@ -118,9 +104,10 @@ export class PanePipelineManager {
       label = this.getRoleLabel(targetRole);
     }
 
+    const defaultInput: PaneInputSource = visible.length === 0 ? 'project' : 'previousPane';
     const newPane = createPaneByRole(targetRole, '', {
       title: label,
-      inputSource: visible.length === 0 ? 'global' : 'pane',
+      inputSource: defaultInput,
       selectionSource: 'none',
       visible: true
     });
@@ -237,7 +224,7 @@ export class PanePipelineManager {
       { label: 'Presets', kind: vscode.QuickPickItemKind.Separator },
       {
         label: '$(layers) Apply Preset...',
-        description: 'Project Browser, Implementations, Callers, Outline, File Browser',
+        description: 'Project Browser, Implementations, Callers, Compact Outline, File Browser',
         action: 'preset'
       }
     );
@@ -267,7 +254,7 @@ export class PanePipelineManager {
         if (rolePick) {
           const newPane = createPaneByRole(rolePick.role, pane.id, {
             title: rolePick.label,
-            inputSource: isFirstPane ? 'global' : pane.inputSource,
+            inputSource: isFirstPane ? (rolePick.role === 'members' ? 'openEditors' : 'project') : pane.inputSource,
             visible: true
           });
           visible[idx] = newPane;
@@ -277,50 +264,37 @@ export class PanePipelineManager {
       }
       case 'input': {
         const inputOptions: { label: string; description: string; source: PaneInputSource }[] = [];
-        if (pane.role !== 'references' && pane.role !== 'implementations' && pane.role !== 'callers') {
+        if (pane.role === 'files' || pane.role === 'types' || pane.role === 'hierarchy') {
           inputOptions.push({
-            label: 'Global',
-            description: 'Workspace-wide symbols or files',
-            source: 'global'
+            label: 'Project',
+            description: 'Workspace-wide files or symbols',
+            source: 'project'
           });
         }
-        inputOptions.push({
-          label: 'File',
-          description: 'Symbols in active editor document',
-          source: 'file'
-        });
+        if (pane.role === 'files' || pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy') {
+          inputOptions.push({
+            label: 'Open Editors',
+            description: 'Symbols or files from open editor tabs',
+            source: 'openEditors'
+          });
+          inputOptions.push({
+            label: 'Active Editor',
+            description: 'Symbols or file from the active editor',
+            source: 'activeEditor'
+          });
+        }
         if (!isFirstPane) {
           inputOptions.push({
-            label: 'Pane',
-            description: 'Symbols from previous visible pane',
-            source: 'pane'
+            label: 'Previous Pane',
+            description: 'Symbols from preceding visible pane',
+            source: 'previousPane'
           });
         }
         const inputPick = await vscode.window.showQuickPick(inputOptions, {
           placeHolder: 'Select Input Source'
         });
         if (inputPick) {
-          pane.inputSource = inputPick.source;
-          if (inputPick.source === 'pane') {
-            const candidatePanes = visible.filter((p) => p.id !== slotId);
-            if (candidatePanes.length > 1) {
-              const targetPick = await vscode.window.showQuickPick(
-                candidatePanes.map((p) => ({
-                  label: p.title,
-                  description: `Role: ${p.role} (${p.id})`,
-                  paneId: p.id
-                })),
-                { placeHolder: 'Select Upstream Source Pane' }
-              );
-              if (targetPick) {
-                pane.inputPaneId = targetPick.paneId;
-              }
-            } else if (candidatePanes.length === 1) {
-              pane.inputPaneId = candidatePanes[0].id;
-            }
-          } else {
-            pane.inputPaneId = undefined;
-          }
+          pane.inputSource = inputPick.source as any;
           this._onDidUpdatePanes.fire();
           await this.coordinator.sync();
         }
@@ -360,28 +334,28 @@ export class PanePipelineManager {
       case 'sort': {
         const sortOptions: { label: string; description: string; sort: SortOption }[] = [
           {
-            label: 'Alphabetical',
-            description: 'Sort symbols alphabetically by name',
-            sort: 'alphabetical'
+            label: 'Name',
+            description: 'Sort alphabetically by name',
+            sort: 'name'
           },
           {
-            label: 'File Order',
-            description: 'Sort symbols by appearance in source file',
-            sort: 'fileOrder'
+            label: 'Position',
+            description: 'Sort by position in file',
+            sort: 'position'
           }
         ];
         if (pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy') {
           sortOptions.push({
-            label: 'Grouped',
+            label: 'Category',
             description: 'Group symbols by kind/category',
-            sort: 'grouped'
+            sort: 'category'
           });
         }
         const sortPick = await vscode.window.showQuickPick(sortOptions, {
           placeHolder: 'Select Sort Order'
         });
         if (sortPick) {
-          pane.sort = sortPick.sort;
+          pane.sort = sortPick.sort as any;
           this._onDidUpdatePanes.fire();
           this.coordinator.refreshSlot(pane.id);
         }
@@ -503,27 +477,27 @@ export class PanePipelineManager {
           [
             {
               label: 'Project Browser',
-              description: 'Types (Global) -> Members -> References',
+              description: 'Types (Project) -> Members -> References',
               preset: 'project'
             },
             {
               label: 'Implementations Browser',
-              description: 'Types (Global) -> Members -> Implementations',
+              description: 'Types (Project) -> Members -> Implementations',
               preset: 'implementations'
             },
             {
               label: 'Callers Browser',
-              description: 'Types (Global) -> Members -> Callers',
+              description: 'Types (Project) -> Members -> Callers',
               preset: 'callers'
             },
             {
               label: 'Compact Outline',
-              description: 'Active File Types -> Members',
+              description: 'Active Editor Types -> Members',
               preset: 'outline'
             },
             {
               label: 'File Browser',
-              description: 'Files (Global) -> Types -> Members',
+              description: 'Files (Project) -> Types -> Members',
               preset: 'fileBrowser'
             }
           ],
@@ -540,36 +514,36 @@ export class PanePipelineManager {
       case 'project':
       default:
         newVisible = [
-          createTypesPane('', { title: 'Types', inputSource: 'global', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' }),
-          createReferencesPane('', { title: 'References', inputSource: 'pane', selectionSource: 'none' })
+          createTypesPane('', { title: 'Types', inputSource: 'project', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' }),
+          createReferencesPane('', { title: 'References', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
       case 'implementations':
         newVisible = [
-          createTypesPane('', { title: 'Types', inputSource: 'global', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' }),
-          createImplementationsPane('', { title: 'Implementations', inputSource: 'pane', selectionSource: 'none' })
+          createTypesPane('', { title: 'Types', inputSource: 'project', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' }),
+          createImplementationsPane('', { title: 'Implementations', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
       case 'callers':
         newVisible = [
-          createTypesPane('', { title: 'Types', inputSource: 'global', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' }),
-          createCallersPane('', { title: 'Callers', inputSource: 'pane', selectionSource: 'none' })
+          createTypesPane('', { title: 'Types', inputSource: 'project', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' }),
+          createCallersPane('', { title: 'Callers', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
       case 'outline':
         newVisible = [
-          createTypesPane('', { title: 'Types', inputSource: 'file', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' })
+          createTypesPane('', { title: 'Types', inputSource: 'activeEditor', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
       case 'fileBrowser':
         newVisible = [
-          createFilesPane('', { title: 'Files', inputSource: 'global', selectionSource: 'cursor' }),
-          createTypesPane('', { title: 'Types', inputSource: 'pane', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' })
+          createFilesPane('', { title: 'Files', inputSource: 'project', selectionSource: 'cursor' }),
+          createTypesPane('', { title: 'Types', inputSource: 'previousPane', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
     }
@@ -643,12 +617,14 @@ export class PanePipelineManager {
 
   private getInputLabel(input: PaneInputSource): string {
     switch (input) {
-      case 'global':
-        return 'Global';
-      case 'file':
-        return 'File';
-      case 'pane':
-        return 'Pane';
+      case 'project':
+        return 'Project';
+      case 'openEditors':
+        return 'Open Editors';
+      case 'activeEditor':
+        return 'Active Editor';
+      case 'previousPane':
+        return 'Previous Pane';
     }
   }
 
@@ -665,12 +641,12 @@ export class PanePipelineManager {
 
   private getSortLabel(sort: SortOption): string {
     switch (sort) {
-      case 'alphabetical':
-        return 'Alphabetical';
-      case 'fileOrder':
-        return 'File Order';
-      case 'grouped':
-        return 'Grouped';
+      case 'name':
+        return 'Name';
+      case 'position':
+        return 'Position';
+      case 'category':
+        return 'Category';
     }
   }
 
