@@ -26,7 +26,8 @@
 		"watch": "tsc -watch -p ./",
 		"pretest": "npm run compile && npm run lint",
 		"lint": "eslint src",
-		"test": "vscode-test"
+		"test:unit": "mocha --ui tdd out/test/unit/**/*.test.js",
+		"test": "npm run test:unit"
 	},
 	"devDependencies": {
 		"@types/vscode": "^1.138.0",
