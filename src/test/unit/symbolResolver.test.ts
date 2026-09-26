@@ -207,28 +207,46 @@ export class Calculator {
     assert.strictEqual(matchesPaneFilters(methodNode, { methods: false }), false);
   });
 
-  test('extractSuperTypes correctly parses extends and implements across language headers', () => {
-    const { extractSuperTypes } = require('../../models/symbolNode');
+  test('extractSuperTypes correctly parses extends without mixing implements for classes', () => {
+    const { extractSuperTypes, extractTypeHeader } = require('../../models/symbolNode');
 
+    // Class with extends and implements: only extends (Animal) is parsed!
     assert.deepStrictEqual(
-      extractSuperTypes('export class Dog extends Animal implements IPet, ICanRun {'),
-      ['Animal', 'IPet', 'ICanRun']
+      extractSuperTypes('export class Dog extends Animal implements IPet, ICanRun {', false),
+      ['Animal']
     );
+
+    // Interface with extends: all super interfaces are parsed
     assert.deepStrictEqual(
-      extractSuperTypes('interface Cat extends Animal, Domesticated {'),
+      extractSuperTypes('interface Cat extends Animal, Domesticated {', true),
       ['Animal', 'Domesticated']
     );
+
+    // Python inheritance
     assert.deepStrictEqual(
-      extractSuperTypes('class Dog(Animal, CanRun):'),
+      extractSuperTypes('class Dog(Animal, CanRun):', false),
       ['Animal', 'CanRun']
     );
+
+    // C# class with base class and interface: only base class is parsed
     assert.deepStrictEqual(
-      extractSuperTypes('public class Dog : Animal, IPet'),
-      ['Animal', 'IPet']
+      extractSuperTypes('public class Dog : Animal, IPet', false),
+      ['Animal']
     );
+
+    // Multi-line header extraction
+    const multiLine = [
+      'export class Dog',
+      '  extends Animal',
+      '  implements IPet {',
+      '  name: string;'
+    ];
+    const header = extractTypeHeader(multiLine, 0);
+    assert.strictEqual(header, 'export class Dog extends Animal implements IPet {');
+    assert.deepStrictEqual(extractSuperTypes(header, false), ['Animal']);
   });
 
-  test('buildTypeHierarchy nests subtypes and excludes them from roots', () => {
+  test('buildTypeHierarchy nests subtypes, excludes them from roots, and never mixes interfaces', () => {
     const { buildTypeHierarchy } = require('../../models/symbolNode');
 
     const animal: FacetSymbolNode = {
@@ -252,7 +270,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['Animal']
+      superTypes: ['Animal', 'IPet'] // Includes an interface to test interface guard
     };
 
     const goldenRetriever: FacetSymbolNode = {
@@ -267,9 +285,9 @@ export class Calculator {
       superTypes: ['Dog']
     };
 
-    const standalone: FacetSymbolNode = {
-      name: 'StandaloneClass',
-      kind: vscode.SymbolKind.Class,
+    const petInterface: FacetSymbolNode = {
+      name: 'IPet',
+      kind: vscode.SymbolKind.Interface,
       uri: dummyUri,
       range: new vscode.Range(3, 0, 3, 0),
       selectionRange: new vscode.Range(3, 0, 3, 0),
@@ -279,12 +297,25 @@ export class Calculator {
       superTypes: []
     };
 
-    const roots = buildTypeHierarchy([animal, dog, goldenRetriever, standalone]);
+    const standalone: FacetSymbolNode = {
+      name: 'StandaloneClass',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: new vscode.Range(4, 0, 4, 0),
+      selectionRange: new vscode.Range(4, 0, 4, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: []
+    };
 
-    // Only Animal and StandaloneClass are roots! Dog and GoldenRetriever must NOT be duplicated at root level
-    assert.strictEqual(roots.length, 2);
+    const roots = buildTypeHierarchy([animal, dog, goldenRetriever, petInterface, standalone]);
+
+    // Animal, IPet, and StandaloneClass are roots. Dog and GoldenRetriever are nested
+    assert.strictEqual(roots.length, 3);
     const rootNames = roots.map((r: FacetSymbolNode) => r.name);
     assert.ok(rootNames.includes('Animal'));
+    assert.ok(rootNames.includes('IPet'));
     assert.ok(rootNames.includes('StandaloneClass'));
     assert.ok(!rootNames.includes('Dog'));
     assert.ok(!rootNames.includes('GoldenRetriever'));
@@ -296,5 +327,8 @@ export class Calculator {
     // Dog has GoldenRetriever as subType
     assert.strictEqual(dog.subTypes?.length, 1);
     assert.strictEqual(dog.subTypes[0].name, 'GoldenRetriever');
+
+    // IPet does NOT have Dog as subType (interface must not mix in classes)
+    assert.strictEqual(petInterface.subTypes?.length || 0, 0);
   });
 });

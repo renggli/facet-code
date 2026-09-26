@@ -262,7 +262,7 @@ suite('FacetCoordinator Test Suite', () => {
 
     const typesPaneConfig: PaneConfig = {
       id: 'facet.pane.1',
-      title: 'Project Types',
+      title: 'Types',
       role: 'types',
       inputSource: 'project',
       followSelection: true,
@@ -292,6 +292,101 @@ suite('FacetCoordinator Test Suite', () => {
     const subItem = coordinator.getSlotTreeItem(typesPaneConfig, subChildren[0]);
     assert.strictEqual(subItem.collapsibleState, vscode.TreeItemCollapsibleState.None);
 
+    coordinator.dispose();
+  });
+
+  test('coordinator hydrates missing superTypes from file and does not mix interfaces', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    const fakeCode = [
+      'export interface IPet {',
+      '  speak(): void;',
+      '}',
+      'export class Animal {',
+      '}',
+      'export class Dog',
+      '  extends Animal',
+      '  implements IPet {',
+      '}'
+    ].join('\n');
+
+    const origFs = (vscode.workspace as any).fs;
+    (vscode.workspace as any).fs = { readFile: async () => Buffer.from(fakeCode, 'utf8') };
+
+    const fileUri = vscode.Uri.file('/test/workspace/models.ts');
+
+    const petNode: FacetSymbolNode = {
+      name: 'IPet',
+      kind: vscode.SymbolKind.Interface,
+      uri: fileUri,
+      range: new vscode.Range(0, 0, 2, 1),
+      selectionRange: new vscode.Range(0, 17, 0, 21),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: []
+    };
+
+    const animalNode: FacetSymbolNode = {
+      name: 'Animal',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: new vscode.Range(3, 0, 4, 1),
+      selectionRange: new vscode.Range(3, 13, 3, 19),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: []
+    };
+
+    const dogNode: FacetSymbolNode = {
+      name: 'Dog',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: new vscode.Range(5, 0, 8, 1),
+      selectionRange: new vscode.Range(5, 13, 5, 16),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: []
+    };
+
+    (coordinator as any).cachedWorkspaceTypes = [petNode, animalNode, dogNode];
+
+    const typesPaneConfig: PaneConfig = {
+      id: 'facet.pane.1',
+      title: 'Types',
+      role: 'types',
+      inputSource: 'project',
+      followSelection: true,
+      followCursor: true,
+      showIcons: true,
+      showContext: true,
+      filters: createDefaultFilters(),
+      display: 'hierarchy',
+      visible: true
+    };
+
+    const roots = await coordinator.getSlotChildren(typesPaneConfig);
+    assert.strictEqual(roots.length, 2);
+    const rootNames = roots.map((r: any) => r.name);
+    assert.ok(rootNames.includes('Animal'));
+    assert.ok(rootNames.includes('IPet'));
+    assert.ok(!rootNames.includes('Dog'));
+
+    assert.strictEqual(animalNode.subTypes?.length, 1);
+    assert.strictEqual(animalNode.subTypes[0].name, 'Dog');
+
+    assert.strictEqual(petNode.subTypes?.length || 0, 0);
+
+    (vscode.workspace as any).fs = origFs;
     coordinator.dispose();
   });
 });

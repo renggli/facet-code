@@ -82,7 +82,7 @@ export function createDefaultPanes(): PaneConfig[] {
   return [
     {
       id: 'facet.pane.1',
-      title: 'Project Types',
+      title: 'Types',
       role: 'types',
       inputSource: 'project',
       followSelection: true,
@@ -90,7 +90,7 @@ export function createDefaultPanes(): PaneConfig[] {
       showIcons: true,
       showContext: true,
       filters: createDefaultFilters(),
-      display: 'flat',
+      display: 'hierarchy',
       visible: true
     },
     {

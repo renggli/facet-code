@@ -11,6 +11,7 @@ import {
   unionMembers,
   getSymbolIcon,
   extractSuperTypes,
+  extractTypeHeader,
   buildTypeHierarchy
 } from '../models/symbolNode';
 import { PaneConfig, matchesPaneFilters } from '../models/paneConfig';
@@ -254,17 +255,8 @@ export class FacetCoordinator implements vscode.Disposable {
       rawTypes = prev.filter((s) => isTypeKind(s.kind));
     }
 
-    // Hydrate superTypes if missing
-    for (const t of rawTypes) {
-      if (t.superTypes === undefined && t.uri) {
-        const openDoc = (vscode.workspace.textDocuments || []).find(
-          (d) => d.uri.toString() === t.uri.toString()
-        );
-        if (openDoc && t.range.start.line < openDoc.lineCount) {
-          t.superTypes = extractSuperTypes(openDoc.lineAt(t.range.start.line).text);
-        }
-      }
-    }
+    // Hydrate superTypes if missing across open tabs and disk files
+    await this.hydrateMissingSuperTypes(rawTypes);
 
     const filtered = rawTypes.filter((t) => matchesPaneFilters(t, config.filters));
 
@@ -367,6 +359,53 @@ export class FacetCoordinator implements vscode.Disposable {
     return this.relationsProvider.fetchRelationsForNodes(targets, mode);
   }
 
+  private async hydrateMissingSuperTypes(types: FacetSymbolNode[]): Promise<void> {
+    const missing = types.filter((t) => t.superTypes === undefined && t.uri);
+    if (missing.length === 0) {
+      return;
+    }
+
+    const byUri = new Map<string, FacetSymbolNode[]>();
+    for (const t of missing) {
+      const uriStr = t.uri.toString();
+      const list = byUri.get(uriStr) || [];
+      list.push(t);
+      byUri.set(uriStr, list);
+    }
+
+    for (const [uriStr, typeGroup] of byUri.entries()) {
+      let lines: string[] | undefined;
+      const openDoc = (vscode.workspace.textDocuments || []).find(
+        (d) => d.uri.toString() === uriStr
+      );
+      if (openDoc) {
+        lines = openDoc.getText().split('\n');
+      } else {
+        try {
+          if (vscode.workspace.fs?.readFile) {
+            const bytes = await vscode.workspace.fs.readFile(typeGroup[0].uri);
+            lines = Buffer.from(bytes).toString('utf8').split('\n');
+          } else if (vscode.workspace.openTextDocument) {
+            const doc = await vscode.workspace.openTextDocument(typeGroup[0].uri);
+            lines = doc.getText().split('\n');
+          }
+        } catch {
+          lines = undefined;
+        }
+      }
+
+      for (const t of typeGroup) {
+        if (lines && t.range && t.range.start.line < lines.length) {
+          const isInterface = t.kind === vscode.SymbolKind.Interface;
+          const header = extractTypeHeader(lines, t.range.start.line);
+          t.superTypes = extractSuperTypes(header, isInterface);
+        } else {
+          t.superTypes = [];
+        }
+      }
+    }
+  }
+
   public getSlotTreeItem(config: PaneConfig, element: any): vscode.TreeItem {
     if (element && 'uri' in element && 'range' in element && 'label' in element && !('kind' in element)) {
       const item = this.relationsProvider.getTreeItem(element);
@@ -388,7 +427,10 @@ export class FacetCoordinator implements vscode.Disposable {
 
     if (config.display === 'hierarchy') {
       if (isTypeRole) {
-        hasChildren = Boolean(node.subTypes && node.subTypes.length > 0);
+        hasChildren = Boolean(
+          node.subTypes &&
+            node.subTypes.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, config.filters))
+        );
       } else {
         hasChildren = Boolean(node.children && node.children.length > 0);
       }

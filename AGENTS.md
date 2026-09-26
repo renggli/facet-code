@@ -24,9 +24,9 @@
     - *Add Next Pane:* Insert a new pane immediately after this pane in the pipeline.
     - *Remove Pane:* Hide this pane from the pipeline (enforcing minimum 1 visible pane).
 - **Predefined Presets (`facet.pane.presets`):**
-  - **Project Browser:** Global Project Types (`project`) -> Members (`previous`) -> References (`previous`).
-  - **Implementations Browser:** Global Project Types (`project`) -> Members (`previous`) -> Implementations (`previous`).
-  - **Callers Browser:** Global Project Types (`project`) -> Members (`previous`) -> Callers (`previous`).
+  - **Project Browser:** Global Types (`project`) -> Members (`previous`) -> References (`previous`).
+  - **Implementations Browser:** Global Types (`project`) -> Members (`previous`) -> Implementations (`previous`).
+  - **Callers Browser:** Global Types (`project`) -> Members (`previous`) -> Callers (`previous`).
   - **Compact Outline:** Active File Types (`file`) -> Members (`previous`).
 - **High-Readability Relations Display:**
   - Code snippet preview as label (trimmed source code line).
@@ -56,8 +56,8 @@
 │  │ 100% Native Facet Navigation Deck (`facet-container`)            │  │
 │  │                                                                  │  │
 │  │  ┌────────────────────────────────────────────────────────────┐  │  │
-│  │  │ Native Pane 1: Project Types (`facet.pane.1`)        [⚙]   │  │  │
-│  │  │    [Input: Project (Global)] [Display: Flat]               │  │  │
+│  │  │ Native Pane 1: Types (`facet.pane.1`)                [⚙]   │  │  │
+│  │  │    [Input: Project (Global)] [Display: Hierarchy]          │  │  │
 │  │  │    - Class OrderService                                    │  │  │
 │  │  │    - Class PaymentProcessor                                │  │  │
 │  │  ├────────────────────────────────────────────────────────────┤  │  │

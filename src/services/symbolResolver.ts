@@ -1,5 +1,11 @@
 import * as vscode from 'vscode';
-import { FacetSymbolNode, MemberCategory, isTypeKind, extractSuperTypes } from '../models/symbolNode';
+import {
+  FacetSymbolNode,
+  MemberCategory,
+  isTypeKind,
+  extractSuperTypes,
+  extractTypeHeader
+} from '../models/symbolNode';
 
 export class SymbolResolver {
   private cache = new Map<string, { version: number; symbols: FacetSymbolNode[] }>();
@@ -179,7 +185,9 @@ export class SymbolResolver {
 
     let superTypes: string[] | undefined;
     if (isTypeKind(sym.kind) && lines && sym.range.start.line < lines.length) {
-      superTypes = extractSuperTypes(lines[sym.range.start.line]);
+      const isInterface = sym.kind === vscode.SymbolKind.Interface;
+      const header = extractTypeHeader(lines, sym.range.start.line);
+      superTypes = extractSuperTypes(header, isInterface);
     }
 
     const node: FacetSymbolNode = {
@@ -270,6 +278,8 @@ export class SymbolResolver {
             ? vscode.SymbolKind.Struct
             : vscode.SymbolKind.Class;
 
+        const isInterface = typeKind === 'interface';
+        const header = extractTypeHeader(lines, i);
         const range = new vscode.Range(new vscode.Position(i, 0), new vscode.Position(i, line.length));
         currentTypeNode = {
           name: typeName,
@@ -280,7 +290,7 @@ export class SymbolResolver {
           category: MemberCategory.All,
           isStatic: false,
           children: [],
-          superTypes: extractSuperTypes(line)
+          superTypes: extractSuperTypes(header, isInterface)
         };
         nodes.push(currentTypeNode);
         continue;

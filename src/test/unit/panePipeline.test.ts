@@ -108,7 +108,8 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const visible = manager.getVisiblePanes();
     assert.strictEqual(visible.length, 3);
     assert.strictEqual(visible[0].role, 'types');
-    assert.strictEqual(visible[0].title, 'Project Types');
+    assert.strictEqual(visible[0].title, 'Types');
+    assert.strictEqual(visible[0].display, 'hierarchy');
     assert.strictEqual(visible[0].inputSource, 'project');
 
     assert.strictEqual(visible[1].role, 'members');
@@ -136,7 +137,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
 
     const slotConfig: PaneConfig = {
       id: 'facet.pane.1',
-      title: 'Project Types',
+      title: 'Types',
       role: 'types',
       inputSource: 'project',
       followSelection: true,
@@ -144,7 +145,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
       showIcons: true,
       showContext: true,
       filters: createDefaultFilters(),
-      display: 'flat',
+      display: 'hierarchy',
       visible: true
     };
 

@@ -412,17 +412,17 @@ export class PanePipelineManager {
           [
             {
               label: 'Project Browser',
-              description: 'Project Types (Global) -> Members -> References',
+              description: 'Types (Global) -> Members -> References',
               preset: 'project'
             },
             {
               label: 'Implementations Browser',
-              description: 'Project Types (Global) -> Members -> Implementations',
+              description: 'Types (Global) -> Members -> Implementations',
               preset: 'implementations'
             },
             {
               label: 'Callers Browser',
-              description: 'Project Types (Global) -> Members -> Callers',
+              description: 'Types (Global) -> Members -> Callers',
               preset: 'callers'
             },
             {
@@ -447,10 +447,10 @@ export class PanePipelineManager {
       case 'project':
       default: {
         const p1 = this.panes[0];
-        p1.title = 'Project Types';
+        p1.title = 'Types';
         p1.role = 'types';
         p1.inputSource = 'project';
-        p1.display = 'flat';
+        p1.display = 'hierarchy';
         p1.visible = true;
 
         const p2 = this.panes[1];
@@ -471,10 +471,10 @@ export class PanePipelineManager {
 
       case 'implementations': {
         const p1 = this.panes[0];
-        p1.title = 'Project Types';
+        p1.title = 'Types';
         p1.role = 'types';
         p1.inputSource = 'project';
-        p1.display = 'flat';
+        p1.display = 'hierarchy';
         p1.visible = true;
 
         const p2 = this.panes[1];
@@ -495,10 +495,10 @@ export class PanePipelineManager {
 
       case 'callers': {
         const p1 = this.panes[0];
-        p1.title = 'Project Types';
+        p1.title = 'Types';
         p1.role = 'types';
         p1.inputSource = 'project';
-        p1.display = 'flat';
+        p1.display = 'hierarchy';
         p1.visible = true;
 
         const p2 = this.panes[1];
@@ -522,7 +522,7 @@ export class PanePipelineManager {
         p1.title = 'Types';
         p1.role = 'types';
         p1.inputSource = 'file';
-        p1.display = 'flat';
+        p1.display = 'hierarchy';
         p1.visible = true;
 
         const p2 = this.panes[1];

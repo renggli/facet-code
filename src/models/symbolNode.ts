@@ -95,46 +95,73 @@ export function getSymbolIcon(kind: vscode.SymbolKind): vscode.ThemeIcon {
   }
 }
 
-export function extractSuperTypes(header: string): string[] {
+export function extractTypeHeader(lines: string[], startLine: number): string {
+  const collected: string[] = [];
+  for (let i = startLine; i < Math.min(startLine + 10, lines.length); i++) {
+    const line = lines[i].replace(/\/\/.*$/, '');
+    collected.push(line.trim());
+    if (line.includes('{') || (line.includes(':') && !line.includes('::'))) {
+      break;
+    }
+  }
+  return collected.join(' ');
+}
+
+export function extractSuperTypes(header: string, isInterface = false): string[] {
   const superTypes: string[] = [];
 
-  // TypeScript / JS / Dart / Java: extends ... / implements ...
-  const extendsMatch = /\bextends\s+([A-Za-z0-9_$.<>\s,]+?)(?=\s+implements\s+|\s+with\s+|\s*\{|\s*$)/.exec(header);
-  if (extendsMatch) {
-    const parts = extendsMatch[1]
-      .split(',')
-      .map((s) => s.trim().replace(/<.*>/g, '').split('.').pop()!)
-      .filter(Boolean);
-    superTypes.push(...parts);
-  }
+  if (isInterface) {
+    // Interface inheritance: interface Cat extends Animal, Domesticated
+    const extendsMatch = /\bextends\s+([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(header);
+    if (extendsMatch) {
+      const parts = extendsMatch[1]
+        .split(',')
+        .map((s) => s.trim().replace(/<.*>/g, '').split('.').pop()!)
+        .filter(Boolean);
+      superTypes.push(...parts);
+    }
 
-  const implementsMatch = /\b(?:implements|with)\s+([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(header);
-  if (implementsMatch) {
-    const parts = implementsMatch[1]
-      .split(',')
-      .map((s) => s.trim().replace(/<.*>/g, '').split('.').pop()!)
-      .filter(Boolean);
-    superTypes.push(...parts);
-  }
+    // C# / C++ interface inheritance: interface ICat : IAnimal, IDomesticated
+    const colonMatch = /:\s*([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(header);
+    if (colonMatch && !extendsMatch) {
+      const parts = colonMatch[1]
+        .split(',')
+        .map((s) => s.trim().replace(/<.*>/g, '').replace(/^(?:public|private|protected)\s+/, '').split('.').pop()!)
+        .filter(Boolean);
+      superTypes.push(...parts);
+    }
+  } else {
+    // Class inheritance: class Dog extends Animal (do NOT parse implements or mixins!)
+    const extendsMatch = /\bextends\s+([A-Za-z0-9_$.<>]+)/.exec(header);
+    if (extendsMatch) {
+      const name = extendsMatch[1].replace(/<.*>/g, '').split('.').pop()!.trim();
+      if (name) {
+        superTypes.push(name);
+      }
+    }
 
-  // C# / C++: class Dog : Animal, ICanRun
-  const colonMatch = /:\s*(?:public\s+|private\s+|protected\s+)?([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(header);
-  if (colonMatch && !extendsMatch && !implementsMatch) {
-    const parts = colonMatch[1]
-      .split(',')
-      .map((s) => s.trim().replace(/<.*>/g, '').replace(/^(?:public|private|protected)\s+/, '').split('.').pop()!)
-      .filter(Boolean);
-    superTypes.push(...parts);
-  }
+    // C# / C++: class Dog : Animal, IPet (only the first type can be a base class, interfaces ignored)
+    const colonMatch = /:\s*(?:public\s+|private\s+|protected\s+)?([A-Za-z0-9_$.<>]+)/.exec(header);
+    if (colonMatch && !extendsMatch) {
+      const name = colonMatch[1]
+        .replace(/^(?:public|private|protected)\s+/, '')
+        .replace(/<.*>/g, '')
+        .split('.').pop()!
+        .trim();
+      if (name && !/^I[A-Z]/.test(name)) {
+        superTypes.push(name);
+      }
+    }
 
-  // Python: class Dog(Animal, CanRun):
-  const pythonMatch = /\(([A-Za-z0-9_$,\s]+)\)\s*:/.exec(header);
-  if (pythonMatch) {
-    const parts = pythonMatch[1]
-      .split(',')
-      .map((s) => s.trim().split('.').pop()!)
-      .filter((s) => Boolean(s) && s !== 'object');
-    superTypes.push(...parts);
+    // Python: class Dog(Animal, CanRun):
+    const pythonMatch = /\(([A-Za-z0-9_$,\s]+)\)\s*:/.exec(header);
+    if (pythonMatch) {
+      const parts = pythonMatch[1]
+        .split(',')
+        .map((s) => s.trim().split('.').pop()!)
+        .filter((s) => Boolean(s) && s !== 'object');
+      superTypes.push(...parts);
+    }
   }
 
   return [...new Set(superTypes)];
@@ -154,6 +181,14 @@ export function buildTypeHierarchy(types: readonly FacetSymbolNode[]): FacetSymb
       for (const superName of t.superTypes) {
         const parent = typeMap.get(superName);
         if (parent) {
+          // Strictly prevent classes and interfaces from being mixed in hierarchy
+          if (t.kind === vscode.SymbolKind.Class && parent.kind === vscode.SymbolKind.Interface) {
+            continue;
+          }
+          if (t.kind === vscode.SymbolKind.Interface && parent.kind === vscode.SymbolKind.Class) {
+            continue;
+          }
+
           if (!parent.subTypes) {
             parent.subTypes = [];
           }
