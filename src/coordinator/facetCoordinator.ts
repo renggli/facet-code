@@ -5,7 +5,6 @@ import { CategoriesTreeProvider } from '../providers/categoriesTreeProvider';
 import { MembersTreeProvider } from '../providers/membersTreeProvider';
 import { RelationsTreeProvider, RelationsMode } from '../providers/relationsTreeProvider';
 import { FacetSymbolNode, MemberCategory, ClassSide, HierarchyMode, LayoutMode } from '../models/symbolNode';
-import { DeckViewProvider } from '../deck/deckViewProvider';
 
 export class FacetCoordinator implements vscode.Disposable {
   private cancellationSource?: vscode.CancellationTokenSource;
@@ -22,8 +21,7 @@ export class FacetCoordinator implements vscode.Disposable {
     public readonly typesProvider: TypesTreeProvider,
     public readonly categoriesProvider: CategoriesTreeProvider,
     public readonly membersProvider: MembersTreeProvider,
-    public readonly relationsProvider: RelationsTreeProvider,
-    public deckProvider?: DeckViewProvider
+    public readonly relationsProvider: RelationsTreeProvider
   ) {
     this.typesProvider.scope = this.scope;
     this.membersProvider.setClassSide(this.classSide);
@@ -68,7 +66,6 @@ export class FacetCoordinator implements vscode.Disposable {
           return;
         }
         this.typesProvider.setTypes(types);
-        this.deckProvider?.setSymbols(types);
 
         if (types.length > 0) {
           await this.selectTypes([types[0]]);
@@ -83,7 +80,6 @@ export class FacetCoordinator implements vscode.Disposable {
         this.membersProvider.setSelectedTypes([]);
         this.categoriesProvider.setCounts({});
         this.relationsProvider.setSelectedMembers([]);
-        this.deckProvider?.setSymbols([]);
         return;
       }
 
@@ -93,7 +89,6 @@ export class FacetCoordinator implements vscode.Disposable {
       }
 
       this.typesProvider.setSymbols(symbols);
-      this.deckProvider?.setSymbols(symbols);
 
       const types = this.typesProvider.getTypes();
       if (types.length > 0) {

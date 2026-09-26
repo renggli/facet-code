@@ -45,13 +45,6 @@
 					"id": "facet.views.relations",
 					"name": "Relations",
 					"icon": "$(references)"
-				},
-				{
-					"type": "webview",
-					"id": "facet.views.deck",
-					"name": "Navigation Deck",
-					"icon": "$(layout)",
-					"visibility": "collapsed"
 				}
 			]
 		},
@@ -74,21 +67,6 @@
 				"command": "facet.toggleScope",
 				"title": "Facet: Toggle Scope (File / Project)",
 				"icon": "$(globe)"
-			},
-			{
-				"command": "facet.pipeline.addStage",
-				"title": "Facet: Add Stage",
-				"icon": "$(add)"
-			},
-			{
-				"command": "facet.pipeline.toggleOrientation",
-				"title": "Facet: Toggle Layout Orientation",
-				"icon": "$(split-horizontal)"
-			},
-			{
-				"command": "facet.pipeline.switchPreset",
-				"title": "Facet: Switch View Profile",
-				"icon": "$(layers)"
 			},
 			{
 				"command": "facet.toggleSide",
@@ -145,21 +123,6 @@
 					"command": "facet.relations.switchMode",
 					"when": "view == facet.views.relations",
 					"group": "navigation@4"
-				},
-				{
-					"command": "facet.pipeline.addStage",
-					"when": "view == facet.views.deck",
-					"group": "navigation@1"
-				},
-				{
-					"command": "facet.pipeline.toggleOrientation",
-					"when": "view == facet.views.deck",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.pipeline.switchPreset",
-					"when": "view == facet.views.deck",
-					"group": "navigation@3"
 				}
 			]
 		}

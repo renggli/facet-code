@@ -5,39 +5,30 @@ import { CategoriesTreeProvider } from './providers/categoriesTreeProvider';
 import { MembersTreeProvider } from './providers/membersTreeProvider';
 import { RelationsTreeProvider, RelationsMode } from './providers/relationsTreeProvider';
 import { FacetCoordinator } from './coordinator/facetCoordinator';
-import { FacetPipeline } from './pipeline/facetPipeline';
-import { DeckViewProvider } from './deck/deckViewProvider';
 import { MemberCategory } from './models/symbolNode';
 
 export function activate(context: vscode.ExtensionContext) {
   const resolver = new SymbolResolver();
-  const pipeline = new FacetPipeline();
   const typesProvider = new TypesTreeProvider();
   const categoriesProvider = new CategoriesTreeProvider();
   const membersProvider = new MembersTreeProvider();
   const relationsProvider = new RelationsTreeProvider();
-  const deckProvider = new DeckViewProvider(context.extensionUri, pipeline, resolver);
 
   const coordinator = new FacetCoordinator(
     resolver,
     typesProvider,
     categoriesProvider,
     membersProvider,
-    relationsProvider,
-    deckProvider
+    relationsProvider
   );
 
-  // 1. Register Dynamic Webview Deck Provider
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(DeckViewProvider.viewType, deckProvider)
-  );
-
-  // 2. Register Native Tree Views
+  // 1. Register Native Tree Views (100% Native VS Code UI)
   const typesView = vscode.window.createTreeView('facet.views.types', {
     treeDataProvider: typesProvider,
     canSelectMany: true,
     showCollapseAll: true
   });
+  typesView.title = 'Types (File)';
 
   const categoriesView = vscode.window.createTreeView('facet.views.categories', {
     treeDataProvider: categoriesProvider,
@@ -56,8 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
     showCollapseAll: true
   });
 
-  // 3. Wire Tree View Multi-Selection Events
-  typesView.title = 'Types (File)';
+  // 2. Wire Tree View Multi-Selection Events
   context.subscriptions.push(
     typesView.onDidChangeSelection((e) => {
       void coordinator.selectTypes(e.selection);
@@ -70,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // 4. Track Editor Lifecycle with Debounce
+  // 3. Track Editor Lifecycle with Debounce
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       coordinator.handleEditorChange(editor);
@@ -83,20 +73,11 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // 5. Register Commands
+  // 4. Register Native Commands
   context.subscriptions.push(
     vscode.commands.registerCommand('facet.toggleScope', async () => {
       const scope = await coordinator.toggleScope();
       typesView.title = `Types (${scope === 'file' ? 'File' : 'Project'})`;
-    }),
-    vscode.commands.registerCommand('facet.pipeline.addStage', () => {
-      void deckProvider.promptAddStage();
-    }),
-    vscode.commands.registerCommand('facet.pipeline.toggleOrientation', () => {
-      pipeline.toggleOrientation();
-    }),
-    vscode.commands.registerCommand('facet.pipeline.switchPreset', () => {
-      void deckProvider.promptSwitchPreset();
     }),
     vscode.commands.registerCommand('facet.toggleSide', () => {
       const nextSide = coordinator.toggleSide();
