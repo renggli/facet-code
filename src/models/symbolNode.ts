@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { PaneFilters, matchesPaneFilters } from './paneConfig';
+import { matchesPaneFilters, type PaneFilters } from './paneConfig';
 
 export enum MemberCategory {
   All = 'all',
@@ -9,7 +9,7 @@ export enum MemberCategory {
   InstanceMethods = 'instanceMethods',
   StaticMethods = 'staticMethods',
   Accessors = 'accessors',
-  Special = 'special'
+  Special = 'special',
 }
 
 export type HierarchyMode = 'flat' | 'inherited';
@@ -41,7 +41,7 @@ export function isTypeKind(kind: vscode.SymbolKind): boolean {
 
 export function filterMembers(
   members: readonly FacetSymbolNode[],
-  category: MemberCategory = MemberCategory.All
+  category: MemberCategory = MemberCategory.All,
 ): FacetSymbolNode[] {
   return members.filter((m) => {
     if (category !== MemberCategory.All && m.category !== category) {
@@ -127,7 +127,14 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
     if (extendsMatch) {
       const parts = extendsMatch[1]
         .split(',')
-        .map((s) => s.trim().replace(/<[^>]*>/g, '').split('.').pop()!)
+        .map(
+          (s) =>
+            s
+              .trim()
+              .replace(/<[^>]*>/g, '')
+              .split('.')
+              .pop()!,
+        )
         .filter(Boolean);
       superTypes.push(...parts);
     }
@@ -137,7 +144,15 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
     if (colonMatch && !extendsMatch) {
       const parts = colonMatch[1]
         .split(',')
-        .map((s) => s.trim().replace(/<[^>]*>/g, '').replace(/^(?:public|private|protected)\s+/, '').split('.').pop()!)
+        .map(
+          (s) =>
+            s
+              .trim()
+              .replace(/<[^>]*>/g, '')
+              .replace(/^(?:public|private|protected)\s+/, '')
+              .split('.')
+              .pop()!,
+        )
         .filter(Boolean);
       superTypes.push(...parts);
     }
@@ -177,7 +192,7 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
 export function buildTypeHierarchy(
   types: readonly FacetSymbolNode[],
   allowedSubclassKinds?: vscode.SymbolKind[],
-  filters?: PaneFilters
+  filters?: PaneFilters,
 ): FacetSymbolNode[] {
   const typeMap = new Map<string, FacetSymbolNode[]>();
   for (const t of types) {

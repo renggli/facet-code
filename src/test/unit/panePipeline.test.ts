@@ -3,13 +3,13 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
+import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import { parseSlotOrderFromBuffer, WorkbenchLayoutWatcher } from '../../coordinator/workbenchLayoutWatcher';
-import { SymbolResolver } from '../../services/symbolResolver';
+import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { SlotTreeProvider } from '../../providers/slotTreeProvider';
-import { FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
+import { SymbolResolver } from '../../services/symbolResolver';
 import { window } from './mockVscode';
 
 suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
@@ -33,9 +33,9 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
         selectionRange: dummyRange,
         category: MemberCategory.InstanceMethods,
         isStatic: false,
-        children: []
-      }
-    ]
+        children: [],
+      },
+    ],
   };
 
   setup(() => {
@@ -424,12 +424,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
 
     // Initial slots: [facet.pane.1 (directories), facet.pane.2 (files), facet.pane.3 (types), facet.pane.4 (members)]
     // Drag-and-drop workbench reordering sends new slot IDs sequence:
-    const changed = await manager.reorderSlots([
-      'facet.pane.3',
-      'facet.pane.1',
-      'facet.pane.2',
-      'facet.pane.4'
-    ]);
+    const changed = await manager.reorderSlots(['facet.pane.3', 'facet.pane.1', 'facet.pane.2', 'facet.pane.4']);
     assert.ok(changed);
 
     const visible = manager.getVisiblePanes();
@@ -451,12 +446,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(upstream2?.id, 'facet.pane.1');
 
     // Repeating identical order returns false
-    const unchanged = await manager.reorderSlots([
-      'facet.pane.3',
-      'facet.pane.1',
-      'facet.pane.2',
-      'facet.pane.4'
-    ]);
+    const unchanged = await manager.reorderSlots(['facet.pane.3', 'facet.pane.1', 'facet.pane.2', 'facet.pane.4']);
     assert.strictEqual(unchanged, false);
 
     // Now apply "Project Browser" preset: the visual sequence MUST remain:
@@ -604,7 +594,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
       'Working Changes',
       'Problem Triage',
       'Type Hierarchy',
-      'Open Editors'
+      'Open Editors',
     ];
 
     for (const name of presetNames) {
@@ -620,4 +610,3 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     coordinator.dispose();
   });
 });
-

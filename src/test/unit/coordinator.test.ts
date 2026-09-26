@@ -1,25 +1,25 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { FacetCoordinator, DirectoryNode, ProblemItem } from '../../coordinator/facetCoordinator';
-import { SymbolResolver } from '../../services/symbolResolver';
-import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
-import { MemberCategory, FacetSymbolNode } from '../../models/symbolNode';
+import { type DirectoryNode, FacetCoordinator, type ProblemItem } from '../../coordinator/facetCoordinator';
 import {
-  PaneConfig,
-  createDefaultFilters,
-  createFilesPane,
-  createDirectoriesPane,
-  createTypesPane,
-  createProblemsPane,
-  createChangesPane,
-  createDefinitionsPane,
-  createDeclarationsPane,
-  createImplementationsPane,
-  createReferencesPane,
   createCallersPane,
-  createHierarchyPane
+  createChangesPane,
+  createDeclarationsPane,
+  createDefaultFilters,
+  createDefinitionsPane,
+  createDirectoriesPane,
+  createFilesPane,
+  createHierarchyPane,
+  createImplementationsPane,
+  createProblemsPane,
+  createReferencesPane,
+  createTypesPane,
+  type PaneConfig,
 } from '../../models/paneConfig';
-import { extensions, commands } from './mockVscode';
+import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
+import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
+import { SymbolResolver } from '../../services/symbolResolver';
+import { commands, extensions } from './mockVscode';
 
 suite('FacetCoordinator Test Suite', () => {
   const dummyUri = vscode.Uri.file('/path/to/test.ts');
@@ -42,7 +42,7 @@ suite('FacetCoordinator Test Suite', () => {
         selectionRange: dummyRange,
         category: MemberCategory.InstanceMethods,
         isStatic: false,
-        children: []
+        children: [],
       },
       {
         name: 'defaultConfig',
@@ -52,9 +52,9 @@ suite('FacetCoordinator Test Suite', () => {
         selectionRange: dummyRange,
         category: MemberCategory.Constants,
         isStatic: true,
-        children: []
-      }
-    ]
+        children: [],
+      },
+    ],
   };
 
   test('coordinator handles directories pane role with hierarchy and flat display', async () => {
@@ -66,13 +66,13 @@ suite('FacetCoordinator Test Suite', () => {
     const testFiles = [
       vscode.Uri.file('/workspace/src/coordinator/facetCoordinator.ts'),
       vscode.Uri.file('/workspace/src/models/paneConfig.ts'),
-      vscode.Uri.file('/workspace/test/unit/coordinator.test.ts')
+      vscode.Uri.file('/workspace/test/unit/coordinator.test.ts'),
     ];
     (vscode.workspace as any).findFiles = async () => testFiles;
 
     const dirConfigHierarchy = createDirectoriesPane('facet.pane.1', {
       display: 'hierarchy',
-      inputSource: 'project'
+      inputSource: 'project',
     });
 
     const hierarchyRoots = await coordinator.getSlotChildren(dirConfigHierarchy);
@@ -83,14 +83,14 @@ suite('FacetCoordinator Test Suite', () => {
 
     const dirConfigFlat = createDirectoriesPane('facet.pane.1', {
       display: 'flat',
-      inputSource: 'project'
+      inputSource: 'project',
     });
     const flatDirs = await coordinator.getSlotChildren(dirConfigFlat);
     assert.ok(flatDirs.length >= 2);
 
     const dirConfigCurrent = createDirectoriesPane('facet.pane.1', {
       display: 'current',
-      inputSource: 'project'
+      inputSource: 'project',
     });
     const currentDirs = await coordinator.getSlotChildren(dirConfigCurrent);
     // Top-level only: 'src' and 'test'
@@ -113,7 +113,7 @@ suite('FacetCoordinator Test Suite', () => {
       vscode.Uri.file('/workspace/src/services/auth/login.ts'),
       vscode.Uri.file('/workspace/src/services/billing/charge.ts'),
       vscode.Uri.file('/workspace/src/models/user.ts'),
-      vscode.Uri.file('/workspace/test/unit/test.ts')
+      vscode.Uri.file('/workspace/test/unit/test.ts'),
     ];
     (vscode.workspace as any).findFiles = async () => testFiles;
 
@@ -121,7 +121,7 @@ suite('FacetCoordinator Test Suite', () => {
     const dirConfigAuth = createDirectoriesPane('facet.pane.1', {
       display: 'hierarchy',
       inputSource: 'project',
-      globPattern: 'auth'
+      globPattern: 'auth',
     });
 
     const authRoots = await coordinator.getSlotChildren(dirConfigAuth);
@@ -153,7 +153,7 @@ suite('FacetCoordinator Test Suite', () => {
     const dirConfigNone = createDirectoriesPane('facet.pane.1', {
       display: 'hierarchy',
       inputSource: 'project',
-      globPattern: 'nonexistent'
+      globPattern: 'nonexistent',
     });
     const noneRoots = await coordinator.getSlotChildren(dirConfigNone);
     assert.strictEqual(noneRoots.length, 0);
@@ -161,7 +161,7 @@ suite('FacetCoordinator Test Suite', () => {
     // 3. No filter: roots should only be 'src' and 'test'; none of the nested directories appear in roots
     const dirConfigAll = createDirectoriesPane('facet.pane.1', {
       display: 'hierarchy',
-      inputSource: 'project'
+      inputSource: 'project',
     });
     const allRoots = await coordinator.getSlotChildren(dirConfigAll);
     assert.strictEqual(allRoots.length, 2);
@@ -192,21 +192,21 @@ suite('FacetCoordinator Test Suite', () => {
           {
             message: 'Syntax error',
             range: new vscode.Range(10, 0, 10, 5),
-            severity: vscode.DiagnosticSeverity.Error
+            severity: vscode.DiagnosticSeverity.Error,
           } as vscode.Diagnostic,
           {
             message: 'Unused variable',
             range: new vscode.Range(2, 0, 2, 5),
-            severity: vscode.DiagnosticSeverity.Warning
-          } as vscode.Diagnostic
-        ]
-      ]
+            severity: vscode.DiagnosticSeverity.Warning,
+          } as vscode.Diagnostic,
+        ],
+      ],
     ];
     (vscode.languages as any).getDiagnostics = () => mockDiags;
 
     const probConfig = createProblemsPane('facet.pane.5', {
       inputSource: 'project',
-      sort: 'category'
+      sort: 'category',
     });
 
     const problems = await coordinator.getSlotChildren(probConfig);
@@ -237,7 +237,7 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
       filters: { ...createDefaultFilters(), constant: false },
       display: 'flat',
-      visible: true
+      visible: true,
     };
 
     coordinator.setSlotSelection('facet.pane.1', [mockClass]);
@@ -265,7 +265,7 @@ suite('FacetCoordinator Test Suite', () => {
       selectionRange: dummyRange,
       category: MemberCategory.StaticMethods,
       isStatic: true,
-      children: []
+      children: [],
     };
 
     const config: PaneConfig = {
@@ -277,7 +277,7 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
       filters: createDefaultFilters(),
       display: 'flat',
-      visible: true
+      visible: true,
     };
 
     const item = coordinator.getSlotTreeItem(config, node);
@@ -303,7 +303,7 @@ suite('FacetCoordinator Test Suite', () => {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: []
+      superTypes: [],
     };
 
     const subClass: FacetSymbolNode = {
@@ -315,7 +315,7 @@ suite('FacetCoordinator Test Suite', () => {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['BaseClass']
+      superTypes: ['BaseClass'],
     };
 
     (coordinator as any).cachedWorkspaceTypes = [baseClass, subClass];
@@ -329,7 +329,7 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
       filters: createDefaultFilters(),
       display: 'hierarchy',
-      visible: true
+      visible: true,
     };
 
     // Root children: only BaseClass should be returned! SubClass is omitted from root
@@ -367,7 +367,7 @@ suite('FacetCoordinator Test Suite', () => {
       'export class Dog',
       '  extends Animal',
       '  implements IPet {',
-      '}'
+      '}',
     ].join('\n');
 
     const origFs = (vscode.workspace as any).fs;
@@ -383,7 +383,7 @@ suite('FacetCoordinator Test Suite', () => {
       selectionRange: new vscode.Range(0, 17, 0, 21),
       category: MemberCategory.All,
       isStatic: false,
-      children: []
+      children: [],
     };
 
     const animalNode: FacetSymbolNode = {
@@ -394,7 +394,7 @@ suite('FacetCoordinator Test Suite', () => {
       selectionRange: new vscode.Range(3, 13, 3, 19),
       category: MemberCategory.All,
       isStatic: false,
-      children: []
+      children: [],
     };
 
     const dogNode: FacetSymbolNode = {
@@ -405,7 +405,7 @@ suite('FacetCoordinator Test Suite', () => {
       selectionRange: new vscode.Range(5, 13, 5, 16),
       category: MemberCategory.All,
       isStatic: false,
-      children: []
+      children: [],
     };
 
     (coordinator as any).cachedWorkspaceTypes = [petNode, animalNode, dogNode];
@@ -419,7 +419,7 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
       filters: createDefaultFilters(),
       display: 'hierarchy',
-      visible: true
+      visible: true,
     };
 
     const roots = await coordinator.getSlotChildren(typesPaneConfig);
@@ -449,14 +449,14 @@ suite('FacetCoordinator Test Suite', () => {
       vscode.Uri.file('/workspace/src/utils.ts'),
       vscode.Uri.file('/workspace/src/components/button.tsx'),
       vscode.Uri.file('/workspace/test/app.test.ts'),
-      vscode.Uri.file('/workspace/README.md')
+      vscode.Uri.file('/workspace/README.md'),
     ];
 
     (vscode.workspace as any).findFiles = async () => testFiles;
 
     const filesPaneConfig = createFilesPane('facet.pane.1', {
       globPattern: '*.ts',
-      sort: 'name'
+      sort: 'name',
     });
 
     const matched = await coordinator.getSlotChildren(filesPaneConfig);
@@ -488,7 +488,7 @@ suite('FacetCoordinator Test Suite', () => {
       vscode.Uri.file('/workspace/src/utils.ts'),
       vscode.Uri.file('/workspace/src/components/button.tsx'),
       vscode.Uri.file('/workspace/src/components/modal/dialog.tsx'),
-      vscode.Uri.file('/workspace/test/app.test.ts')
+      vscode.Uri.file('/workspace/test/app.test.ts'),
     ];
     (vscode.workspace as any).findFiles = async () => testFiles;
 
@@ -496,7 +496,7 @@ suite('FacetCoordinator Test Suite', () => {
       type: 'directory',
       uri: vscode.Uri.file('/workspace/src'),
       name: 'src',
-      relativePath: 'src'
+      relativePath: 'src',
     };
 
     coordinator.setSlotSelection('facet.pane.1', [dirNode]);
@@ -505,7 +505,7 @@ suite('FacetCoordinator Test Suite', () => {
     // Test current display mode (immediate direct children)
     const currentConfig = createFilesPane('facet.pane.2', {
       inputSource: 'previousPane',
-      display: 'current'
+      display: 'current',
     });
 
     const directFiles = await coordinator.getSlotChildren(currentConfig);
@@ -518,7 +518,7 @@ suite('FacetCoordinator Test Suite', () => {
     // Test flat display mode (recursively traverses and flattens)
     const flatConfig = createFilesPane('facet.pane.2', {
       inputSource: 'previousPane',
-      display: 'flat'
+      display: 'flat',
     });
 
     const allDescendantFiles = await coordinator.getSlotChildren(flatConfig);
@@ -545,12 +545,12 @@ suite('FacetCoordinator Test Suite', () => {
     const file1Doc = {
       uri: file1Uri,
       version: 1,
-      getText: () => 'export class ClassOne { run(): void {} }'
+      getText: () => 'export class ClassOne { run(): void {} }',
     };
     const file2Doc = {
       uri: file2Uri,
       version: 1,
-      getText: () => 'export class ClassTwo { execute(): void {} }'
+      getText: () => 'export class ClassTwo { execute(): void {} }',
     };
 
     const origOpenTextDocument = vscode.workspace.openTextDocument;
@@ -570,7 +570,7 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
       filters: createDefaultFilters(),
       display: 'flat',
-      visible: true
+      visible: true,
     };
 
     coordinator.setSlotSelection('facet.pane.1', [file1Uri, file2Uri]);
@@ -608,7 +608,7 @@ suite('FacetCoordinator Test Suite', () => {
       selectionRange: new vscode.Range(5, 9, 5, 18),
       category: MemberCategory.InstanceMethods,
       isStatic: false,
-      children: []
+      children: [],
     };
 
     const testType: FacetSymbolNode = {
@@ -619,7 +619,7 @@ suite('FacetCoordinator Test Suite', () => {
       selectionRange: new vscode.Range(0, 13, 0, 23),
       category: MemberCategory.All,
       isStatic: false,
-      children: [testMember]
+      children: [testMember],
     };
 
     (coordinator as any).cachedDocumentSymbols = [testType];
@@ -634,11 +634,11 @@ suite('FacetCoordinator Test Suite', () => {
       document: {
         uri: fileUri,
         version: 1,
-        getText: () => ''
+        getText: () => '',
       },
       selection: {
-        active: new vscode.Position(6, 4)
-      }
+        active: new vscode.Position(6, 4),
+      },
     };
 
     await coordinator.handleSelectionChange(mockEditor as any);
@@ -667,7 +667,7 @@ suite('FacetCoordinator Test Suite', () => {
     // Mock textDocuments
     (vscode.workspace as any).textDocuments = [
       { uri: dirtyUri, isDirty: true },
-      { uri: vscode.Uri.file('/workspace/src/clean.ts'), isDirty: false }
+      { uri: vscode.Uri.file('/workspace/src/clean.ts'), isDirty: false },
     ];
 
     // Mock git extension
@@ -679,17 +679,17 @@ suite('FacetCoordinator Test Suite', () => {
             {
               state: {
                 workingTreeChanges: [{ uri: gitUri }],
-                indexChanges: []
-              }
-            }
-          ]
-        })
-      }
+                indexChanges: [],
+              },
+            },
+          ],
+        }),
+      },
     });
 
     const changesConfig = createChangesPane('facet.pane.5', {
       inputSource: 'project',
-      sort: 'name'
+      sort: 'name',
     });
 
     const children = await coordinator.getSlotChildren(changesConfig);
@@ -721,7 +721,7 @@ suite('FacetCoordinator Test Suite', () => {
       selectionRange: dummyRange,
       category: MemberCategory.InstanceMethods,
       isStatic: false,
-      children: []
+      children: [],
     };
 
     coordinator.setSlotSelection('facet.pane.4', [targetMember]);
@@ -735,8 +735,8 @@ suite('FacetCoordinator Test Suite', () => {
         tooltip: 'tooltip',
         iconPath: new vscode.ThemeIcon('references'),
         uri: targetUri,
-        range: dummyRange
-      }
+        range: dummyRange,
+      },
     ];
 
     const defs = await coordinator.getSlotChildren(createDefinitionsPane('facet.pane.5'));
@@ -776,27 +776,35 @@ suite('FacetCoordinator Test Suite', () => {
 
     (vscode.workspace as any).textDocuments = [
       { uri: fileA, isClosed: false },
-      { uri: fileB, isClosed: false }
+      { uri: fileB, isClosed: false },
     ];
     (vscode.window as any).activeTextEditor = {
-      document: { uri: fileA, getText: () => '', version: 1 }
+      document: { uri: fileA, getText: () => '', version: 1 },
     };
 
     // 1. Files with openEditors
-    const filesOpen = await coordinator.getSlotChildren(createFilesPane('facet.pane.2', { inputSource: 'openEditors' }));
+    const filesOpen = await coordinator.getSlotChildren(
+      createFilesPane('facet.pane.2', { inputSource: 'openEditors' }),
+    );
     assert.strictEqual(filesOpen.length, 2);
 
     // 2. Files with activeEditor
-    const filesActive = await coordinator.getSlotChildren(createFilesPane('facet.pane.2', { inputSource: 'activeEditor' }));
+    const filesActive = await coordinator.getSlotChildren(
+      createFilesPane('facet.pane.2', { inputSource: 'activeEditor' }),
+    );
     assert.strictEqual(filesActive.length, 1);
     assert.strictEqual(filesActive[0].path, fileA.path);
 
     // 3. Directories with openEditors
-    const dirOpen = await coordinator.getSlotChildren(createDirectoriesPane('facet.pane.1', { inputSource: 'openEditors', display: 'flat' }));
+    const dirOpen = await coordinator.getSlotChildren(
+      createDirectoriesPane('facet.pane.1', { inputSource: 'openEditors', display: 'flat' }),
+    );
     assert.ok(dirOpen.length >= 2);
 
     // 4. Directories with activeEditor
-    const dirActive = await coordinator.getSlotChildren(createDirectoriesPane('facet.pane.1', { inputSource: 'activeEditor', display: 'flat' }));
+    const dirActive = await coordinator.getSlotChildren(
+      createDirectoriesPane('facet.pane.1', { inputSource: 'activeEditor', display: 'flat' }),
+    );
     assert.strictEqual(dirActive.length, 1);
 
     (vscode.workspace as any).textDocuments = [];
@@ -818,7 +826,7 @@ suite('FacetCoordinator Test Suite', () => {
       selectionRange: dummyRange,
       category: MemberCategory.InstanceMethods,
       isStatic: false,
-      children: []
+      children: [],
     };
     const parentNode: FacetSymbolNode = {
       name: 'ParentClass',
@@ -828,7 +836,7 @@ suite('FacetCoordinator Test Suite', () => {
       selectionRange: dummyRange,
       category: MemberCategory.All,
       isStatic: false,
-      children: [memberNode]
+      children: [memberNode],
     };
     memberNode.parent = parentNode;
 
@@ -836,7 +844,7 @@ suite('FacetCoordinator Test Suite', () => {
       type: 'directory',
       name: 'service',
       relativePath: 'src/service',
-      uri: vscode.Uri.file('/workspace/src/service')
+      uri: vscode.Uri.file('/workspace/src/service'),
     };
 
     const problemItem: ProblemItem = {
@@ -848,7 +856,7 @@ suite('FacetCoordinator Test Suite', () => {
       severity: vscode.DiagnosticSeverity.Error,
       uri: docUri,
       range: dummyRange,
-      iconPath: new vscode.ThemeIcon('error')
+      iconPath: new vscode.ThemeIcon('error'),
     };
 
     // Test getSlotParent

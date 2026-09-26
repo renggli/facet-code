@@ -1,29 +1,29 @@
 import * as vscode from 'vscode';
 import {
-  PaneConfig,
-  PaneRole,
-  PaneInputSource,
-  SelectionSource,
-  SortOption,
-  DisplayMode,
-  SymbolKindKey,
   ALL_SYMBOL_FILTER_OPTIONS,
-  TYPE_FILTER_KEYS,
-  MEMBER_FILTER_KEYS,
-  createPaneByRole,
-  createTypesPane,
-  createMembersPane,
-  createReferencesPane,
-  createImplementationsPane,
   createCallersPane,
-  createFilesPane,
-  createDirectoriesPane,
-  createProblemsPane,
   createChangesPane,
+  createDefaultPanes,
+  createDirectoriesPane,
+  createFilesPane,
   createHierarchyPane,
-  createDefaultPanes
+  createImplementationsPane,
+  createMembersPane,
+  createPaneByRole,
+  createProblemsPane,
+  createReferencesPane,
+  createTypesPane,
+  type DisplayMode,
+  MEMBER_FILTER_KEYS,
+  type PaneConfig,
+  type PaneInputSource,
+  type PaneRole,
+  type SelectionSource,
+  type SortOption,
+  type SymbolKindKey,
+  TYPE_FILTER_KEYS,
 } from '../models/paneConfig';
-import { FacetCoordinator } from './facetCoordinator';
+import type { FacetCoordinator } from './facetCoordinator';
 
 export class PanePipelineManager {
   private panes: PaneConfig[];
@@ -33,7 +33,7 @@ export class PanePipelineManager {
 
   constructor(
     private readonly coordinator: FacetCoordinator,
-    initialPanes?: PaneConfig[]
+    initialPanes?: PaneConfig[],
   ) {
     this.panes = initialPanes || createDefaultPanes();
     this.coordinator.setPipelineManager(this);
@@ -65,17 +65,15 @@ export class PanePipelineManager {
       'problems',
       'changes',
       'callers',
-      'hierarchy'
+      'hierarchy',
     ];
     const visibleRoles = new Set(this.getVisiblePanes().map((p) => p.role));
 
     await Promise.all([
-      ...this.panes.map((pane) =>
-        vscode.commands.executeCommand('setContext', `${pane.id}.visible`, pane.visible)
-      ),
+      ...this.panes.map((pane) => vscode.commands.executeCommand('setContext', `${pane.id}.visible`, pane.visible)),
       ...allRoles.map((role) =>
-        vscode.commands.executeCommand('setContext', `facet.role.${role}.visible`, visibleRoles.has(role))
-      )
+        vscode.commands.executeCommand('setContext', `facet.role.${role}.visible`, visibleRoles.has(role)),
+      ),
     ]);
   }
 
@@ -154,7 +152,7 @@ export class PanePipelineManager {
       title: label,
       inputSource: defaultInput,
       selectionSource: 'none',
-      visible: true
+      visible: true,
     });
 
     visible.push(newPane);
@@ -197,13 +195,22 @@ export class PanePipelineManager {
 
     const newVisible = orderedVisibleIds.map((id) => visible.find((p) => p.id === id)!);
     const hiddenIds = slotOrder.filter((id) => !visibleIds.includes(id));
-    const allKnownIds = ['facet.pane.1', 'facet.pane.2', 'facet.pane.3', 'facet.pane.4', 'facet.pane.5', 'facet.pane.6'];
+    const allKnownIds = [
+      'facet.pane.1',
+      'facet.pane.2',
+      'facet.pane.3',
+      'facet.pane.4',
+      'facet.pane.5',
+      'facet.pane.6',
+    ];
     for (const id of allKnownIds) {
       if (!visibleIds.includes(id) && !hiddenIds.includes(id)) {
         hiddenIds.push(id);
       }
     }
-    const hiddenPanes = hiddenIds.map((id) => this.panes.find((p) => p.id === id) || createMembersPane(id, { visible: false }));
+    const hiddenPanes = hiddenIds.map(
+      (id) => this.panes.find((p) => p.id === id) || createMembersPane(id, { visible: false }),
+    );
 
     if (newVisible.length > 0 && newVisible[0].inputSource === 'previousPane') {
       newVisible[0].inputSource = (newVisible[0].role === 'members' ? 'openEditors' : 'project') as any;
@@ -232,28 +239,28 @@ export class PanePipelineManager {
       {
         label: '$(edit) Title',
         description: pane.title,
-        action: 'title'
+        action: 'title',
       },
       {
         label: '$(symbol-class) Type of Pane',
         description: `Current: ${this.getRoleLabel(pane.role)}`,
-        action: 'type'
+        action: 'type',
       },
       {
         label: '$(sign-in) Input Source',
         description: `Current: ${this.getInputLabel(pane.inputSource)}`,
-        action: 'input'
+        action: 'input',
       },
       {
         label: '$(inspect) Selection Source',
         description: `Current: ${this.getSelectionSourceLabel(pane.selectionSource)}`,
-        action: 'selectionSource'
+        action: 'selectionSource',
       },
       {
         label: '$(sort-precedence) Sort',
         description: `Current: ${this.getSortLabel(pane.sort)}`,
-        action: 'sort'
-      }
+        action: 'sort',
+      },
     ];
 
     if (pane.role === 'files' || pane.role === 'directories') {
@@ -261,7 +268,7 @@ export class PanePipelineManager {
       items.push({
         label: '$(filter) Filter (Glob Pattern)...',
         description: currentPat ? currentPat : 'None',
-        action: 'globPattern'
+        action: 'globPattern',
       });
     }
 
@@ -277,7 +284,7 @@ export class PanePipelineManager {
       items.push({
         label: '$(filter) Filters...',
         description: this.getFiltersSummary(pane as any),
-        action: 'filters'
+        action: 'filters',
       });
     }
 
@@ -299,19 +306,19 @@ export class PanePipelineManager {
       items.push({
         label: '$(list-tree) Display Mode...',
         description: dispDesc,
-        action: 'display'
+        action: 'display',
       });
       if ('subclassTypes' in pane && pane.display === 'hierarchy') {
         items.push({
           label: '$(type-hierarchy-sub) Subclass Kinds...',
           description: (pane.subclassTypes || ['class', 'struct']).join(', '),
-          action: 'subclassTypes'
+          action: 'subclassTypes',
         });
       }
     }
 
     const picked = await vscode.window.showQuickPick(items, {
-      placeHolder: `Configure Pane: ${pane.title}`
+      placeHolder: `Configure Pane: ${pane.title}`,
     });
 
     if (!picked || !picked.action) {
@@ -322,7 +329,7 @@ export class PanePipelineManager {
       case 'title': {
         const newTitle = await vscode.window.showInputBox({
           value: pane.title,
-          prompt: 'Enter new pane title'
+          prompt: 'Enter new pane title',
         });
         if (newTitle) {
           pane.title = newTitle;
@@ -376,9 +383,9 @@ export class PanePipelineManager {
       visible.map((p) => ({
         label: p.title,
         description: `Role: ${this.getRoleLabel(p.role)}`,
-        id: p.id
+        id: p.id,
       })),
-      { placeHolder: 'Select pane to remove' }
+      { placeHolder: 'Select pane to remove' },
     );
     if (!picked) {
       return false;
@@ -400,7 +407,7 @@ export class PanePipelineManager {
       const newPane = createPaneByRole(rolePick.role, pane.id, {
         title: rolePick.label,
         inputSource: isFirstPane ? (rolePick.role === 'members' ? 'openEditors' : 'project') : pane.inputSource,
-        visible: true
+        visible: true,
       });
       visible[idx] = newPane;
       await this.applyVisiblePanes(visible);
@@ -421,30 +428,30 @@ export class PanePipelineManager {
       inputOptions.push({
         label: 'Project',
         description: 'Workspace-wide files, directories, symbols, or issues',
-        source: 'project'
+        source: 'project',
       });
     }
     if (['files', 'directories', 'types', 'members', 'problems', 'changes'].includes(pane.role)) {
       inputOptions.push({
         label: 'Open Editors',
         description: 'Items from open editor tabs',
-        source: 'openEditors'
+        source: 'openEditors',
       });
       inputOptions.push({
         label: 'Active Editor',
         description: 'Items from the active editor',
-        source: 'activeEditor'
+        source: 'activeEditor',
       });
     }
     if (!isFirstPane) {
       inputOptions.push({
         label: 'Previous Pane',
         description: 'Items from preceding visible pane',
-        source: 'previousPane'
+        source: 'previousPane',
       });
     }
     const inputPick = await vscode.window.showQuickPick(inputOptions, {
-      placeHolder: 'Select Input Source'
+      placeHolder: 'Select Input Source',
     });
     if (inputPick) {
       pane.inputSource = inputPick.source as any;
@@ -463,23 +470,23 @@ export class PanePipelineManager {
       options.push({
         label: 'Cursor',
         description: 'Active cursor symbol or file (selects item under cursor)',
-        source: 'cursor'
+        source: 'cursor',
       });
     }
     options.push(
       {
         label: 'All',
         description: 'Select all items in this pane by default',
-        source: 'all'
+        source: 'all',
       },
       {
         label: 'None',
         description: 'Manual selection only',
-        source: 'none'
-      }
+        source: 'none',
+      },
     );
     const selPick = await vscode.window.showQuickPick(options, {
-      placeHolder: 'Select Selection Source'
+      placeHolder: 'Select Selection Source',
     });
     if (selPick) {
       pane.selectionSource = selPick.source;
@@ -497,23 +504,23 @@ export class PanePipelineManager {
       {
         label: 'Name',
         description: 'Sort alphabetically by name',
-        sort: 'name'
+        sort: 'name',
       },
       {
         label: 'Position',
         description: 'Sort by position in file or directory path',
-        sort: 'position'
-      }
+        sort: 'position',
+      },
     ];
     if (pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy' || pane.role === 'problems') {
       sortOptions.push({
         label: 'Category',
         description: 'Group items by kind, category, or severity',
-        sort: 'category'
+        sort: 'category',
       });
     }
     const sortPick = await vscode.window.showQuickPick(sortOptions, {
-      placeHolder: 'Select Sort Order'
+      placeHolder: 'Select Sort Order',
     });
     if (sortPick) {
       pane.sort = sortPick.sort as any;
@@ -532,7 +539,7 @@ export class PanePipelineManager {
       const pattern = await vscode.window.showInputBox({
         value: currentVal,
         prompt: 'Enter glob pattern on full path (e.g. src/**/*.ts, !*test*)',
-        placeHolder: 'e.g. src/**/*.ts'
+        placeHolder: 'e.g. src/**/*.ts',
       });
       if (pattern !== undefined) {
         const trimmed = pattern.trim() || undefined;
@@ -563,23 +570,23 @@ export class PanePipelineManager {
       displayOptions.push({
         label: 'Current',
         description: 'Shows inputs / top-level project items (non-recursive)',
-        mode: 'current' as DisplayMode
+        mode: 'current' as DisplayMode,
       });
     }
     displayOptions.push(
       {
         label: 'Flat',
         description: 'Recursively traverses and flattens',
-        mode: 'flat' as DisplayMode
+        mode: 'flat' as DisplayMode,
       },
       {
         label: 'Hierarchy',
         description: 'Tree hierarchy structure',
-        mode: 'hierarchy' as DisplayMode
-      }
+        mode: 'hierarchy' as DisplayMode,
+      },
     );
     const dispPick = await vscode.window.showQuickPick(displayOptions, {
-      placeHolder: 'Select Display Mode'
+      placeHolder: 'Select Display Mode',
     });
     if (dispPick) {
       pane.display = dispPick.mode;
@@ -598,11 +605,11 @@ export class PanePipelineManager {
       { label: 'Class', key: 'class' as SymbolKindKey, picked: current.includes('class') },
       { label: 'Interface', key: 'interface' as SymbolKindKey, picked: current.includes('interface') },
       { label: 'Struct', key: 'struct' as SymbolKindKey, picked: current.includes('struct') },
-      { label: 'Enum', key: 'enum' as SymbolKindKey, picked: current.includes('enum') }
+      { label: 'Enum', key: 'enum' as SymbolKindKey, picked: current.includes('enum') },
     ];
     const selected = await vscode.window.showQuickPick(subclassOptions, {
       canPickMany: true,
-      placeHolder: 'Select what types to show as subclasses'
+      placeHolder: 'Select what types to show as subclasses',
     });
     if (selected) {
       pane.subclassTypes = selected.map((s) => s.key);
@@ -619,13 +626,13 @@ export class PanePipelineManager {
       return {
         label: opt.label,
         key: opt.key,
-        picked: pane.filters![opt.key] !== false
+        picked: pane.filters![opt.key] !== false,
       };
     });
 
     const selected = await vscode.window.showQuickPick(filterOptions, {
       canPickMany: true,
-      placeHolder: 'Toggle symbol filters across 26 kinds (checked = visible)'
+      placeHolder: 'Toggle symbol filters across 26 kinds (checked = visible)',
     });
 
     if (selected) {
@@ -649,53 +656,53 @@ export class PanePipelineManager {
       {
         label: '$(layout) Project Browser',
         description: 'Directories (Hierarchy) -> Files -> Types (Hierarchy) -> Members',
-        preset: 'project'
+        preset: 'project',
       },
       {
         label: '$(edit) Active Editor',
         description: 'Types (Active Editor) -> Members -> Callers',
-        preset: 'activeEditor'
+        preset: 'activeEditor',
       },
       {
         label: '$(git-pull-request) Working Changes',
         description: 'Changes (Git/Dirty) -> Types -> Members -> Problems',
-        preset: 'workingChanges'
+        preset: 'workingChanges',
       },
       {
         label: '$(error) Problem Triage',
         description: 'Problems (Workspace) -> Types -> Members -> References',
-        preset: 'problemTriage'
+        preset: 'problemTriage',
       },
       {
         label: '$(type-hierarchy-sub) Type Hierarchy',
         description: 'Hierarchy (Roots/Subtypes) -> Members -> Implementations',
-        preset: 'typeHierarchy'
+        preset: 'typeHierarchy',
       },
       {
         label: '$(files) Open Editors',
         description: 'Open Files -> Types (Hierarchy) -> Members -> References',
-        preset: 'openEditors'
+        preset: 'openEditors',
       },
       { label: 'Custom Presets', kind: vscode.QuickPickItemKind.Separator },
       {
         label: '$(save) Save Current Preset...',
         description: 'Save current active pipeline to Workspace or Global settings',
-        action: 'save'
+        action: 'save',
       },
       {
         label: '$(folder-opened) Load Saved Preset...',
         description: 'Load a preset saved in Workspace or Global settings',
-        action: 'load'
+        action: 'load',
       },
       {
         label: '$(trash) Delete Saved Preset...',
         description: 'Remove a preset from Workspace or Global settings',
-        action: 'delete'
-      }
+        action: 'delete',
+      },
     ];
 
     const picked = await vscode.window.showQuickPick(items, {
-      placeHolder: 'Select Pane Pipeline Preset or Manage Presets'
+      placeHolder: 'Select Pane Pipeline Preset or Manage Presets',
     });
 
     if (!picked) {
@@ -755,54 +762,133 @@ export class PanePipelineManager {
       case 'project':
       default:
         newVisible = [
-          createDirectoriesPane('', { title: 'Directories', display: 'hierarchy', inputSource: 'project', selectionSource: 'cursor' }),
-          createFilesPane('', { title: 'Files', display: 'flat', inputSource: 'previousPane', selectionSource: 'cursor' }),
-          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'previousPane', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'none' })
+          createDirectoriesPane('', {
+            title: 'Directories',
+            display: 'hierarchy',
+            inputSource: 'project',
+            selectionSource: 'cursor',
+          }),
+          createFilesPane('', {
+            title: 'Files',
+            display: 'flat',
+            inputSource: 'previousPane',
+            selectionSource: 'cursor',
+          }),
+          createTypesPane('', {
+            title: 'Types',
+            display: 'hierarchy',
+            inputSource: 'previousPane',
+            selectionSource: 'cursor',
+          }),
+          createMembersPane('', {
+            title: 'Members',
+            display: 'flat',
+            inputSource: 'previousPane',
+            selectionSource: 'none',
+          }),
         ];
         break;
       case 'activeEditor':
       case 'callers':
         newVisible = [
-          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'activeEditor', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'cursor' }),
-          createCallersPane('', { title: 'Callers', inputSource: 'previousPane', selectionSource: 'none' })
+          createTypesPane('', {
+            title: 'Types',
+            display: 'hierarchy',
+            inputSource: 'activeEditor',
+            selectionSource: 'cursor',
+          }),
+          createMembersPane('', {
+            title: 'Members',
+            display: 'flat',
+            inputSource: 'previousPane',
+            selectionSource: 'cursor',
+          }),
+          createCallersPane('', { title: 'Callers', inputSource: 'previousPane', selectionSource: 'none' }),
         ];
         break;
       case 'workingChanges':
       case 'changes':
         newVisible = [
           createChangesPane('', { title: 'Changes', inputSource: 'project', selectionSource: 'cursor' }),
-          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'previousPane', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'none' }),
-          createProblemsPane('', { title: 'Problems', inputSource: 'previousPane', selectionSource: 'none' })
+          createTypesPane('', {
+            title: 'Types',
+            display: 'hierarchy',
+            inputSource: 'previousPane',
+            selectionSource: 'cursor',
+          }),
+          createMembersPane('', {
+            title: 'Members',
+            display: 'flat',
+            inputSource: 'previousPane',
+            selectionSource: 'none',
+          }),
+          createProblemsPane('', { title: 'Problems', inputSource: 'previousPane', selectionSource: 'none' }),
         ];
         break;
       case 'problemTriage':
       case 'problems':
         newVisible = [
           createProblemsPane('', { title: 'Problems', inputSource: 'project', selectionSource: 'cursor' }),
-          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'previousPane', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'cursor' }),
-          createReferencesPane('', { title: 'References', inputSource: 'previousPane', selectionSource: 'none' })
+          createTypesPane('', {
+            title: 'Types',
+            display: 'hierarchy',
+            inputSource: 'previousPane',
+            selectionSource: 'cursor',
+          }),
+          createMembersPane('', {
+            title: 'Members',
+            display: 'flat',
+            inputSource: 'previousPane',
+            selectionSource: 'cursor',
+          }),
+          createReferencesPane('', { title: 'References', inputSource: 'previousPane', selectionSource: 'none' }),
         ];
         break;
       case 'typeHierarchy':
       case 'hierarchy':
       case 'implementors':
         newVisible = [
-          createHierarchyPane('', { title: 'Hierarchy', display: 'hierarchy', inputSource: 'project', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'cursor' }),
-          createImplementationsPane('', { title: 'Implementations', inputSource: 'previousPane', selectionSource: 'none' })
+          createHierarchyPane('', {
+            title: 'Hierarchy',
+            display: 'hierarchy',
+            inputSource: 'project',
+            selectionSource: 'cursor',
+          }),
+          createMembersPane('', {
+            title: 'Members',
+            display: 'flat',
+            inputSource: 'previousPane',
+            selectionSource: 'cursor',
+          }),
+          createImplementationsPane('', {
+            title: 'Implementations',
+            inputSource: 'previousPane',
+            selectionSource: 'none',
+          }),
         ];
         break;
       case 'openEditors':
       case 'references':
         newVisible = [
-          createFilesPane('', { title: 'Open Files', display: 'flat', inputSource: 'openEditors', selectionSource: 'cursor' }),
-          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'previousPane', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'none' }),
-          createReferencesPane('', { title: 'References', inputSource: 'previousPane', selectionSource: 'none' })
+          createFilesPane('', {
+            title: 'Open Files',
+            display: 'flat',
+            inputSource: 'openEditors',
+            selectionSource: 'cursor',
+          }),
+          createTypesPane('', {
+            title: 'Types',
+            display: 'hierarchy',
+            inputSource: 'previousPane',
+            selectionSource: 'cursor',
+          }),
+          createMembersPane('', {
+            title: 'Members',
+            display: 'flat',
+            inputSource: 'previousPane',
+            selectionSource: 'none',
+          }),
+          createReferencesPane('', { title: 'References', inputSource: 'previousPane', selectionSource: 'none' }),
         ];
         break;
     }
@@ -830,7 +916,8 @@ export class PanePipelineManager {
     const existing = config.get<Record<string, PaneConfig[]>>(key) || {};
     const visiblePanes = this.getVisiblePanes().map((p) => ({ ...p }));
     const updated = { ...existing, [name]: visiblePanes };
-    const targetScope = target === 'workspace' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+    const targetScope =
+      target === 'workspace' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
     await config.update(key, updated, targetScope);
   }
 
@@ -840,14 +927,15 @@ export class PanePipelineManager {
     const existing = config.get<Record<string, PaneConfig[]>>(key) || {};
     const updated = { ...existing };
     delete updated[name];
-    const targetScope = target === 'workspace' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+    const targetScope =
+      target === 'workspace' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
     await config.update(key, updated, targetScope);
   }
 
   public async saveCustomPresetPrompt(): Promise<void> {
     const name = await vscode.window.showInputBox({
       prompt: 'Enter a name for the new preset',
-      placeHolder: 'e.g. My Workflow'
+      placeHolder: 'e.g. My Workflow',
     });
     if (!name || !name.trim()) {
       return;
@@ -855,9 +943,9 @@ export class PanePipelineManager {
     const scopePick = await vscode.window.showQuickPick(
       [
         { label: 'Workspace', description: 'Available only in this workspace', target: 'workspace' as const },
-        { label: 'Global (User Settings)', description: 'Available across all workspaces', target: 'global' as const }
+        { label: 'Global (User Settings)', description: 'Available across all workspaces', target: 'global' as const },
       ],
-      { placeHolder: 'Select where to save the preset' }
+      { placeHolder: 'Select where to save the preset' },
     );
     if (!scopePick) {
       return;
@@ -876,7 +964,7 @@ export class PanePipelineManager {
       items.push({
         label: name,
         description: 'Workspace preset',
-        preset: panes
+        preset: panes,
       });
     }
     for (const [name, panes] of Object.entries(globalPresets)) {
@@ -884,7 +972,7 @@ export class PanePipelineManager {
         items.push({
           label: name,
           description: 'Global preset',
-          preset: panes
+          preset: panes,
         });
       }
     }
@@ -895,7 +983,7 @@ export class PanePipelineManager {
     }
 
     const picked = await vscode.window.showQuickPick(items, {
-      placeHolder: 'Select a saved preset to load'
+      placeHolder: 'Select a saved preset to load',
     });
     if (picked) {
       await this.applyVisiblePanes(picked.preset);
@@ -913,7 +1001,7 @@ export class PanePipelineManager {
         label: name,
         description: 'Workspace',
         name,
-        target: 'workspace'
+        target: 'workspace',
       });
     }
     for (const name of Object.keys(globalPresets)) {
@@ -921,7 +1009,7 @@ export class PanePipelineManager {
         label: name,
         description: 'Global',
         name,
-        target: 'global'
+        target: 'global',
       });
     }
 
@@ -931,7 +1019,7 @@ export class PanePipelineManager {
     }
 
     const picked = await vscode.window.showQuickPick(items, {
-      placeHolder: 'Select preset to delete'
+      placeHolder: 'Select preset to delete',
     });
     if (picked) {
       await this.deletePreset(picked.name, picked.target);
@@ -939,73 +1027,71 @@ export class PanePipelineManager {
     }
   }
 
-  private async promptRolePicker(
-    placeholder: string
-  ): Promise<{ label: string; role: PaneRole } | undefined> {
+  private async promptRolePicker(placeholder: string): Promise<{ label: string; role: PaneRole } | undefined> {
     return vscode.window.showQuickPick(
       [
         {
           label: 'Files',
           description: 'Workspace files matching glob pattern',
-          role: 'files' as PaneRole
+          role: 'files' as PaneRole,
         },
         {
           label: 'Directories',
           description: 'Workspace directory hierarchy or flat paths',
-          role: 'directories' as PaneRole
+          role: 'directories' as PaneRole,
         },
         {
           label: 'Types',
           description: 'Classes, Interfaces, Enums, Structs',
-          role: 'types' as PaneRole
+          role: 'types' as PaneRole,
         },
         {
           label: 'Members',
           description: 'Methods, Fields, Properties, Constants',
-          role: 'members' as PaneRole
+          role: 'members' as PaneRole,
         },
         {
           label: 'Definitions',
           description: 'Go to Definition relation',
-          role: 'definitions' as PaneRole
+          role: 'definitions' as PaneRole,
         },
         {
           label: 'Declarations',
           description: 'Go to Declaration relation',
-          role: 'declarations' as PaneRole
+          role: 'declarations' as PaneRole,
         },
         {
           label: 'Implementations',
           description: 'Implementations of selected symbol',
-          role: 'implementations' as PaneRole
+          role: 'implementations' as PaneRole,
         },
         {
           label: 'References',
           description: 'Workspace references to selected symbol',
-          role: 'references' as PaneRole
+          role: 'references' as PaneRole,
         },
         {
           label: 'Problems',
           description: 'Workspace diagnostics and errors',
-          role: 'problems' as PaneRole
+          role: 'problems' as PaneRole,
         },
         {
           label: 'Changes',
           description: 'Dirty and modified files',
-          role: 'changes' as PaneRole
+          role: 'changes' as PaneRole,
         },
         {
           label: 'Callers',
           description: 'Incoming calls to selected symbol',
-          role: 'callers' as PaneRole
+          role: 'callers' as PaneRole,
         },
         {
           label: 'Hierarchy',
           description: 'Type hierarchy (subtypes/supertypes)',
-          role: 'hierarchy' as PaneRole
-        }
+          role: 'hierarchy' as PaneRole,
+        },
       ],
-      { placeHolder: placeholder }
+      { placeHolder: placeholder },
     );
   }
 

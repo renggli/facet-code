@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import {
-  FacetSymbolNode,
-  MemberCategory,
-  isTypeKind,
   extractSuperTypes,
-  extractTypeHeader
+  extractTypeHeader,
+  type FacetSymbolNode,
+  isTypeKind,
+  MemberCategory,
 } from '../models/symbolNode';
 
 export class SymbolResolver {
@@ -16,7 +16,7 @@ export class SymbolResolver {
 
   async resolveDocumentSymbols(
     document: vscode.TextDocument,
-    token?: vscode.CancellationToken
+    token?: vscode.CancellationToken,
   ): Promise<FacetSymbolNode[]> {
     const key = document.uri.toString();
     const cached = this.cache.get(key);
@@ -26,9 +26,10 @@ export class SymbolResolver {
 
     let nodes: FacetSymbolNode[] = [];
 
-    const rawSymbols = await vscode.commands.executeCommand<
-      (vscode.DocumentSymbol | vscode.SymbolInformation)[]
-    >('vscode.executeDocumentSymbolProvider', document.uri);
+    const rawSymbols = await vscode.commands.executeCommand<(vscode.DocumentSymbol | vscode.SymbolInformation)[]>(
+      'vscode.executeDocumentSymbolProvider',
+      document.uri,
+    );
 
     if (token?.isCancellationRequested) {
       return [];
@@ -43,13 +44,10 @@ export class SymbolResolver {
           // ignore
         }
         nodes = (rawSymbols as vscode.DocumentSymbol[]).map((s) =>
-          this.fromDocumentSymbol(s, document.uri, undefined, lines)
+          this.fromDocumentSymbol(s, document.uri, undefined, lines),
         );
       } else {
-        nodes = this.fromSymbolInformations(
-          rawSymbols as vscode.SymbolInformation[],
-          document.uri
-        );
+        nodes = this.fromSymbolInformations(rawSymbols as vscode.SymbolInformation[], document.uri);
       }
     } else {
       nodes = this.fallbackParse(document.getText(), document.uri);
@@ -59,16 +57,13 @@ export class SymbolResolver {
     return nodes;
   }
 
-  async resolveWorkspaceTypes(
-    query = '',
-    token?: vscode.CancellationToken
-  ): Promise<FacetSymbolNode[]> {
+  async resolveWorkspaceTypes(query = '', token?: vscode.CancellationToken): Promise<FacetSymbolNode[]> {
     let rawSymbols: vscode.SymbolInformation[] | undefined;
 
     try {
       rawSymbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
         'vscode.executeWorkspaceSymbolProvider',
-        query
+        query,
       );
     } catch {
       rawSymbols = undefined;
@@ -91,7 +86,7 @@ export class SymbolResolver {
         selectionRange: s.location.range,
         category: MemberCategory.All,
         isStatic: false,
-        children: []
+        children: [],
       }));
     }
 
@@ -108,7 +103,7 @@ export class SymbolResolver {
     const fileUris = await vscode.workspace.findFiles(
       '**/*.{ts,js,tsx,jsx,dart,py,go,rs,java,cs,cpp,c,h}',
       '**/{node_modules,.git,dist,out,build}/**',
-      200
+      200,
     );
 
     if (token?.isCancellationRequested || !fileUris || fileUris.length === 0) {
@@ -150,10 +145,7 @@ export class SymbolResolver {
     return result;
   }
 
-  async hydrateTypeNode(
-    typeNode: FacetSymbolNode,
-    token?: vscode.CancellationToken
-  ): Promise<FacetSymbolNode> {
+  async hydrateTypeNode(typeNode: FacetSymbolNode, token?: vscode.CancellationToken): Promise<FacetSymbolNode> {
     if (typeNode.children && typeNode.children.length > 0) {
       return typeNode;
     }
@@ -179,7 +171,7 @@ export class SymbolResolver {
     sym: vscode.DocumentSymbol,
     uri: vscode.Uri,
     parent?: FacetSymbolNode,
-    lines?: string[]
+    lines?: string[],
   ): FacetSymbolNode {
     const { category, isStatic } = this.categorize(sym.kind, sym.detail);
 
@@ -201,7 +193,7 @@ export class SymbolResolver {
       isStatic,
       children: [],
       parent,
-      superTypes
+      superTypes,
     };
 
     if (sym.children && sym.children.length > 0) {
@@ -211,10 +203,7 @@ export class SymbolResolver {
     return node;
   }
 
-  public fromSymbolInformations(
-    syms: vscode.SymbolInformation[],
-    uri: vscode.Uri
-  ): FacetSymbolNode[] {
+  public fromSymbolInformations(syms: vscode.SymbolInformation[], uri: vscode.Uri): FacetSymbolNode[] {
     const containerMap = new Map<string, FacetSymbolNode[]>();
     const roots: FacetSymbolNode[] = [];
 
@@ -228,7 +217,7 @@ export class SymbolResolver {
         selectionRange: s.location.range,
         category,
         isStatic,
-        children: []
+        children: [],
       };
 
       if (!s.containerName) {
@@ -258,7 +247,8 @@ export class SymbolResolver {
     // Matches classes, interfaces, structs, enums
     const typeRegex = /(?:export\s+)?(?:abstract\s+)?(class|interface|enum|struct)\s+([A-Za-z0-9_]+)/;
     // Matches methods, functions, getters/setters, properties
-    const memberRegex = /^\s*(?:(public|private|protected)\s+)?(?:(static)\s+)?(?:(get|set)\s+)?([A-Za-z0-9_]+)\s*(?:\((.*?)\))?/;
+    const memberRegex =
+      /^\s*(?:(public|private|protected)\s+)?(?:(static)\s+)?(?:(get|set)\s+)?([A-Za-z0-9_]+)\s*(?:\((.*?)\))?/;
 
     let currentTypeNode: FacetSymbolNode | null = null;
 
@@ -273,10 +263,10 @@ export class SymbolResolver {
           typeKind === 'interface'
             ? vscode.SymbolKind.Interface
             : typeKind === 'enum'
-            ? vscode.SymbolKind.Enum
-            : typeKind === 'struct'
-            ? vscode.SymbolKind.Struct
-            : vscode.SymbolKind.Class;
+              ? vscode.SymbolKind.Enum
+              : typeKind === 'struct'
+                ? vscode.SymbolKind.Struct
+                : vscode.SymbolKind.Class;
 
         const isInterface = typeKind === 'interface';
         const header = extractTypeHeader(lines, i);
@@ -290,7 +280,7 @@ export class SymbolResolver {
           category: MemberCategory.All,
           isStatic: false,
           children: [],
-          superTypes: extractSuperTypes(header, isInterface)
+          superTypes: extractSuperTypes(header, isInterface),
         };
         nodes.push(currentTypeNode);
         continue;
@@ -339,7 +329,7 @@ export class SymbolResolver {
             category,
             isStatic,
             children: [],
-            parent: currentTypeNode
+            parent: currentTypeNode,
           };
           currentTypeNode.children.push(memberNode);
         }
@@ -349,10 +339,7 @@ export class SymbolResolver {
     return nodes;
   }
 
-  public categorize(
-    kind: vscode.SymbolKind,
-    detail?: string
-  ): { category: MemberCategory; isStatic: boolean } {
+  public categorize(kind: vscode.SymbolKind, detail?: string): { category: MemberCategory; isStatic: boolean } {
     const detailLower = detail?.toLowerCase() ?? '';
     const isStatic = detailLower.includes('static');
 
@@ -380,7 +367,7 @@ export class SymbolResolver {
         }
         return {
           category: isStatic ? MemberCategory.StaticMethods : MemberCategory.InstanceMethods,
-          isStatic
+          isStatic,
         };
 
       default:

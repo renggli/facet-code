@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { PaneConfig } from '../models/paneConfig';
-import { FacetCoordinator } from '../coordinator/facetCoordinator';
+import type { FacetCoordinator } from '../coordinator/facetCoordinator';
+import type { PaneConfig } from '../models/paneConfig';
 
 export class SlotTreeProvider implements vscode.TreeDataProvider<any> {
   private _onDidChangeTreeData = new vscode.EventEmitter<any | undefined | void>();
@@ -10,7 +10,7 @@ export class SlotTreeProvider implements vscode.TreeDataProvider<any> {
 
   constructor(
     slotOrConfig: string | PaneConfig,
-    private readonly coordinator: FacetCoordinator
+    private readonly coordinator: FacetCoordinator,
   ) {
     if (typeof slotOrConfig === 'string') {
       this.slotId = slotOrConfig;

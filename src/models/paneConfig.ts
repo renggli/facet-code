@@ -74,17 +74,10 @@ export const ALL_SYMBOL_FILTER_OPTIONS: { key: SymbolKindKey; label: string; kin
   { key: 'string', label: 'String', kind: vscode.SymbolKind.String },
   { key: 'struct', label: 'Struct', kind: vscode.SymbolKind.Struct },
   { key: 'typeParameter', label: 'Type Parameter', kind: vscode.SymbolKind.TypeParameter },
-  { key: 'variable', label: 'Variable', kind: vscode.SymbolKind.Variable }
+  { key: 'variable', label: 'Variable', kind: vscode.SymbolKind.Variable },
 ];
 
-export const TYPE_FILTER_KEYS: SymbolKindKey[] = [
-  'class',
-  'interface',
-  'struct',
-  'enum',
-  'module',
-  'namespace'
-];
+export const TYPE_FILTER_KEYS: SymbolKindKey[] = ['class', 'interface', 'struct', 'enum', 'module', 'namespace'];
 
 export const MEMBER_FILTER_KEYS: SymbolKindKey[] = [
   'method',
@@ -96,7 +89,7 @@ export const MEMBER_FILTER_KEYS: SymbolKindKey[] = [
   'function',
   'enumMember',
   'event',
-  'operator'
+  'operator',
 ];
 
 export const SYMBOL_KIND_TO_KEY: Record<number, SymbolKindKey> = {
@@ -125,7 +118,7 @@ export const SYMBOL_KIND_TO_KEY: Record<number, SymbolKindKey> = {
   [vscode.SymbolKind.Struct]: 'struct',
   [vscode.SymbolKind.Event]: 'event',
   [vscode.SymbolKind.Operator]: 'operator',
-  [vscode.SymbolKind.TypeParameter]: 'typeParameter'
+  [vscode.SymbolKind.TypeParameter]: 'typeParameter',
 };
 
 export type PaneFilters = {
@@ -282,7 +275,7 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
     sort: 'name',
     display: 'flat',
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -296,7 +289,7 @@ export function createDirectoriesPane(id: string, overrides?: Partial<Directorie
     sort: 'name',
     display: 'hierarchy',
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -312,7 +305,7 @@ export function createTypesPane(id: string, overrides?: Partial<TypesPaneConfig>
     subclassTypes: ['class', 'struct'],
     filters: createDefaultFilters(TYPE_FILTER_KEYS),
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -327,14 +320,11 @@ export function createMembersPane(id: string, overrides?: Partial<MembersPaneCon
     display: 'flat',
     filters: createDefaultFilters(MEMBER_FILTER_KEYS),
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
-export function createReferencesPane(
-  id: string,
-  overrides?: Partial<ReferencesPaneConfig>
-): ReferencesPaneConfig {
+export function createReferencesPane(id: string, overrides?: Partial<ReferencesPaneConfig>): ReferencesPaneConfig {
   return {
     id,
     title: 'References',
@@ -344,13 +334,13 @@ export function createReferencesPane(
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
 export function createImplementationsPane(
   id: string,
-  overrides?: Partial<ImplementationsPaneConfig>
+  overrides?: Partial<ImplementationsPaneConfig>,
 ): ImplementationsPaneConfig {
   return {
     id,
@@ -361,7 +351,7 @@ export function createImplementationsPane(
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -374,14 +364,11 @@ export function createCallersPane(id: string, overrides?: Partial<CallersPaneCon
     selectionSource: 'none',
     sort: 'name',
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
-export function createDefinitionsPane(
-  id: string,
-  overrides?: Partial<DefinitionsPaneConfig>
-): DefinitionsPaneConfig {
+export function createDefinitionsPane(id: string, overrides?: Partial<DefinitionsPaneConfig>): DefinitionsPaneConfig {
   return {
     id,
     title: 'Definitions',
@@ -391,13 +378,13 @@ export function createDefinitionsPane(
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
 export function createDeclarationsPane(
   id: string,
-  overrides?: Partial<DeclarationsPaneConfig>
+  overrides?: Partial<DeclarationsPaneConfig>,
 ): DeclarationsPaneConfig {
   return {
     id,
@@ -408,14 +395,11 @@ export function createDeclarationsPane(
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
-export function createProblemsPane(
-  id: string,
-  overrides?: Partial<ProblemsPaneConfig>
-): ProblemsPaneConfig {
+export function createProblemsPane(id: string, overrides?: Partial<ProblemsPaneConfig>): ProblemsPaneConfig {
   return {
     id,
     title: 'Problems',
@@ -424,14 +408,11 @@ export function createProblemsPane(
     selectionSource: 'none',
     sort: 'position',
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
-export function createChangesPane(
-  id: string,
-  overrides?: Partial<ChangesPaneConfig>
-): ChangesPaneConfig {
+export function createChangesPane(id: string, overrides?: Partial<ChangesPaneConfig>): ChangesPaneConfig {
   return {
     id,
     title: 'Changes',
@@ -440,14 +421,11 @@ export function createChangesPane(
     selectionSource: 'none',
     sort: 'position',
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
-export function createHierarchyPane(
-  id: string,
-  overrides?: Partial<HierarchyPaneConfig>
-): HierarchyPaneConfig {
+export function createHierarchyPane(id: string, overrides?: Partial<HierarchyPaneConfig>): HierarchyPaneConfig {
   return {
     id,
     title: 'Hierarchy',
@@ -459,7 +437,7 @@ export function createHierarchyPane(
     subclassTypes: ['class', 'struct'],
     filters: createDefaultFilters(TYPE_FILTER_KEYS),
     visible: true,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -498,36 +476,36 @@ export function createDefaultPanes(): PaneConfig[] {
       visible: true,
       display: 'hierarchy',
       inputSource: 'project',
-      selectionSource: 'cursor'
+      selectionSource: 'cursor',
     }),
     createFilesPane('facet.pane.2', {
       visible: true,
       display: 'flat',
       inputSource: 'previousPane',
-      selectionSource: 'cursor'
+      selectionSource: 'cursor',
     }),
     createTypesPane('facet.pane.3', {
       visible: true,
       display: 'hierarchy',
       inputSource: 'previousPane',
-      selectionSource: 'cursor'
+      selectionSource: 'cursor',
     }),
     createMembersPane('facet.pane.4', {
       visible: true,
       display: 'flat',
       inputSource: 'previousPane',
-      selectionSource: 'none'
+      selectionSource: 'none',
     }),
     createReferencesPane('facet.pane.5', {
       visible: false,
       inputSource: 'previousPane',
-      selectionSource: 'none'
+      selectionSource: 'none',
     }),
     createImplementationsPane('facet.pane.6', {
       visible: false,
       inputSource: 'previousPane',
-      selectionSource: 'none'
-    })
+      selectionSource: 'none',
+    }),
   ];
 }
 
@@ -609,4 +587,3 @@ export function matchesGlob(path: string, pattern?: string): boolean {
     return isNegated ? !matched : matched;
   }
 }
-

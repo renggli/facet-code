@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { type FacetSymbolNode, filterMembers, MemberCategory, unionMembers } from '../../models/symbolNode';
 import { SymbolResolver } from '../../services/symbolResolver';
-import { MemberCategory, filterMembers, unionMembers, FacetSymbolNode } from '../../models/symbolNode';
 import { commands } from './mockVscode';
 
 suite('SymbolResolver & Models Test Suite', () => {
@@ -74,7 +74,7 @@ export class Calculator {
         selectionRange: new vscode.Range(0, 0, 0, 0),
         category: MemberCategory.InstanceMethods,
         isStatic: false,
-        children: []
+        children: [],
       },
       {
         name: 'staticMethod',
@@ -84,8 +84,8 @@ export class Calculator {
         selectionRange: new vscode.Range(1, 0, 1, 0),
         category: MemberCategory.StaticMethods,
         isStatic: true,
-        children: []
-      }
+        children: [],
+      },
     ];
 
     const allMembers = filterMembers(members, MemberCategory.All);
@@ -118,7 +118,7 @@ export class Calculator {
           selectionRange: new vscode.Range(1, 0, 1, 0),
           category: MemberCategory.InstanceMethods,
           isStatic: false,
-          children: []
+          children: [],
         },
         {
           name: 'onlyInA',
@@ -128,9 +128,9 @@ export class Calculator {
           selectionRange: new vscode.Range(2, 0, 2, 0),
           category: MemberCategory.InstanceMethods,
           isStatic: false,
-          children: []
-        }
-      ]
+          children: [],
+        },
+      ],
     };
 
     const typeB: FacetSymbolNode = {
@@ -150,7 +150,7 @@ export class Calculator {
           selectionRange: new vscode.Range(4, 0, 4, 0),
           category: MemberCategory.InstanceMethods,
           isStatic: false,
-          children: []
+          children: [],
         },
         {
           name: 'onlyInB',
@@ -160,9 +160,9 @@ export class Calculator {
           selectionRange: new vscode.Range(5, 0, 5, 0),
           category: MemberCategory.InstanceMethods,
           isStatic: false,
-          children: []
-        }
-      ]
+          children: [],
+        },
+      ],
     };
 
     const union = unionMembers([typeA, typeB]);
@@ -188,7 +188,7 @@ export class Calculator {
       selectionRange: new vscode.Range(0, 0, 0, 0),
       category: MemberCategory.All,
       isStatic: false,
-      children: []
+      children: [],
     };
     const methodNode: FacetSymbolNode = {
       name: 'testMethod',
@@ -198,7 +198,7 @@ export class Calculator {
       selectionRange: new vscode.Range(0, 0, 0, 0),
       category: MemberCategory.InstanceMethods,
       isStatic: false,
-      children: []
+      children: [],
     };
 
     assert.strictEqual(matchesPaneFilters(classNode, { class: true }), true);
@@ -212,36 +212,24 @@ export class Calculator {
     const { extractSuperTypes, extractTypeHeader } = require('../../models/symbolNode');
 
     // Class with extends and implements: only extends (Animal) is parsed!
-    assert.deepStrictEqual(
-      extractSuperTypes('export class Dog extends Animal implements IPet, ICanRun {', false),
-      ['Animal']
-    );
+    assert.deepStrictEqual(extractSuperTypes('export class Dog extends Animal implements IPet, ICanRun {', false), [
+      'Animal',
+    ]);
 
     // Interface with extends: all super interfaces are parsed
-    assert.deepStrictEqual(
-      extractSuperTypes('interface Cat extends Animal, Domesticated {', true),
-      ['Animal', 'Domesticated']
-    );
+    assert.deepStrictEqual(extractSuperTypes('interface Cat extends Animal, Domesticated {', true), [
+      'Animal',
+      'Domesticated',
+    ]);
 
     // Python inheritance
-    assert.deepStrictEqual(
-      extractSuperTypes('class Dog(Animal, CanRun):', false),
-      ['Animal', 'CanRun']
-    );
+    assert.deepStrictEqual(extractSuperTypes('class Dog(Animal, CanRun):', false), ['Animal', 'CanRun']);
 
     // C# class with base class and interface: only base class is parsed
-    assert.deepStrictEqual(
-      extractSuperTypes('public class Dog : Animal, IPet', false),
-      ['Animal']
-    );
+    assert.deepStrictEqual(extractSuperTypes('public class Dog : Animal, IPet', false), ['Animal']);
 
     // Multi-line header extraction
-    const multiLine = [
-      'export class Dog',
-      '  extends Animal',
-      '  implements IPet {',
-      '  name: string;'
-    ];
+    const multiLine = ['export class Dog', '  extends Animal', '  implements IPet {', '  name: string;'];
     const header = extractTypeHeader(multiLine, 0);
     assert.strictEqual(header, 'export class Dog extends Animal implements IPet {');
     assert.deepStrictEqual(extractSuperTypes(header, false), ['Animal']);
@@ -259,7 +247,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: []
+      superTypes: [],
     };
 
     const dog: FacetSymbolNode = {
@@ -271,7 +259,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['Animal', 'IPet'] // Includes an interface to test interface guard
+      superTypes: ['Animal', 'IPet'], // Includes an interface to test interface guard
     };
 
     const goldenRetriever: FacetSymbolNode = {
@@ -283,7 +271,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['Dog']
+      superTypes: ['Dog'],
     };
 
     const petInterface: FacetSymbolNode = {
@@ -295,7 +283,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: []
+      superTypes: [],
     };
 
     const standalone: FacetSymbolNode = {
@@ -307,7 +295,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: []
+      superTypes: [],
     };
 
     const roots = buildTypeHierarchy([animal, dog, goldenRetriever, petInterface, standalone]);
@@ -339,14 +327,14 @@ export class Calculator {
         name: 'OrderController',
         containerName: 'Controllers',
         kind: vscode.SymbolKind.Class,
-        location: { uri: dummyUri, range: new vscode.Range(0, 0, 10, 0) }
+        location: { uri: dummyUri, range: new vscode.Range(0, 0, 10, 0) },
       },
       {
         name: 'nonTypeVariable',
         containerName: 'Controllers',
         kind: vscode.SymbolKind.Variable,
-        location: { uri: dummyUri, range: new vscode.Range(12, 0, 12, 10) }
-      }
+        location: { uri: dummyUri, range: new vscode.Range(12, 0, 12, 10) },
+      },
     ]);
 
     const results = await resolver.resolveWorkspaceTypes('Order');
@@ -368,7 +356,7 @@ export class Calculator {
     (vscode.workspace as any).openTextDocument = async () => ({
       uri: testFileUri,
       version: 1,
-      getText: () => 'export class CustomerModel { id: string; }'
+      getText: () => 'export class CustomerModel { id: string; }',
     });
 
     const types = await resolver.resolveWorkspaceTypes();
@@ -384,7 +372,7 @@ export class Calculator {
     const testDoc = {
       uri: dummyUri,
       version: 1,
-      getText: () => ''
+      getText: () => '',
     };
 
     // Tier 1: DocumentSymbol hierarchy
@@ -402,10 +390,10 @@ export class Calculator {
             kind: vscode.SymbolKind.Method,
             range: new vscode.Range(2, 2, 4, 3),
             selectionRange: new vscode.Range(2, 2, 2, 10),
-            children: []
-          }
-        ]
-      }
+            children: [],
+          },
+        ],
+      },
     ]);
 
     const tier1Nodes = await resolver.resolveDocumentSymbols(testDoc as any);
@@ -418,7 +406,7 @@ export class Calculator {
     const testDoc2 = {
       uri: vscode.Uri.file('/path/to/test2.ts'),
       version: 1,
-      getText: () => ''
+      getText: () => '',
     };
 
     commands.setHandler('vscode.executeDocumentSymbolProvider', () => [
@@ -426,14 +414,14 @@ export class Calculator {
         name: 'MyTier2Class',
         containerName: '',
         kind: vscode.SymbolKind.Class,
-        location: { uri: testDoc2.uri, range: new vscode.Range(0, 0, 10, 0) }
+        location: { uri: testDoc2.uri, range: new vscode.Range(0, 0, 10, 0) },
       },
       {
         name: 'myMethod2',
         containerName: 'MyTier2Class',
         kind: vscode.SymbolKind.Method,
-        location: { uri: testDoc2.uri, range: new vscode.Range(2, 2, 4, 3) }
-      }
+        location: { uri: testDoc2.uri, range: new vscode.Range(2, 2, 4, 3) },
+      },
     ]);
 
     const tier2Nodes = await resolver.resolveDocumentSymbols(testDoc2 as any);
@@ -457,7 +445,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: []
+      superTypes: [],
     };
 
     const subStruct: FacetSymbolNode = {
@@ -469,7 +457,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['Base']
+      superTypes: ['Base'],
     };
 
     // When only Class is allowed as subclass, SubStruct is not linked as subtype
@@ -499,7 +487,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: []
+      superTypes: [],
     };
 
     const middleClass: FacetSymbolNode = {
@@ -511,7 +499,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['BaseClass']
+      superTypes: ['BaseClass'],
     };
 
     const duplicateMiddle: FacetSymbolNode = {
@@ -523,7 +511,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['BaseClass']
+      superTypes: ['BaseClass'],
     };
 
     const leafClass: FacetSymbolNode = {
@@ -535,7 +523,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['MiddleClass']
+      superTypes: ['MiddleClass'],
     };
 
     const duplicateLeafClass: FacetSymbolNode = {
@@ -547,7 +535,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['MiddleClass']
+      superTypes: ['MiddleClass'],
     };
 
     const deadLeafStruct: FacetSymbolNode = {
@@ -559,7 +547,7 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: ['BaseClass']
+      superTypes: ['BaseClass'],
     };
 
     const standaloneStruct: FacetSymbolNode = {
@@ -571,27 +559,19 @@ export class Calculator {
       category: MemberCategory.All,
       isStatic: false,
       children: [],
-      superTypes: []
+      superTypes: [],
     };
 
     // Filter that only enables class, disabling struct
     const filters = {
       class: true,
-      struct: false
+      struct: false,
     };
 
     const roots = buildTypeHierarchy(
-      [
-        baseClass,
-        middleClass,
-        duplicateMiddle,
-        leafClass,
-        duplicateLeafClass,
-        deadLeafStruct,
-        standaloneStruct
-      ],
+      [baseClass, middleClass, duplicateMiddle, leafClass, duplicateLeafClass, deadLeafStruct, standaloneStruct],
       undefined,
-      filters
+      filters,
     );
 
     // Only BaseClass should be a root:

@@ -1,17 +1,23 @@
 import * as vscode from 'vscode';
-import { SymbolResolver } from '../services/symbolResolver';
-import { RelationsTreeProvider, RelationItem } from '../providers/relationsTreeProvider';
 import {
-  FacetSymbolNode,
-  isTypeKind,
-  unionMembers,
-  getSymbolIcon,
+  type FilesPaneConfig,
+  matchesGlob,
+  matchesPaneFilters,
+  type PaneConfig,
+  type SortOption,
+} from '../models/paneConfig';
+import {
+  buildTypeHierarchy,
   extractSuperTypes,
   extractTypeHeader,
-  buildTypeHierarchy
+  type FacetSymbolNode,
+  getSymbolIcon,
+  isTypeKind,
+  unionMembers,
 } from '../models/symbolNode';
-import { PaneConfig, FilesPaneConfig, SortOption, matchesPaneFilters, matchesGlob } from '../models/paneConfig';
-import { PanePipelineManager } from './panePipelineManager';
+import { RelationItem, RelationsTreeProvider } from '../providers/relationsTreeProvider';
+import type { SymbolResolver } from '../services/symbolResolver';
+import type { PanePipelineManager } from './panePipelineManager';
 
 export interface DirectoryNode {
   type: 'directory';
@@ -58,7 +64,7 @@ export class FacetCoordinator implements vscode.Disposable {
 
   constructor(
     public readonly resolver: SymbolResolver,
-    public readonly relationsProvider: RelationsTreeProvider = new RelationsTreeProvider()
+    public readonly relationsProvider: RelationsTreeProvider = new RelationsTreeProvider(),
   ) {}
 
   public setPipelineManager(pm: PanePipelineManager): void {
@@ -186,7 +192,7 @@ export class FacetCoordinator implements vscode.Disposable {
     }
     if (pane.role === 'directories') {
       const items = (await this.getSlotChildren(pane)) as DirectoryNode[];
-      const targetPath = target instanceof vscode.Uri ? target.fsPath : (target?.uri?.fsPath || '');
+      const targetPath = target instanceof vscode.Uri ? target.fsPath : target?.uri?.fsPath || '';
       const findDir = (list: DirectoryNode[]): DirectoryNode | undefined => {
         for (const d of list) {
           if (targetPath.startsWith(d.uri.fsPath)) {
@@ -213,7 +219,7 @@ export class FacetCoordinator implements vscode.Disposable {
         (p) =>
           p.uri.fsPath === target.uri.fsPath &&
           p.range.start.line === target.range.start.line &&
-          p.range.start.character === target.range.start.character
+          p.range.start.character === target.range.start.character,
       );
     }
     if (pane.role === 'types' || pane.role === 'hierarchy') {
@@ -240,7 +246,7 @@ export class FacetCoordinator implements vscode.Disposable {
         (item: FacetSymbolNode) =>
           item.name === target.name &&
           item.kind === target.kind &&
-          (item.range?.start?.line === target.range?.start?.line || !item.range)
+          (item.range?.start?.line === target.range?.start?.line || !item.range),
       );
     }
     return target;
@@ -311,7 +317,7 @@ export class FacetCoordinator implements vscode.Disposable {
       try {
         this.cachedWorkspaceFiles = await vscode.workspace.findFiles(
           '**/*',
-          '**/{node_modules,.git,dist,out,build}/**'
+          '**/{node_modules,.git,dist,out,build}/**',
         );
       } catch {
         this.cachedWorkspaceFiles = [];
@@ -322,10 +328,7 @@ export class FacetCoordinator implements vscode.Disposable {
 
       // 3. Resolve current editor document symbols if editor is active
       if (this.currentEditor) {
-        this.cachedDocumentSymbols = await this.resolver.resolveDocumentSymbols(
-          this.currentEditor.document,
-          token
-        );
+        this.cachedDocumentSymbols = await this.resolver.resolveDocumentSymbols(this.currentEditor.document, token);
         if (token.isCancellationRequested) {
           return;
         }
@@ -365,17 +368,15 @@ export class FacetCoordinator implements vscode.Disposable {
           const currentDoc = this.currentEditor?.document;
           const currentSel = this.currentEditor?.selection;
           const sameFile = currentDoc && currentDoc.uri.fsPath === first.uri.fsPath;
-          const alreadyAtTarget = sameFile && currentSel && (
-            currentSel.contains(targetRange.start) ||
-            (currentSel.start.line === targetRange.start.line && currentSel.start.character === targetRange.start.character)
-          );
+          const alreadyAtTarget =
+            sameFile &&
+            currentSel &&
+            (currentSel.contains(targetRange.start) ||
+              (currentSel.start.line === targetRange.start.line &&
+                currentSel.start.character === targetRange.start.character));
 
           if (!alreadyAtTarget) {
-            await vscode.commands.executeCommand(
-              'facet.revealRange',
-              first.uri,
-              targetRange
-            );
+            await vscode.commands.executeCommand('facet.revealRange', first.uri, targetRange);
           }
         }
       }
@@ -485,7 +486,7 @@ export class FacetCoordinator implements vscode.Disposable {
         try {
           this.cachedWorkspaceFiles = await vscode.workspace.findFiles(
             '**/*',
-            '**/{node_modules,.git,dist,out,build}/**'
+            '**/{node_modules,.git,dist,out,build}/**',
           );
         } catch {
           this.cachedWorkspaceFiles = [];
@@ -519,7 +520,7 @@ export class FacetCoordinator implements vscode.Disposable {
           baseDirMap.set(normRel, {
             uri: dNode.uri,
             relPath: normRel,
-            name: dNode.name || normRel.split('/').pop() || normRel
+            name: dNode.name || normRel.split('/').pop() || normRel,
           });
         }
       }
@@ -573,7 +574,7 @@ export class FacetCoordinator implements vscode.Disposable {
           allDirsMap.set(currentPath, {
             uri: segUri,
             relPath: currentPath,
-            name: parts[i]
+            name: parts[i],
           });
         }
       }
@@ -618,11 +619,11 @@ export class FacetCoordinator implements vscode.Disposable {
           type: 'directory',
           uri: d.uri,
           name: d.name,
-          relativePath: d.relPath
+          relativePath: d.relPath,
         }));
 
       currentNodes.sort((a, b) =>
-        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
+        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath),
       );
       return currentNodes;
     }
@@ -634,11 +635,11 @@ export class FacetCoordinator implements vscode.Disposable {
           type: 'directory',
           uri: d.uri,
           name: d.name,
-          relativePath: d.relPath
+          relativePath: d.relPath,
         }));
 
       flatNodes.sort((a, b) =>
-        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
+        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath),
       );
       return flatNodes;
     }
@@ -653,7 +654,7 @@ export class FacetCoordinator implements vscode.Disposable {
         uri: d.uri,
         name: d.name,
         relativePath: d.relPath,
-        children: []
+        children: [],
       });
     }
 
@@ -703,7 +704,7 @@ export class FacetCoordinator implements vscode.Disposable {
     const rootSeen = new Set<string>();
 
     const allNodes = Array.from(nodeMap.values()).sort(
-      (a, b) => a.relativePath.split('/').length - b.relativePath.split('/').length
+      (a, b) => a.relativePath.split('/').length - b.relativePath.split('/').length,
     );
 
     for (const node of allNodes) {
@@ -722,7 +723,7 @@ export class FacetCoordinator implements vscode.Disposable {
 
     const sortNodes = (nodes: DirectoryNode[]) => {
       nodes.sort((a, b) =>
-        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
+        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath),
       );
       for (const n of nodes) {
         if (n.children && n.children.length > 0) {
@@ -742,7 +743,7 @@ export class FacetCoordinator implements vscode.Disposable {
         try {
           this.cachedWorkspaceFiles = await vscode.workspace.findFiles(
             '**/*',
-            '**/{node_modules,.git,dist,out,build}/**'
+            '**/{node_modules,.git,dist,out,build}/**',
           );
         } catch {
           this.cachedWorkspaceFiles = [];
@@ -767,7 +768,7 @@ export class FacetCoordinator implements vscode.Disposable {
           try {
             this.cachedWorkspaceFiles = await vscode.workspace.findFiles(
               '**/*',
-              '**/{node_modules,.git,dist,out,build}/**'
+              '**/{node_modules,.git,dist,out,build}/**',
             );
           } catch {
             this.cachedWorkspaceFiles = [];
@@ -799,7 +800,7 @@ export class FacetCoordinator implements vscode.Disposable {
             rawFiles.push(
               ...prevChildren
                 .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-                .filter((u): u is vscode.Uri => u instanceof vscode.Uri)
+                .filter((u): u is vscode.Uri => u instanceof vscode.Uri),
             );
           }
         }
@@ -818,7 +819,10 @@ export class FacetCoordinator implements vscode.Disposable {
     const display = (config as FilesPaneConfig).display;
     if (display === 'current' && config.inputSource !== 'previousPane') {
       files = files.filter((u) => {
-        const rel = (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(u) : u.fsPath).replace(/\\/g, '/');
+        const rel = (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(u) : u.fsPath).replace(
+          /\\/g,
+          '/',
+        );
         return !rel.includes('/');
       });
     }
@@ -853,8 +857,16 @@ export class FacetCoordinator implements vscode.Disposable {
   private sortItems<T extends FacetSymbolNode>(items: T[], sort: SortOption): T[] {
     const copy = items.slice();
     return copy.sort((a, b) => {
-      const uriA = a.uri ? (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(a.uri) : a.uri.fsPath) : '';
-      const uriB = b.uri ? (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(b.uri) : b.uri.fsPath) : '';
+      const uriA = a.uri
+        ? vscode.workspace.asRelativePath
+          ? vscode.workspace.asRelativePath(a.uri)
+          : a.uri.fsPath
+        : '';
+      const uriB = b.uri
+        ? vscode.workspace.asRelativePath
+          ? vscode.workspace.asRelativePath(b.uri)
+          : b.uri.fsPath
+        : '';
       const uriDiff = uriA.localeCompare(uriB);
 
       const lineDiff = (a.range?.start?.line ?? 0) - (b.range?.start?.line ?? 0);
@@ -915,9 +927,7 @@ export class FacetCoordinator implements vscode.Disposable {
       if (display === 'hierarchy') {
         const node = element as FacetSymbolNode;
         const subTypes = node.subTypes || [];
-        const filtered = subTypes.filter(
-          (c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters)
-        );
+        const filtered = subTypes.filter((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters));
         return this.sortItems(filtered, config.sort);
       }
       return [];
@@ -1013,7 +1023,7 @@ export class FacetCoordinator implements vscode.Disposable {
           class: vscode.SymbolKind.Class,
           interface: vscode.SymbolKind.Interface,
           struct: vscode.SymbolKind.Struct,
-          enum: vscode.SymbolKind.Enum
+          enum: vscode.SymbolKind.Enum,
         };
         allowedKinds = subclassTypes.map((k) => keyMap[k]).filter((k) => k !== undefined);
       }
@@ -1031,9 +1041,7 @@ export class FacetCoordinator implements vscode.Disposable {
 
     if (element) {
       if (display === 'hierarchy' && element.children) {
-        const children = (element.children as FacetSymbolNode[]).filter((c) =>
-          matchesPaneFilters(c, filters)
-        );
+        const children = (element.children as FacetSymbolNode[]).filter((c) => matchesPaneFilters(c, filters));
         return this.sortItems(children, config.sort);
       }
       return [];
@@ -1131,7 +1139,7 @@ export class FacetCoordinator implements vscode.Disposable {
 
   private async getRelationChildren(
     config: PaneConfig,
-    mode: 'references' | 'callers' | 'implementations' | 'definitions' | 'declarations'
+    mode: 'references' | 'callers' | 'implementations' | 'definitions' | 'declarations',
   ): Promise<any[]> {
     let targets: FacetSymbolNode[] = [];
 
@@ -1164,7 +1172,7 @@ export class FacetCoordinator implements vscode.Disposable {
       if (uriDiff !== 0) {
         return uriDiff;
       }
-      return (a.range.start.line - b.range.start.line) || (a.range.start.character - b.range.start.character);
+      return a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character;
     });
   }
 
@@ -1231,7 +1239,7 @@ export class FacetCoordinator implements vscode.Disposable {
       severity: d.severity,
       uri,
       range: d.range,
-      iconPath: icon
+      iconPath: icon,
     };
   }
 
@@ -1253,7 +1261,7 @@ export class FacetCoordinator implements vscode.Disposable {
       if (uriDiff !== 0) {
         return uriDiff;
       }
-      return (a.range.start.line - b.range.start.line) || (a.range.start.character - b.range.start.character);
+      return a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character;
     });
   }
 
@@ -1273,10 +1281,7 @@ export class FacetCoordinator implements vscode.Disposable {
         const git = (gitExt.exports as any)?.getAPI ? (gitExt.exports as any).getAPI(1) : undefined;
         if (git && git.repositories) {
           for (const repo of git.repositories) {
-            const changes = [
-              ...(repo.state?.workingTreeChanges || []),
-              ...(repo.state?.indexChanges || [])
-            ];
+            const changes = [...(repo.state?.workingTreeChanges || []), ...(repo.state?.indexChanges || [])];
             for (const ch of changes) {
               if (ch.uri) {
                 changedUris.set(ch.uri.fsPath, ch.uri);
@@ -1300,7 +1305,7 @@ export class FacetCoordinator implements vscode.Disposable {
     } else if (config.inputSource === 'previousPane') {
       const prevSel = this.getPreviousPaneSelection(config.id);
       const prevPaths = new Set(
-        prevSel.map((i) => (i instanceof vscode.Uri ? i.fsPath : i?.uri?.fsPath)).filter(Boolean)
+        prevSel.map((i) => (i instanceof vscode.Uri ? i.fsPath : i?.uri?.fsPath)).filter(Boolean),
       );
       files = files.filter((u) => prevPaths.has(u.fsPath));
     }
@@ -1333,9 +1338,7 @@ export class FacetCoordinator implements vscode.Disposable {
 
     for (const [uriStr, typeGroup] of byUri.entries()) {
       let lines: string[] | undefined;
-      const openDoc = (vscode.workspace.textDocuments || []).find(
-        (d) => d.uri.toString() === uriStr
-      );
+      const openDoc = (vscode.workspace.textDocuments || []).find((d) => d.uri.toString() === uriStr);
       if (openDoc) {
         lines = openDoc.getText().split('\n');
       } else {
@@ -1371,7 +1374,7 @@ export class FacetCoordinator implements vscode.Disposable {
       const isHierarchy = 'display' in config && config.display === 'hierarchy';
       const item = new vscode.TreeItem(
         dir.name,
-        isHierarchy && hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None
+        isHierarchy && hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
       );
       if (!isHierarchy && dir.relativePath) {
         item.description = dir.relativePath;
@@ -1389,7 +1392,7 @@ export class FacetCoordinator implements vscode.Disposable {
       item.command = {
         command: 'facet.revealRange',
         title: 'Reveal Problem',
-        arguments: [prob.uri, prob.range]
+        arguments: [prob.uri, prob.range],
       };
       return item;
     }
@@ -1411,12 +1414,18 @@ export class FacetCoordinator implements vscode.Disposable {
       item.command = {
         command: 'vscode.open',
         title: 'Open File',
-        arguments: [element]
+        arguments: [element],
       };
       return item;
     }
 
-    if (element && 'uri' in element && 'range' in element && 'label' in element && !('kind' in element && 'category' in element)) {
+    if (
+      element &&
+      'uri' in element &&
+      'range' in element &&
+      'label' in element &&
+      !('kind' in element && 'category' in element)
+    ) {
       return this.relationsProvider.getTreeItem(element);
     }
 
@@ -1428,8 +1437,7 @@ export class FacetCoordinator implements vscode.Disposable {
       if (isTypeRole) {
         const filters = 'filters' in config ? config.filters : undefined;
         hasChildren = Boolean(
-          node.subTypes &&
-            node.subTypes.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters))
+          node.subTypes && node.subTypes.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters)),
         );
       } else {
         hasChildren = Boolean(node.children && node.children.length > 0);
@@ -1438,7 +1446,7 @@ export class FacetCoordinator implements vscode.Disposable {
 
     const item = new vscode.TreeItem(
       node.name,
-      hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None
+      hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
     );
 
     let desc = node.detail || '';
@@ -1451,7 +1459,7 @@ export class FacetCoordinator implements vscode.Disposable {
     item.command = {
       command: 'facet.revealRange',
       title: 'Reveal in Editor',
-      arguments: [node.uri, node.selectionRange || node.range]
+      arguments: [node.uri, node.selectionRange || node.range],
     };
 
     return item;
@@ -1462,9 +1470,7 @@ export class FacetCoordinator implements vscode.Disposable {
       return undefined;
     }
     const pos = this.currentEditor.selection.active;
-    return this.cachedDocumentSymbols.find(
-      (s) => isTypeKind(s.kind) && s.range.contains(pos)
-    );
+    return this.cachedDocumentSymbols.find((s) => isTypeKind(s.kind) && s.range.contains(pos));
   }
 
   public findMemberAtCursor(): FacetSymbolNode | undefined {

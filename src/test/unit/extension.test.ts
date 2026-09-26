@@ -22,7 +22,7 @@ suite('Extension Lifecycle Test Suite', () => {
       extensionMode: vscode.ExtensionMode.Test,
       secrets: {} as any,
       extension: {} as any,
-      languageModelAccessInformation: {} as any
+      languageModelAccessInformation: {} as any,
     };
 
     assert.doesNotThrow(() => {

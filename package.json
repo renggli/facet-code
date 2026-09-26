@@ -1,645 +1,649 @@
 {
-	"name": "facet-code",
-	"displayName": "Facet Code",
-	"description": "Structural, configurable code browser.",
-	"version": "0.1.0",
-	"engines": {
-		"vscode": "^1.138.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [
-		"onStartupFinished"
-	],
-	"main": "./out/extension.js",
-	"icon": "media/facet-logo.png",
-	"contributes": {
-		"viewsContainers": {
-			"activitybar": [
-				{
-					"id": "facet-container",
-					"title": "Facet",
-					"icon": "media/facet-logo.png"
-				}
-			]
-		},
-		"views": {
-			"facet-container": [
-				{
-					"id": "facet.pane.1",
-					"name": "Directories",
-					"when": "facet.pane.1.visible"
-				},
-				{
-					"id": "facet.pane.2",
-					"name": "Files",
-					"when": "facet.pane.2.visible"
-				},
-				{
-					"id": "facet.pane.3",
-					"name": "Types",
-					"when": "facet.pane.3.visible"
-				},
-				{
-					"id": "facet.pane.4",
-					"name": "Members",
-					"when": "facet.pane.4.visible"
-				},
-				{
-					"id": "facet.pane.5",
-					"name": "References",
-					"when": "facet.pane.5.visible"
-				},
-				{
-					"id": "facet.pane.6",
-					"name": "Implementations",
-					"when": "facet.pane.6.visible"
-				}
-			]
-		},
-		"commands": [
-			{
-				"command": "facet.addPane",
-				"title": "Facet: Add Pane",
-				"icon": "$(add)"
-			},
-			{
-				"command": "facet.removePane",
-				"title": "Facet: Remove Pane...",
-				"icon": "$(trash)"
-			},
-			{
-				"command": "facet.applyPreset",
-				"title": "Facet: Apply Preset...",
-				"icon": "$(layers)"
-			},
-			{
-				"command": "facet.savePreset",
-				"title": "Facet: Save Preset...",
-				"icon": "$(save)"
-			},
-			{
-				"command": "facet.loadPreset",
-				"title": "Facet: Load Preset...",
-				"icon": "$(folder-opened)"
-			},
-			{
-				"command": "facet.deletePreset",
-				"title": "Facet: Delete Preset...",
-				"icon": "$(trash)"
-			},
-			{
-				"command": "facet.pane.focus",
-				"title": "Facet: Focus on Pane..."
-			},
-			{
-				"command": "facet.pane.configure",
-				"title": "Facet: Configure Pane...",
-				"icon": "$(gear)"
-			},
-			{
-				"command": "facet.pane.presets",
-				"title": "Facet: View Presets",
-				"icon": "$(layers)"
-			},
-			{
-				"command": "facet.revealRange",
-				"title": "Facet: Reveal in Editor"
-			},
-			{
-				"command": "facet.pane.1.display",
-				"title": "Display Mode",
-				"icon": "$(list-tree)"
-			},
-			{
-				"command": "facet.pane.1.filter",
-				"title": "Filter",
-				"icon": "$(filter)"
-			},
-			{
-				"command": "facet.pane.1.configure",
-				"title": "Configure Pane...",
-				"icon": "$(gear)"
-			},
-			{
-				"command": "facet.pane.1.type",
-				"title": "Change Type...",
-				"icon": "$(symbol-class)"
-			},
-			{
-				"command": "facet.pane.1.input",
-				"title": "Input Source...",
-				"icon": "$(sign-in)"
-			},
-			{
-				"command": "facet.pane.1.sort",
-				"title": "Sort...",
-				"icon": "$(sort-precedence)"
-			},
-			{
-				"command": "facet.pane.2.display",
-				"title": "Display Mode",
-				"icon": "$(list-tree)"
-			},
-			{
-				"command": "facet.pane.2.filter",
-				"title": "Filter",
-				"icon": "$(filter)"
-			},
-			{
-				"command": "facet.pane.2.configure",
-				"title": "Configure Pane...",
-				"icon": "$(gear)"
-			},
-			{
-				"command": "facet.pane.2.type",
-				"title": "Change Type...",
-				"icon": "$(symbol-class)"
-			},
-			{
-				"command": "facet.pane.2.input",
-				"title": "Input Source...",
-				"icon": "$(sign-in)"
-			},
-			{
-				"command": "facet.pane.2.sort",
-				"title": "Sort...",
-				"icon": "$(sort-precedence)"
-			},
-			{
-				"command": "facet.pane.3.display",
-				"title": "Display Mode",
-				"icon": "$(list-tree)"
-			},
-			{
-				"command": "facet.pane.3.filter",
-				"title": "Filter",
-				"icon": "$(filter)"
-			},
-			{
-				"command": "facet.pane.3.configure",
-				"title": "Configure Pane...",
-				"icon": "$(gear)"
-			},
-			{
-				"command": "facet.pane.3.type",
-				"title": "Change Type...",
-				"icon": "$(symbol-class)"
-			},
-			{
-				"command": "facet.pane.3.input",
-				"title": "Input Source...",
-				"icon": "$(sign-in)"
-			},
-			{
-				"command": "facet.pane.3.sort",
-				"title": "Sort...",
-				"icon": "$(sort-precedence)"
-			},
-			{
-				"command": "facet.pane.4.display",
-				"title": "Display Mode",
-				"icon": "$(list-tree)"
-			},
-			{
-				"command": "facet.pane.4.filter",
-				"title": "Filter",
-				"icon": "$(filter)"
-			},
-			{
-				"command": "facet.pane.4.configure",
-				"title": "Configure Pane...",
-				"icon": "$(gear)"
-			},
-			{
-				"command": "facet.pane.4.type",
-				"title": "Change Type...",
-				"icon": "$(symbol-class)"
-			},
-			{
-				"command": "facet.pane.4.input",
-				"title": "Input Source...",
-				"icon": "$(sign-in)"
-			},
-			{
-				"command": "facet.pane.4.sort",
-				"title": "Sort...",
-				"icon": "$(sort-precedence)"
-			},
-			{
-				"command": "facet.pane.5.display",
-				"title": "Display Mode",
-				"icon": "$(list-tree)"
-			},
-			{
-				"command": "facet.pane.5.filter",
-				"title": "Filter",
-				"icon": "$(filter)"
-			},
-			{
-				"command": "facet.pane.5.configure",
-				"title": "Configure Pane...",
-				"icon": "$(gear)"
-			},
-			{
-				"command": "facet.pane.5.type",
-				"title": "Change Type...",
-				"icon": "$(symbol-class)"
-			},
-			{
-				"command": "facet.pane.5.input",
-				"title": "Input Source...",
-				"icon": "$(sign-in)"
-			},
-			{
-				"command": "facet.pane.5.sort",
-				"title": "Sort...",
-				"icon": "$(sort-precedence)"
-			},
-			{
-				"command": "facet.pane.6.display",
-				"title": "Display Mode",
-				"icon": "$(list-tree)"
-			},
-			{
-				"command": "facet.pane.6.filter",
-				"title": "Filter",
-				"icon": "$(filter)"
-			},
-			{
-				"command": "facet.pane.6.configure",
-				"title": "Configure Pane...",
-				"icon": "$(gear)"
-			},
-			{
-				"command": "facet.pane.6.type",
-				"title": "Change Type...",
-				"icon": "$(symbol-class)"
-			},
-			{
-				"command": "facet.pane.6.input",
-				"title": "Input Source...",
-				"icon": "$(sign-in)"
-			},
-			{
-				"command": "facet.pane.6.sort",
-				"title": "Sort...",
-				"icon": "$(sort-precedence)"
-			}
-		],
-		"menus": {
-			"commandPalette": [
-				{
-					"command": "facet.pane.1.display",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.1.filter",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.1.configure",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.1.type",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.1.input",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.1.sort",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.2.display",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.2.filter",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.2.configure",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.2.type",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.2.input",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.2.sort",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.3.display",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.3.filter",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.3.configure",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.3.type",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.3.input",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.3.sort",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.4.display",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.4.filter",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.4.configure",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.4.type",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.4.input",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.4.sort",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.5.display",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.5.filter",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.5.configure",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.5.type",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.5.input",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.5.sort",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.6.display",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.6.filter",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.6.configure",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.6.type",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.6.input",
-					"when": "false"
-				},
-				{
-					"command": "facet.pane.6.sort",
-					"when": "false"
-				}
-			],
-			"view/title": [
-				{
-					"command": "facet.pane.1.display",
-					"when": "view == facet.pane.1",
-					"group": "navigation@1"
-				},
-				{
-					"command": "facet.pane.1.filter",
-					"when": "view == facet.pane.1",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.pane.1.configure",
-					"when": "view == facet.pane.1",
-					"group": "1_settings@1"
-				},
-				{
-					"command": "facet.pane.1.type",
-					"when": "view == facet.pane.1",
-					"group": "1_settings@2"
-				},
-				{
-					"command": "facet.pane.1.input",
-					"when": "view == facet.pane.1",
-					"group": "1_settings@3"
-				},
-				{
-					"command": "facet.pane.1.sort",
-					"when": "view == facet.pane.1",
-					"group": "1_settings@4"
-				},
-				{
-					"command": "facet.pane.2.display",
-					"when": "view == facet.pane.2",
-					"group": "navigation@1"
-				},
-				{
-					"command": "facet.pane.2.filter",
-					"when": "view == facet.pane.2",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.pane.2.configure",
-					"when": "view == facet.pane.2",
-					"group": "1_settings@1"
-				},
-				{
-					"command": "facet.pane.2.type",
-					"when": "view == facet.pane.2",
-					"group": "1_settings@2"
-				},
-				{
-					"command": "facet.pane.2.input",
-					"when": "view == facet.pane.2",
-					"group": "1_settings@3"
-				},
-				{
-					"command": "facet.pane.2.sort",
-					"when": "view == facet.pane.2",
-					"group": "1_settings@4"
-				},
-				{
-					"command": "facet.pane.3.display",
-					"when": "view == facet.pane.3",
-					"group": "navigation@1"
-				},
-				{
-					"command": "facet.pane.3.filter",
-					"when": "view == facet.pane.3",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.pane.3.configure",
-					"when": "view == facet.pane.3",
-					"group": "1_settings@1"
-				},
-				{
-					"command": "facet.pane.3.type",
-					"when": "view == facet.pane.3",
-					"group": "1_settings@2"
-				},
-				{
-					"command": "facet.pane.3.input",
-					"when": "view == facet.pane.3",
-					"group": "1_settings@3"
-				},
-				{
-					"command": "facet.pane.3.sort",
-					"when": "view == facet.pane.3",
-					"group": "1_settings@4"
-				},
-				{
-					"command": "facet.pane.4.display",
-					"when": "view == facet.pane.4",
-					"group": "navigation@1"
-				},
-				{
-					"command": "facet.pane.4.filter",
-					"when": "view == facet.pane.4",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.pane.4.configure",
-					"when": "view == facet.pane.4",
-					"group": "1_settings@1"
-				},
-				{
-					"command": "facet.pane.4.type",
-					"when": "view == facet.pane.4",
-					"group": "1_settings@2"
-				},
-				{
-					"command": "facet.pane.4.input",
-					"when": "view == facet.pane.4",
-					"group": "1_settings@3"
-				},
-				{
-					"command": "facet.pane.4.sort",
-					"when": "view == facet.pane.4",
-					"group": "1_settings@4"
-				},
-				{
-					"command": "facet.pane.5.display",
-					"when": "view == facet.pane.5",
-					"group": "navigation@1"
-				},
-				{
-					"command": "facet.pane.5.filter",
-					"when": "view == facet.pane.5",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.pane.5.configure",
-					"when": "view == facet.pane.5",
-					"group": "1_settings@1"
-				},
-				{
-					"command": "facet.pane.5.type",
-					"when": "view == facet.pane.5",
-					"group": "1_settings@2"
-				},
-				{
-					"command": "facet.pane.5.input",
-					"when": "view == facet.pane.5",
-					"group": "1_settings@3"
-				},
-				{
-					"command": "facet.pane.5.sort",
-					"when": "view == facet.pane.5",
-					"group": "1_settings@4"
-				},
-				{
-					"command": "facet.pane.6.display",
-					"when": "view == facet.pane.6",
-					"group": "navigation@1"
-				},
-				{
-					"command": "facet.pane.6.filter",
-					"when": "view == facet.pane.6",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.pane.6.configure",
-					"when": "view == facet.pane.6",
-					"group": "1_settings@1"
-				},
-				{
-					"command": "facet.pane.6.type",
-					"when": "view == facet.pane.6",
-					"group": "1_settings@2"
-				},
-				{
-					"command": "facet.pane.6.input",
-					"when": "view == facet.pane.6",
-					"group": "1_settings@3"
-				},
-				{
-					"command": "facet.pane.6.sort",
-					"when": "view == facet.pane.6",
-					"group": "1_settings@4"
-				}
-			]
-		}
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"watch": "tsc -watch -p ./",
-		"pretest": "npm run compile && npm run lint",
-		"lint": "eslint src",
-		"test:unit": "mocha -r ./out/test/unit/mockVscode.js --ui tdd --exit out/test/unit/**/*.test.js",
-		"test": "npm run test:unit"
-	},
-	"devDependencies": {
-		"@types/vscode": "^1.138.0",
-		"@types/mocha": "^10.0.10",
-		"@types/node": "24.x",
-		"typescript-eslint": "^8.61.1",
-		"eslint": "^10.5.0",
-		"typescript": "^6.0.3",
-		"@vscode/test-cli": "^0.0.15",
-		"@vscode/test-electron": "^3.0.0"
-	},
-	"overrides": {
-		"diff": "^8.0.4",
-		"serialize-javascript": "^7.0.6"
-	}
+  "name": "facet-code",
+  "displayName": "Facet Code",
+  "description": "Structural, configurable code browser.",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.138.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "icon": "media/facet-logo.png",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "facet-container",
+          "title": "Facet",
+          "icon": "media/facet-logo.png"
+        }
+      ]
+    },
+    "views": {
+      "facet-container": [
+        {
+          "id": "facet.pane.1",
+          "name": "Directories",
+          "when": "facet.pane.1.visible"
+        },
+        {
+          "id": "facet.pane.2",
+          "name": "Files",
+          "when": "facet.pane.2.visible"
+        },
+        {
+          "id": "facet.pane.3",
+          "name": "Types",
+          "when": "facet.pane.3.visible"
+        },
+        {
+          "id": "facet.pane.4",
+          "name": "Members",
+          "when": "facet.pane.4.visible"
+        },
+        {
+          "id": "facet.pane.5",
+          "name": "References",
+          "when": "facet.pane.5.visible"
+        },
+        {
+          "id": "facet.pane.6",
+          "name": "Implementations",
+          "when": "facet.pane.6.visible"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "facet.addPane",
+        "title": "Facet: Add Pane",
+        "icon": "$(add)"
+      },
+      {
+        "command": "facet.removePane",
+        "title": "Facet: Remove Pane...",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "facet.applyPreset",
+        "title": "Facet: Apply Preset...",
+        "icon": "$(layers)"
+      },
+      {
+        "command": "facet.savePreset",
+        "title": "Facet: Save Preset...",
+        "icon": "$(save)"
+      },
+      {
+        "command": "facet.loadPreset",
+        "title": "Facet: Load Preset...",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "facet.deletePreset",
+        "title": "Facet: Delete Preset...",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "facet.pane.focus",
+        "title": "Facet: Focus on Pane..."
+      },
+      {
+        "command": "facet.pane.configure",
+        "title": "Facet: Configure Pane...",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "facet.pane.presets",
+        "title": "Facet: View Presets",
+        "icon": "$(layers)"
+      },
+      {
+        "command": "facet.revealRange",
+        "title": "Facet: Reveal in Editor"
+      },
+      {
+        "command": "facet.pane.1.display",
+        "title": "Display Mode",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.1.filter",
+        "title": "Filter",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "facet.pane.1.configure",
+        "title": "Configure Pane...",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "facet.pane.1.type",
+        "title": "Change Type...",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "facet.pane.1.input",
+        "title": "Input Source...",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "facet.pane.1.sort",
+        "title": "Sort...",
+        "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "facet.pane.2.display",
+        "title": "Display Mode",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.2.filter",
+        "title": "Filter",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "facet.pane.2.configure",
+        "title": "Configure Pane...",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "facet.pane.2.type",
+        "title": "Change Type...",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "facet.pane.2.input",
+        "title": "Input Source...",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "facet.pane.2.sort",
+        "title": "Sort...",
+        "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "facet.pane.3.display",
+        "title": "Display Mode",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.3.filter",
+        "title": "Filter",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "facet.pane.3.configure",
+        "title": "Configure Pane...",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "facet.pane.3.type",
+        "title": "Change Type...",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "facet.pane.3.input",
+        "title": "Input Source...",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "facet.pane.3.sort",
+        "title": "Sort...",
+        "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "facet.pane.4.display",
+        "title": "Display Mode",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.4.filter",
+        "title": "Filter",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "facet.pane.4.configure",
+        "title": "Configure Pane...",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "facet.pane.4.type",
+        "title": "Change Type...",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "facet.pane.4.input",
+        "title": "Input Source...",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "facet.pane.4.sort",
+        "title": "Sort...",
+        "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "facet.pane.5.display",
+        "title": "Display Mode",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.5.filter",
+        "title": "Filter",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "facet.pane.5.configure",
+        "title": "Configure Pane...",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "facet.pane.5.type",
+        "title": "Change Type...",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "facet.pane.5.input",
+        "title": "Input Source...",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "facet.pane.5.sort",
+        "title": "Sort...",
+        "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "facet.pane.6.display",
+        "title": "Display Mode",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.6.filter",
+        "title": "Filter",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "facet.pane.6.configure",
+        "title": "Configure Pane...",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "facet.pane.6.type",
+        "title": "Change Type...",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "facet.pane.6.input",
+        "title": "Input Source...",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "facet.pane.6.sort",
+        "title": "Sort...",
+        "icon": "$(sort-precedence)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "facet.pane.1.display",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.1.filter",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.1.configure",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.1.type",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.1.input",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.1.sort",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.display",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.filter",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.configure",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.type",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.input",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.sort",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.display",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.filter",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.configure",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.type",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.input",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.sort",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.display",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.filter",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.configure",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.type",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.input",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.sort",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.display",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.filter",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.configure",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.type",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.input",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.sort",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.display",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.filter",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.configure",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.type",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.input",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.sort",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "facet.pane.1.display",
+          "when": "view == facet.pane.1",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.1.filter",
+          "when": "view == facet.pane.1",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.1.configure",
+          "when": "view == facet.pane.1",
+          "group": "1_settings@1"
+        },
+        {
+          "command": "facet.pane.1.type",
+          "when": "view == facet.pane.1",
+          "group": "1_settings@2"
+        },
+        {
+          "command": "facet.pane.1.input",
+          "when": "view == facet.pane.1",
+          "group": "1_settings@3"
+        },
+        {
+          "command": "facet.pane.1.sort",
+          "when": "view == facet.pane.1",
+          "group": "1_settings@4"
+        },
+        {
+          "command": "facet.pane.2.display",
+          "when": "view == facet.pane.2",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.2.filter",
+          "when": "view == facet.pane.2",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.2.configure",
+          "when": "view == facet.pane.2",
+          "group": "1_settings@1"
+        },
+        {
+          "command": "facet.pane.2.type",
+          "when": "view == facet.pane.2",
+          "group": "1_settings@2"
+        },
+        {
+          "command": "facet.pane.2.input",
+          "when": "view == facet.pane.2",
+          "group": "1_settings@3"
+        },
+        {
+          "command": "facet.pane.2.sort",
+          "when": "view == facet.pane.2",
+          "group": "1_settings@4"
+        },
+        {
+          "command": "facet.pane.3.display",
+          "when": "view == facet.pane.3",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.3.filter",
+          "when": "view == facet.pane.3",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.3.configure",
+          "when": "view == facet.pane.3",
+          "group": "1_settings@1"
+        },
+        {
+          "command": "facet.pane.3.type",
+          "when": "view == facet.pane.3",
+          "group": "1_settings@2"
+        },
+        {
+          "command": "facet.pane.3.input",
+          "when": "view == facet.pane.3",
+          "group": "1_settings@3"
+        },
+        {
+          "command": "facet.pane.3.sort",
+          "when": "view == facet.pane.3",
+          "group": "1_settings@4"
+        },
+        {
+          "command": "facet.pane.4.display",
+          "when": "view == facet.pane.4",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.4.filter",
+          "when": "view == facet.pane.4",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.4.configure",
+          "when": "view == facet.pane.4",
+          "group": "1_settings@1"
+        },
+        {
+          "command": "facet.pane.4.type",
+          "when": "view == facet.pane.4",
+          "group": "1_settings@2"
+        },
+        {
+          "command": "facet.pane.4.input",
+          "when": "view == facet.pane.4",
+          "group": "1_settings@3"
+        },
+        {
+          "command": "facet.pane.4.sort",
+          "when": "view == facet.pane.4",
+          "group": "1_settings@4"
+        },
+        {
+          "command": "facet.pane.5.display",
+          "when": "view == facet.pane.5",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.5.filter",
+          "when": "view == facet.pane.5",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.5.configure",
+          "when": "view == facet.pane.5",
+          "group": "1_settings@1"
+        },
+        {
+          "command": "facet.pane.5.type",
+          "when": "view == facet.pane.5",
+          "group": "1_settings@2"
+        },
+        {
+          "command": "facet.pane.5.input",
+          "when": "view == facet.pane.5",
+          "group": "1_settings@3"
+        },
+        {
+          "command": "facet.pane.5.sort",
+          "when": "view == facet.pane.5",
+          "group": "1_settings@4"
+        },
+        {
+          "command": "facet.pane.6.display",
+          "when": "view == facet.pane.6",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.6.filter",
+          "when": "view == facet.pane.6",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.6.configure",
+          "when": "view == facet.pane.6",
+          "group": "1_settings@1"
+        },
+        {
+          "command": "facet.pane.6.type",
+          "when": "view == facet.pane.6",
+          "group": "1_settings@2"
+        },
+        {
+          "command": "facet.pane.6.input",
+          "when": "view == facet.pane.6",
+          "group": "1_settings@3"
+        },
+        {
+          "command": "facet.pane.6.sort",
+          "when": "view == facet.pane.6",
+          "group": "1_settings@4"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "check": "biome check .",
+    "format": "biome format --write .",
+    "fix": "biome check --write .",
+    "test:unit": "mocha -r ./out/test/unit/mockVscode.js --ui tdd --exit out/test/unit/**/*.test.js",
+    "test": "npm run test:unit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "@types/vscode": "^1.138.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  }
 }

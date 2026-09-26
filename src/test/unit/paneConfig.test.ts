@@ -1,21 +1,21 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import {
-  matchesGlob,
-  matchesPaneFilters,
+  createCallersPane,
+  createChangesPane,
+  createDeclarationsPane,
   createDefaultPanes,
+  createDefinitionsPane,
   createDirectoriesPane,
   createFilesPane,
-  createTypesPane,
-  createMembersPane,
-  createDefinitionsPane,
-  createDeclarationsPane,
-  createImplementationsPane,
-  createReferencesPane,
-  createCallersPane,
   createHierarchyPane,
+  createImplementationsPane,
+  createMembersPane,
   createProblemsPane,
-  createChangesPane
+  createReferencesPane,
+  createTypesPane,
+  matchesGlob,
+  matchesPaneFilters,
 } from '../../models/paneConfig';
 
 suite('PaneConfig & Filter Helpers Test Suite', () => {
@@ -82,30 +82,12 @@ suite('PaneConfig & Filter Helpers Test Suite', () => {
     });
 
     test('returns false when symbol kind is disabled in filters', () => {
-      assert.strictEqual(
-        matchesPaneFilters(
-          { kind: vscode.SymbolKind.Method },
-          { method: false } as any
-        ),
-        false
-      );
-      assert.strictEqual(
-        matchesPaneFilters(
-          { kind: vscode.SymbolKind.Class },
-          { class: false } as any
-        ),
-        false
-      );
+      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Method }, { method: false } as any), false);
+      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Class }, { class: false } as any), false);
     });
 
     test('returns true when node has no kind property', () => {
-      assert.strictEqual(
-        matchesPaneFilters(
-          {},
-          { class: false } as any
-        ),
-        true
-      );
+      assert.strictEqual(matchesPaneFilters({}, { class: false } as any), true);
     });
   });
 

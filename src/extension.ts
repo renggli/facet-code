@@ -1,19 +1,16 @@
 import * as vscode from 'vscode';
-import { SymbolResolver } from './services/symbolResolver';
-import { RelationsTreeProvider } from './providers/relationsTreeProvider';
-import { SlotTreeProvider } from './providers/slotTreeProvider';
 import { FacetCoordinator } from './coordinator/facetCoordinator';
 import { PanePipelineManager } from './coordinator/panePipelineManager';
 import { WorkbenchLayoutWatcher } from './coordinator/workbenchLayoutWatcher';
+import { RelationsTreeProvider } from './providers/relationsTreeProvider';
+import { SlotTreeProvider } from './providers/slotTreeProvider';
+import { SymbolResolver } from './services/symbolResolver';
 
 export function activate(context: vscode.ExtensionContext) {
   const resolver = new SymbolResolver();
   const relationsProvider = new RelationsTreeProvider();
 
-  const coordinator = new FacetCoordinator(
-    resolver,
-    relationsProvider
-  );
+  const coordinator = new FacetCoordinator(resolver, relationsProvider);
 
   const pipelineManager = new PanePipelineManager(coordinator);
 
@@ -41,7 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
     const treeView = vscode.window.createTreeView(slotId, {
       treeDataProvider: slotProvider,
       canSelectMany: true,
-      showCollapseAll: true
+      showCollapseAll: true,
     });
     const pane = pipelineManager.getPane(slotId);
     if (pane) {
@@ -53,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
       treeView.onDidChangeSelection((e) => {
         void coordinator.handleSlotSelection(slotId, e.selection);
       }),
-      treeView
+      treeView,
     );
   }
 
@@ -72,7 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     pipelineManager.onDidUpdatePanes(() => {
       updateTitlesAndRefresh();
-    })
+    }),
   );
 
   // 3. Track Editor Lifecycle with Debounce
@@ -82,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.window.onDidChangeTextEditorSelection((e) => {
       coordinator.handleSelectionChange(e.textEditor);
-    })
+    }),
   );
 
   // Helper to focus on a pane slot
@@ -108,9 +105,9 @@ export function activate(context: vscode.ExtensionContext) {
       visiblePanes.map((p) => ({
         label: p.title,
         description: `Role: ${p.role}`,
-        id: p.id
+        id: p.id,
       })),
-      { placeHolder }
+      { placeHolder },
     );
     return picked?.id;
   };
@@ -136,7 +133,7 @@ export function activate(context: vscode.ExtensionContext) {
       }),
       vscode.commands.registerCommand(`${slotId}.sort`, async () => {
         await pipelineManager.configureSort(slotId);
-      })
+      }),
     );
   }
 
@@ -153,7 +150,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     for (let idx = 0; idx < visiblePanes.length; idx++) {
       const pane = visiblePanes[idx];
-      const baseSlug = (pane.title || pane.role).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `pane-${idx + 1}`;
+      const baseSlug =
+        (pane.title || pane.role)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') || `pane-${idx + 1}`;
       const count = (slugCounts.get(baseSlug) || 0) + 1;
       slugCounts.set(baseSlug, count);
 
@@ -167,7 +168,7 @@ export function activate(context: vscode.ExtensionContext) {
           }),
           vscode.commands.registerCommand(`facet.configure.${targetSlug}`, async () => {
             await pipelineManager.configurePane(slotId);
-          })
+          }),
         );
       } catch {
         // ignore duplicate
@@ -185,8 +186,8 @@ export function activate(context: vscode.ExtensionContext) {
           d.dispose();
         }
         dynamicPaneDisposables = [];
-      }
-    }
+      },
+    },
   );
   updateDynamicPaneCommands();
 
@@ -226,17 +227,13 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('facet.revealRange', (uri: vscode.Uri, range: vscode.Range) => {
       void coordinator.revealRange(uri, range);
-    })
+    }),
   );
 
   // 5. Watch workbench layout for drag-and-drop reordering
-  const layoutWatcher = new WorkbenchLayoutWatcher(
-    context.storageUri,
-    context.globalStorageUri,
-    (newSlotOrder) => {
-      void pipelineManager.reorderSlots(newSlotOrder);
-    }
-  );
+  const layoutWatcher = new WorkbenchLayoutWatcher(context.storageUri, context.globalStorageUri, (newSlotOrder) => {
+    void pipelineManager.reorderSlots(newSlotOrder);
+  });
   context.subscriptions.push(layoutWatcher);
 
   if (vscode.window.onDidChangeWindowState) {
@@ -245,7 +242,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (e.focused) {
           layoutWatcher.checkOrder();
         }
-      })
+      }),
     );
   }
 

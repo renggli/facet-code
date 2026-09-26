@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FacetSymbolNode } from '../models/symbolNode';
+import type { FacetSymbolNode } from '../models/symbolNode';
 
 export type RelationsMode = 'references' | 'callers' | 'implementations' | 'definitions' | 'declarations';
 
@@ -14,9 +14,7 @@ export interface RelationItem {
 }
 
 async function getLineSnippet(uri: vscode.Uri, lineIndex: number, fallback: string): Promise<string> {
-  const openDoc = (vscode.workspace.textDocuments || []).find(
-    (d) => d.uri.toString() === uri.toString()
-  );
+  const openDoc = (vscode.workspace.textDocuments || []).find((d) => d.uri.toString() === uri.toString());
   if (openDoc && lineIndex >= 0 && lineIndex < openDoc.lineCount) {
     const text = openDoc.lineAt(lineIndex).text.trim();
     if (text) {
@@ -80,10 +78,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
     this.refresh();
   }
 
-  async fetchRelationsForNodes(
-    nodes: readonly FacetSymbolNode[],
-    mode: RelationsMode
-  ): Promise<RelationItem[]> {
+  async fetchRelationsForNodes(nodes: readonly FacetSymbolNode[], mode: RelationsMode): Promise<RelationItem[]> {
     const allResults: RelationItem[] = [];
 
     for (const node of nodes) {
@@ -123,7 +118,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
       'vscode.executeReferenceProvider',
       node.uri,
-      node.selectionRange.start
+      node.selectionRange.start,
     );
 
     if (!locations || locations.length === 0) {
@@ -143,7 +138,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
         iconPath: new vscode.ThemeIcon('references'),
         uri: loc.uri,
         range: loc.range,
-        kind: node.kind
+        kind: node.kind,
       });
     }
 
@@ -154,7 +149,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
     const items = await vscode.commands.executeCommand<vscode.CallHierarchyItem[]>(
       'vscode.prepareCallHierarchy',
       node.uri,
-      node.selectionRange.start
+      node.selectionRange.start,
     );
 
     if (!items || items.length === 0) {
@@ -163,7 +158,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
 
     const calls = await vscode.commands.executeCommand<vscode.CallHierarchyIncomingCall[]>(
       'vscode.provideIncomingCalls',
-      items[0]
+      items[0],
     );
 
     if (!calls || calls.length === 0) {
@@ -182,7 +177,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
         tooltip: `Called from ${container}${from.name}() in ${from.uri.fsPath}:${lineNum}`,
         iconPath: new vscode.ThemeIcon('call-incoming'),
         uri: from.uri,
-        range: from.selectionRange
+        range: from.selectionRange,
       };
     });
   }
@@ -191,7 +186,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
       'vscode.executeImplementationProvider',
       node.uri,
-      node.selectionRange.start
+      node.selectionRange.start,
     );
 
     if (!locations || locations.length === 0) {
@@ -211,7 +206,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
         iconPath: new vscode.ThemeIcon('type-hierarchy-sub'),
         uri: loc.uri,
         range: loc.range,
-        kind: node.kind
+        kind: node.kind,
       });
     }
 
@@ -222,7 +217,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
     const locations = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
       'vscode.executeDefinitionProvider',
       node.uri,
-      node.selectionRange.start
+      node.selectionRange.start,
     );
 
     if (!locations || locations.length === 0) {
@@ -244,7 +239,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
         iconPath: new vscode.ThemeIcon('symbol-field'),
         uri,
         range,
-        kind: node.kind
+        kind: node.kind,
       });
     }
 
@@ -255,7 +250,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
     const locations = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
       'vscode.executeDeclarationProvider',
       node.uri,
-      node.selectionRange.start
+      node.selectionRange.start,
     );
 
     if (!locations || locations.length === 0) {
@@ -277,7 +272,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
         iconPath: new vscode.ThemeIcon('symbol-interface'),
         uri,
         range,
-        kind: node.kind
+        kind: node.kind,
       });
     }
 
@@ -292,7 +287,7 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
     item.command = {
       command: 'facet.revealRange',
       title: 'Reveal in Editor',
-      arguments: [element.uri, element.range]
+      arguments: [element.uri, element.range],
     };
     return item;
   }

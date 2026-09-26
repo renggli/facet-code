@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { RelationsTreeProvider, RelationItem } from '../../providers/relationsTreeProvider';
-import { FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
+import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
+import { type RelationItem, RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { commands } from './mockVscode';
 
 suite('Providers Test Suite', () => {
@@ -25,9 +25,9 @@ suite('Providers Test Suite', () => {
         selectionRange: dummyRange,
         category: MemberCategory.InstanceMethods,
         isStatic: false,
-        children: []
-      }
-    ]
+        children: [],
+      },
+    ],
   };
 
   test('RelationsTreeProvider switches modes and generates readable tree items', () => {
@@ -56,7 +56,7 @@ suite('Providers Test Suite', () => {
       tooltip: '/path/to/src/test.ts:42\nconst x = doWork();',
       iconPath: new vscode.ThemeIcon('references'),
       uri: dummyUri,
-      range: dummyRange
+      range: dummyRange,
     };
 
     const treeItem = provider.getTreeItem(sampleItem);
@@ -70,16 +70,14 @@ suite('Providers Test Suite', () => {
     const provider = new RelationsTreeProvider();
 
     // 1. References
-    commands.setHandler('vscode.executeReferenceProvider', (uri: any, _pos: any) => [
-      { uri, range: dummyRange }
-    ]);
+    commands.setHandler('vscode.executeReferenceProvider', (uri: any, _pos: any) => [{ uri, range: dummyRange }]);
     const refs = await provider.fetchRelationsForNodes([mockType.children[0]], 'references');
     assert.strictEqual(refs.length, 1);
     assert.strictEqual(refs[0].uri.toString(), dummyUri.toString());
 
     // 2. Callers
     commands.setHandler('vscode.prepareCallHierarchy', (uri: any, _pos: any) => [
-      { name: 'callerFunc', uri, detail: 'CallerClass', selectionRange: dummyRange }
+      { name: 'callerFunc', uri, detail: 'CallerClass', selectionRange: dummyRange },
     ]);
     commands.setHandler('vscode.provideIncomingCalls', () => [
       {
@@ -88,9 +86,9 @@ suite('Providers Test Suite', () => {
           uri: dummyUri,
           detail: 'CallerClass',
           range: dummyRange,
-          selectionRange: dummyRange
-        }
-      }
+          selectionRange: dummyRange,
+        },
+      },
     ]);
     const callers = await provider.fetchRelationsForNodes([mockType.children[0]], 'callers');
     assert.strictEqual(callers.length, 1);
@@ -102,16 +100,14 @@ suite('Providers Test Suite', () => {
     assert.strictEqual(emptyCallers.length, 0);
 
     // 3. Implementations
-    commands.setHandler('vscode.executeImplementationProvider', (uri: any, _pos: any) => [
-      { uri, range: dummyRange }
-    ]);
+    commands.setHandler('vscode.executeImplementationProvider', (uri: any, _pos: any) => [{ uri, range: dummyRange }]);
     const impls = await provider.fetchRelationsForNodes([mockType.children[0]], 'implementations');
     assert.strictEqual(impls.length, 1);
 
     // 4. Definitions (Location + LocationLink)
     commands.setHandler('vscode.executeDefinitionProvider', (uri: any, _pos: any) => [
       { uri, range: dummyRange },
-      { targetUri: uri, targetRange: dummyRange }
+      { targetUri: uri, targetRange: dummyRange },
     ]);
     const defs = await provider.fetchRelationsForNodes([mockType.children[0]], 'definitions');
     assert.strictEqual(defs.length, 2);
@@ -119,7 +115,7 @@ suite('Providers Test Suite', () => {
     // 5. Declarations (Location + LocationLink)
     commands.setHandler('vscode.executeDeclarationProvider', (uri: any, _pos: any) => [
       { uri, range: dummyRange },
-      { targetUri: uri, targetRange: dummyRange }
+      { targetUri: uri, targetRange: dummyRange },
     ]);
     const decls = await provider.fetchRelationsForNodes([mockType.children[0]], 'declarations');
     assert.strictEqual(decls.length, 2);
