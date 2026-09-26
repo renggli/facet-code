@@ -6,8 +6,34 @@ export type RelationsMode = 'references' | 'callers' | 'implementations';
 export interface RelationItem {
   label: string;
   description?: string;
+  tooltip?: string;
+  iconPath?: vscode.ThemeIcon;
   uri: vscode.Uri;
   range: vscode.Range;
+}
+
+async function getLineSnippet(uri: vscode.Uri, lineIndex: number, fallback: string): Promise<string> {
+  const openDoc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString());
+  if (openDoc && lineIndex >= 0 && lineIndex < openDoc.lineCount) {
+    const text = openDoc.lineAt(lineIndex).text.trim();
+    if (text) {
+      return text;
+    }
+  }
+
+  try {
+    const doc = await vscode.workspace.openTextDocument(uri);
+    if (lineIndex >= 0 && lineIndex < doc.lineCount) {
+      const text = doc.lineAt(lineIndex).text.trim();
+      if (text) {
+        return text;
+      }
+    }
+  } catch {
+    // Fall back to provided label if file cannot be read
+  }
+
+  return fallback;
 }
 
 export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationItem> {
@@ -47,57 +73,74 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
       return;
     }
 
-    const allResults: RelationItem[] = [];
-
-    for (const member of this.selectedMembers) {
-      const results = await this.queryForMember(member);
-      allResults.push(...results);
-    }
-
-    this.cachedItems = allResults;
+    this.cachedItems = await this.fetchRelationsForNodes(this.selectedMembers, this.mode);
     this.refresh();
   }
 
-  private async queryForMember(member: FacetSymbolNode): Promise<RelationItem[]> {
-    switch (this.mode) {
-      case 'references':
-        return this.fetchReferences(member);
-      case 'callers':
-        return this.fetchCallers(member);
-      case 'implementations':
-        return this.fetchImplementations(member);
-      default:
-        return [];
+  async fetchRelationsForNodes(
+    nodes: readonly FacetSymbolNode[],
+    mode: RelationsMode
+  ): Promise<RelationItem[]> {
+    const allResults: RelationItem[] = [];
+
+    for (const node of nodes) {
+      switch (mode) {
+        case 'references': {
+          const refs = await this.fetchReferencesForNode(node);
+          allResults.push(...refs);
+          break;
+        }
+        case 'callers': {
+          const callers = await this.fetchCallersForNode(node);
+          allResults.push(...callers);
+          break;
+        }
+        case 'implementations': {
+          const impls = await this.fetchImplementationsForNode(node);
+          allResults.push(...impls);
+          break;
+        }
+      }
     }
+
+    return allResults;
   }
 
-  private async fetchReferences(member: FacetSymbolNode): Promise<RelationItem[]> {
+  async fetchReferencesForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
       'vscode.executeReferenceProvider',
-      member.uri,
-      member.selectionRange.start
+      node.uri,
+      node.selectionRange.start
     );
 
     if (!locations || locations.length === 0) {
       return [];
     }
 
-    return locations.map((loc) => {
-      const fileName = loc.uri.path.split('/').pop() || '';
-      return {
-        label: `${member.name} in ${fileName}:${loc.range.start.line + 1}`,
-        description: `line ${loc.range.start.line + 1}`,
+    const items: RelationItem[] = [];
+    for (const loc of locations) {
+      const relPath = vscode.workspace.asRelativePath(loc.uri);
+      const lineNum = loc.range.start.line + 1;
+      const snippet = await getLineSnippet(loc.uri, loc.range.start.line, node.name);
+
+      items.push({
+        label: snippet,
+        description: `${relPath}:${lineNum}`,
+        tooltip: `${loc.uri.fsPath}:${lineNum}\n${snippet}`,
+        iconPath: new vscode.ThemeIcon('references'),
         uri: loc.uri,
         range: loc.range
-      };
-    });
+      });
+    }
+
+    return items;
   }
 
-  private async fetchCallers(member: FacetSymbolNode): Promise<RelationItem[]> {
+  async fetchCallersForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
     const items = await vscode.commands.executeCommand<vscode.CallHierarchyItem[]>(
       'vscode.prepareCallHierarchy',
-      member.uri,
-      member.selectionRange.start
+      node.uri,
+      node.selectionRange.start
     );
 
     if (!items || items.length === 0) {
@@ -115,44 +158,56 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
 
     return calls.map((call) => {
       const from = call.from;
-      const fileName = from.uri.path.split('/').pop() || '';
+      const relPath = vscode.workspace.asRelativePath(from.uri);
+      const lineNum = from.range.start.line + 1;
+      const container = from.detail ? `${from.detail}.` : '';
+
       return {
-        label: `${from.name} -> ${member.name}`,
-        description: `${fileName}:${from.range.start.line + 1}`,
+        label: `${container}${from.name}()`,
+        description: `${relPath}:${lineNum}`,
+        tooltip: `Called from ${container}${from.name}() in ${from.uri.fsPath}:${lineNum}`,
+        iconPath: new vscode.ThemeIcon('call-incoming'),
         uri: from.uri,
         range: from.selectionRange
       };
     });
   }
 
-  private async fetchImplementations(member: FacetSymbolNode): Promise<RelationItem[]> {
+  async fetchImplementationsForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
       'vscode.executeImplementationProvider',
-      member.uri,
-      member.selectionRange.start
+      node.uri,
+      node.selectionRange.start
     );
 
     if (!locations || locations.length === 0) {
       return [];
     }
 
-    return locations.map((loc) => {
-      const fileName = loc.uri.path.split('/').pop() || '';
-      return {
-        label: `${member.name} (${fileName})`,
-        description: `line ${loc.range.start.line + 1}`,
+    const items: RelationItem[] = [];
+    for (const loc of locations) {
+      const relPath = vscode.workspace.asRelativePath(loc.uri);
+      const lineNum = loc.range.start.line + 1;
+      const snippet = await getLineSnippet(loc.uri, loc.range.start.line, node.name);
+
+      items.push({
+        label: snippet,
+        description: `${relPath}:${lineNum}`,
+        tooltip: `Implementation in ${loc.uri.fsPath}:${lineNum}\n${snippet}`,
+        iconPath: new vscode.ThemeIcon('type-hierarchy-sub'),
         uri: loc.uri,
         range: loc.range
-      };
-    });
+      });
+    }
+
+    return items;
   }
 
   getTreeItem(element: RelationItem): vscode.TreeItem {
     const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
     item.description = element.description;
-    item.iconPath = new vscode.ThemeIcon(
-      this.mode === 'callers' ? 'call-incoming' : this.mode === 'implementations' ? 'type-hierarchy-sub' : 'references'
-    );
+    item.tooltip = element.tooltip;
+    item.iconPath = element.iconPath || new vscode.ThemeIcon('references');
     item.command = {
       command: 'facet.revealRange',
       title: 'Reveal in Editor',

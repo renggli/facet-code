@@ -1,18 +1,27 @@
 import * as vscode from 'vscode';
-import { PaneConfig, PaneRole, createDefaultPanes } from '../models/paneConfig';
+import {
+  PaneConfig,
+  PaneRole,
+  PaneInputSource,
+  DisplayMode,
+  PaneFilters,
+  createDefaultFilters,
+  createDefaultPanes
+} from '../models/paneConfig';
 import { FacetCoordinator } from './facetCoordinator';
-import { TypesScope } from '../providers/typesTreeProvider';
-import { LayoutMode } from '../models/symbolNode';
-import { RelationsMode } from '../providers/relationsTreeProvider';
 
 export class PanePipelineManager {
   private panes: PaneConfig[];
+
+  private _onDidUpdatePanes = new vscode.EventEmitter<void>();
+  readonly onDidUpdatePanes = this._onDidUpdatePanes.event;
 
   constructor(
     private readonly coordinator: FacetCoordinator,
     initialPanes?: PaneConfig[]
   ) {
     this.panes = initialPanes || createDefaultPanes();
+    this.coordinator.setPipelineManager(this);
     this.syncContextKeys();
   }
 
@@ -34,91 +43,121 @@ export class PanePipelineManager {
     }
   }
 
-  public async addPane(): Promise<PaneConfig | undefined> {
-    const nextSlot = this.panes.find((p) => !p.visible);
-    if (!nextSlot) {
-      void vscode.window.showInformationMessage('Maximum number of native panes (6) reached.');
-      return undefined;
+  private reassignSlotIds(): void {
+    const visible = this.getVisiblePanes();
+    const hidden = this.panes.filter((p) => !p.visible);
+    const combined = [...visible, ...hidden];
+
+    for (let i = 0; i < combined.length; i++) {
+      combined[i].id = `facet.pane.${i + 1}`;
     }
-
-    const pickedRole = await vscode.window.showQuickPick(
-      [
-        { label: 'Types', description: 'Classes, Interfaces, Enums', role: 'types' as PaneRole },
-        { label: 'Categories', description: 'Member kinds (Constructors, Fields, Methods, Static)', role: 'categories' as PaneRole },
-        { label: 'Members', description: 'Selectors and Properties', role: 'members' as PaneRole },
-        { label: 'Relations', description: 'Usages across workspace (References, Callers, Implementations)', role: 'relations' as PaneRole }
-      ],
-      { placeHolder: 'Select Role for New Pane' }
-    );
-
-    if (!pickedRole) {
-      return undefined;
-    }
-
-    nextSlot.role = pickedRole.role;
-    nextSlot.title = pickedRole.label;
-    nextSlot.visible = true;
-
+    this.panes = combined;
     this.syncContextKeys();
+    this._onDidUpdatePanes.fire();
+  }
+
+  public async addPaneBefore(slotId: string): Promise<PaneConfig | undefined> {
+    const visible = this.getVisiblePanes();
+    if (visible.length >= 6) {
+      void vscode.window.showWarningMessage?.('Maximum number of native panes (6) reached.');
+      return undefined;
+    }
+
+    const idx = visible.findIndex((p) => p.id === slotId);
+    if (idx === -1) {
+      return undefined;
+    }
+
+    const rolePick = await this.promptRolePicker('Select Role for Previous Pane');
+    if (!rolePick) {
+      return undefined;
+    }
+
+    const newPane: PaneConfig = {
+      id: '',
+      title: rolePick.label,
+      role: rolePick.role,
+      inputSource: idx === 0 ? 'project' : 'previous',
+      navigateOnSelect: true,
+      followCursor: true,
+      filters: createDefaultFilters(),
+      display: 'flat',
+      visible: true
+    };
+
+    visible.splice(idx, 0, newPane);
+
+    const hidden = this.panes.filter((p) => !p.visible);
+    hidden.pop(); // Remove one hidden slot to maintain total 6 slots
+
+    this.panes = [...visible, ...hidden];
+    this.reassignSlotIds();
     await this.coordinator.sync();
-    return nextSlot;
+
+    return newPane;
+  }
+
+  public async addPaneAfter(slotId: string): Promise<PaneConfig | undefined> {
+    const visible = this.getVisiblePanes();
+    if (visible.length >= 6) {
+      void vscode.window.showWarningMessage?.('Maximum number of native panes (6) reached.');
+      return undefined;
+    }
+
+    const idx = visible.findIndex((p) => p.id === slotId);
+    if (idx === -1) {
+      return undefined;
+    }
+
+    const rolePick = await this.promptRolePicker('Select Role for Next Pane');
+    if (!rolePick) {
+      return undefined;
+    }
+
+    const newPane: PaneConfig = {
+      id: '',
+      title: rolePick.label,
+      role: rolePick.role,
+      inputSource: 'previous',
+      navigateOnSelect: true,
+      followCursor: true,
+      filters: createDefaultFilters(),
+      display: 'flat',
+      visible: true
+    };
+
+    visible.splice(idx + 1, 0, newPane);
+
+    const hidden = this.panes.filter((p) => !p.visible);
+    hidden.pop();
+
+    this.panes = [...visible, ...hidden];
+    this.reassignSlotIds();
+    await this.coordinator.sync();
+
+    return newPane;
   }
 
   public removePane(slotId: string): boolean {
-    const pane = this.getPane(slotId);
-    if (!pane) {
+    const visible = this.getVisiblePanes();
+    if (visible.length <= 1) {
+      void vscode.window.showWarningMessage?.('At least one pane must remain in the pipeline.');
       return false;
     }
 
-    // Keep at least one pane visible
-    if (this.getVisiblePanes().length <= 1) {
-      void vscode.window.showWarningMessage('At least one pane must remain visible.');
-      return false;
-    }
-
-    pane.visible = false;
-    this.syncContextKeys();
-    return true;
-  }
-
-  public movePane(slotId: string, direction: 'up' | 'down'): boolean {
-    const visiblePanes = this.getVisiblePanes();
-    const idx = visiblePanes.findIndex((p) => p.id === slotId);
+    const idx = visible.findIndex((p) => p.id === slotId);
     if (idx === -1) {
       return false;
     }
 
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= visiblePanes.length) {
-      return false;
-    }
+    const [removed] = visible.splice(idx, 1);
+    removed.visible = false;
 
-    // Swap configurations between the two visible slots
-    const current = visiblePanes[idx];
-    const target = visiblePanes[targetIdx];
-
-    const tempRole = current.role;
-    const tempTitle = current.title;
-    const tempScope = current.scope;
-    const tempCategory = current.category;
-    const tempLayout = current.layout;
-    const tempRelMode = current.relationsMode;
-
-    current.role = target.role;
-    current.title = target.title;
-    current.scope = target.scope;
-    current.category = target.category;
-    current.layout = target.layout;
-    current.relationsMode = target.relationsMode;
-
-    target.role = tempRole;
-    target.title = tempTitle;
-    target.scope = tempScope;
-    target.category = tempCategory;
-    target.layout = tempLayout;
-    target.relationsMode = tempRelMode;
-
+    const hidden = this.panes.filter((p) => !p.visible);
+    this.panes = [...visible, ...hidden, removed];
+    this.reassignSlotIds();
     void this.coordinator.sync();
+
     return true;
   }
 
@@ -128,94 +167,217 @@ export class PanePipelineManager {
       return;
     }
 
-    const items: vscode.QuickPickItem[] = [
+    const items: (vscode.QuickPickItem & { action?: string })[] = [
+      { label: 'General Settings', kind: vscode.QuickPickItemKind.Separator },
       {
-        label: '$(symbol-class) Change Role',
-        description: `Current: ${pane.role}`
+        label: '$(edit) Title',
+        description: pane.title,
+        action: 'title'
+      },
+      {
+        label: '$(symbol-class) Type of Pane',
+        description: `Current: ${this.getRoleLabel(pane.role)}`,
+        action: 'type'
+      },
+      {
+        label: '$(sign-in) Input Source',
+        description: `Current: ${this.getInputLabel(pane.inputSource)}`,
+        action: 'input'
+      },
+      {
+        label: '$(target) Navigate on Selection',
+        description: pane.navigateOnSelect ? 'Yes' : 'No',
+        action: 'navigateOnSelect'
+      },
+      {
+        label: '$(sync) Select on Code Navigation (Follow Cursor)',
+        description: pane.followCursor ? 'Yes' : 'No',
+        action: 'followCursor'
+      },
+      {
+        label: '$(filter) Filters...',
+        description: this.getFiltersSummary(pane),
+        action: 'filters'
+      },
+      {
+        label: '$(list-tree) Display',
+        description: pane.display === 'hierarchy' ? 'Hierarchy' : 'Flat',
+        action: 'display'
+      },
+      { label: 'Pipeline Settings', kind: vscode.QuickPickItemKind.Separator },
+      {
+        label: '$(add) Add Previous Pane',
+        description: 'Insert a new pane before this one',
+        action: 'addPrevious'
+      },
+      {
+        label: '$(add) Add Next Pane',
+        description: 'Insert a new pane after this one',
+        action: 'addNext'
+      },
+      {
+        label: '$(trash) Remove Pane',
+        description: 'Remove this pane from the pipeline',
+        action: 'remove'
+      },
+      { label: 'Presets', kind: vscode.QuickPickItemKind.Separator },
+      {
+        label: '$(layers) Apply Preset...',
+        description: 'Smalltalk, Implementors, Senders, Outline',
+        action: 'preset'
       }
     ];
-
-    if (pane.role === 'types') {
-      items.push(
-        {
-          label: '$(globe) Toggle Scope (File / Project)',
-          description: `Current: ${pane.scope}`
-        },
-        {
-          label: '$(type-hierarchy) Toggle Hierarchy (Flat / Inherited)',
-          description: 'Switch direct vs. inherited types'
-        }
-      );
-    } else if (pane.role === 'members') {
-      items.push({
-        label: '$(list-tree) Toggle Layout (List / Tree)',
-        description: `Current: ${pane.layout}`
-      });
-    } else if (pane.role === 'relations') {
-      items.push({
-        label: '$(settings) Switch Mode (References / Callers / Implementations)',
-        description: `Current: ${pane.relationsMode}`
-      });
-    }
-
-    items.push({
-      label: '$(edit) Rename Pane',
-      description: pane.title
-    });
 
     const picked = await vscode.window.showQuickPick(items, {
       placeHolder: `Configure Pane: ${pane.title}`
     });
 
-    if (!picked) {
+    if (!picked || !picked.action) {
       return;
     }
 
-    if (picked.label.includes('Change Role')) {
-      const rolePick = await vscode.window.showQuickPick(
-        [
-          { label: 'Types', role: 'types' as PaneRole },
-          { label: 'Categories', role: 'categories' as PaneRole },
-          { label: 'Members', role: 'members' as PaneRole },
-          { label: 'Relations', role: 'relations' as PaneRole }
-        ],
-        { placeHolder: 'Select new role' }
-      );
-      if (rolePick) {
-        pane.role = rolePick.role;
-        pane.title = rolePick.label;
-        await this.coordinator.sync();
+    switch (picked.action) {
+      case 'title': {
+        const newTitle = await vscode.window.showInputBox({
+          value: pane.title,
+          prompt: 'Enter new pane title'
+        });
+        if (newTitle) {
+          pane.title = newTitle;
+          this._onDidUpdatePanes.fire();
+        }
+        break;
       }
-    } else if (picked.label.includes('Toggle Scope')) {
-      pane.scope = pane.scope === 'file' ? 'project' : 'file';
-      this.coordinator.scope = pane.scope;
+      case 'type': {
+        const rolePick = await this.promptRolePicker('Select Pane Type');
+        if (rolePick) {
+          pane.role = rolePick.role;
+          pane.title = rolePick.label;
+          this._onDidUpdatePanes.fire();
+          await this.coordinator.sync();
+        }
+        break;
+      }
+      case 'input': {
+        const inputPick = await vscode.window.showQuickPick(
+          [
+            {
+              label: 'Project',
+              description: 'Global workspace symbols (default for first pane)',
+              source: 'project' as PaneInputSource
+            },
+            {
+              label: 'Cursor',
+              description: 'Symbol at editor cursor position',
+              source: 'cursor' as PaneInputSource
+            },
+            {
+              label: 'Previous Pane',
+              description: 'Symbols output from previous visible pane (default for later panes)',
+              source: 'previous' as PaneInputSource
+            },
+            {
+              label: 'File',
+              description: 'Symbols in current active file',
+              source: 'file' as PaneInputSource
+            }
+          ],
+          { placeHolder: 'Select Input Source' }
+        );
+        if (inputPick) {
+          pane.inputSource = inputPick.source;
+          this._onDidUpdatePanes.fire();
+          await this.coordinator.sync();
+        }
+        break;
+      }
+      case 'navigateOnSelect': {
+        pane.navigateOnSelect = !pane.navigateOnSelect;
+        this._onDidUpdatePanes.fire();
+        break;
+      }
+      case 'followCursor': {
+        pane.followCursor = !pane.followCursor;
+        this._onDidUpdatePanes.fire();
+        break;
+      }
+      case 'filters': {
+        await this.configureFilters(pane);
+        break;
+      }
+      case 'display': {
+        const dispPick = await vscode.window.showQuickPick(
+          [
+            { label: 'Flat', description: 'Alphabetical selector list', mode: 'flat' as DisplayMode },
+            {
+              label: 'Hierarchy',
+              description: 'Structured nested tree / inheritance',
+              mode: 'hierarchy' as DisplayMode
+            }
+          ],
+          { placeHolder: 'Select Display Mode' }
+        );
+        if (dispPick) {
+          pane.display = dispPick.mode;
+          this._onDidUpdatePanes.fire();
+          await this.coordinator.sync();
+        }
+        break;
+      }
+      case 'addPrevious': {
+        await this.addPaneBefore(slotId);
+        break;
+      }
+      case 'addNext': {
+        await this.addPaneAfter(slotId);
+        break;
+      }
+      case 'remove': {
+        this.removePane(slotId);
+        break;
+      }
+      case 'preset': {
+        await this.applyPreset();
+        break;
+      }
+    }
+  }
+
+  private async configureFilters(pane: PaneConfig): Promise<void> {
+    const isTypes = pane.role === 'types';
+    const filterOptions: { label: string; key: keyof PaneFilters; picked: boolean }[] = isTypes
+      ? [
+          { label: 'Classes', key: 'classes', picked: pane.filters.classes !== false },
+          { label: 'Interfaces', key: 'interfaces', picked: pane.filters.interfaces !== false },
+          { label: 'Enums', key: 'enums', picked: pane.filters.enums !== false },
+          { label: 'Structs', key: 'structs', picked: pane.filters.structs !== false },
+          { label: 'Functions', key: 'functions', picked: pane.filters.functions !== false }
+        ]
+      : [
+          { label: 'Methods', key: 'methods', picked: pane.filters.methods !== false },
+          { label: 'Constructors', key: 'constructors', picked: pane.filters.constructors !== false },
+          { label: 'Fields', key: 'fields', picked: pane.filters.fields !== false },
+          {
+            label: 'Properties & Accessors',
+            key: 'properties',
+            picked: pane.filters.properties !== false
+          },
+          { label: 'Variables', key: 'variables', picked: pane.filters.variables !== false },
+          { label: 'Constants', key: 'constants', picked: pane.filters.constants !== false }
+        ];
+
+    const selected = await vscode.window.showQuickPick(filterOptions, {
+      canPickMany: true,
+      placeHolder: 'Toggle filters (checked = visible)'
+    });
+
+    if (selected) {
+      const selectedKeys = new Set(selected.map((s) => s.key));
+      for (const opt of filterOptions) {
+        pane.filters[opt.key] = selectedKeys.has(opt.key);
+      }
+      this._onDidUpdatePanes.fire();
       await this.coordinator.sync();
-    } else if (picked.label.includes('Toggle Hierarchy')) {
-      this.coordinator.toggleHierarchy();
-    } else if (picked.label.includes('Toggle Layout')) {
-      pane.layout = pane.layout === 'list' ? 'tree' : 'list';
-      this.coordinator.membersProvider.setLayoutMode(pane.layout);
-    } else if (picked.label.includes('Switch Mode')) {
-      const modePick = await vscode.window.showQuickPick(
-        [
-          { label: 'References', mode: 'references' as RelationsMode },
-          { label: 'Callers (Senders)', mode: 'callers' as RelationsMode },
-          { label: 'Implementations', mode: 'implementations' as RelationsMode }
-        ],
-        { placeHolder: 'Select Relations Mode' }
-      );
-      if (modePick) {
-        pane.relationsMode = modePick.mode;
-        this.coordinator.setRelationsMode(modePick.mode);
-      }
-    } else if (picked.label.includes('Rename Pane')) {
-      const newTitle = await vscode.window.showInputBox({
-        value: pane.title,
-        prompt: 'Enter new pane title'
-      });
-      if (newTitle) {
-        pane.title = newTitle;
-      }
     }
   }
 
@@ -225,10 +387,26 @@ export class PanePipelineManager {
       (
         await vscode.window.showQuickPick(
           [
-            { label: 'Standard Structure Browser', description: 'Types -> Categories -> Members -> Relations', preset: 'structure' },
-            { label: 'Implementors Browser', description: 'Project Types -> Members -> Implementations', preset: 'implementors' },
-            { label: 'Senders (Callers) Browser', description: 'Members -> Callers (Senders)', preset: 'senders' },
-            { label: 'Compact Outline', description: 'Types -> Members', preset: 'outline' }
+            {
+              label: 'Smalltalk System Browser',
+              description: 'Project Types (Global) -> Members -> References',
+              preset: 'smalltalk'
+            },
+            {
+              label: 'Implementors Browser',
+              description: 'Project Types (Global) -> Members -> Implementations',
+              preset: 'implementors'
+            },
+            {
+              label: 'Senders (Callers) Browser',
+              description: 'Project Types (Global) -> Members -> Callers (Senders)',
+              preset: 'senders'
+            },
+            {
+              label: 'Compact Outline',
+              description: 'Active File Types -> Members',
+              preset: 'outline'
+            }
           ],
           { placeHolder: 'Select Pane Pipeline Preset' }
         )
@@ -238,73 +416,183 @@ export class PanePipelineManager {
       return;
     }
 
-    // Reset visibility
     for (const p of this.panes) {
       p.visible = false;
     }
 
     switch (selected) {
-      case 'implementors':
-        this.panes[0].visible = true;
-        this.panes[0].role = 'types';
-        this.panes[0].scope = 'project';
-        this.panes[0].title = 'Project Types';
+      case 'smalltalk':
+      default: {
+        const p1 = this.panes[0];
+        p1.title = 'Project Types';
+        p1.role = 'types';
+        p1.inputSource = 'project';
+        p1.display = 'flat';
+        p1.visible = true;
 
-        this.panes[1].visible = true;
-        this.panes[1].role = 'members';
-        this.panes[1].title = 'Members';
+        const p2 = this.panes[1];
+        p2.title = 'Members';
+        p2.role = 'members';
+        p2.inputSource = 'previous';
+        p2.display = 'flat';
+        p2.visible = true;
 
-        this.panes[2].visible = true;
-        this.panes[2].role = 'relations';
-        this.panes[2].relationsMode = 'implementations';
-        this.panes[2].title = 'Implementations';
+        const p3 = this.panes[2];
+        p3.title = 'References';
+        p3.role = 'references';
+        p3.inputSource = 'previous';
+        p3.display = 'flat';
+        p3.visible = true;
         break;
+      }
 
-      case 'senders':
-        this.panes[0].visible = true;
-        this.panes[0].role = 'members';
-        this.panes[0].title = 'Members';
+      case 'implementors': {
+        const p1 = this.panes[0];
+        p1.title = 'Project Types';
+        p1.role = 'types';
+        p1.inputSource = 'project';
+        p1.display = 'flat';
+        p1.visible = true;
 
-        this.panes[1].visible = true;
-        this.panes[1].role = 'relations';
-        this.panes[1].relationsMode = 'callers';
-        this.panes[1].title = 'Senders (Callers)';
+        const p2 = this.panes[1];
+        p2.title = 'Members';
+        p2.role = 'members';
+        p2.inputSource = 'previous';
+        p2.display = 'flat';
+        p2.visible = true;
+
+        const p3 = this.panes[2];
+        p3.title = 'Implementations';
+        p3.role = 'implementations';
+        p3.inputSource = 'previous';
+        p3.display = 'flat';
+        p3.visible = true;
         break;
+      }
 
-      case 'outline':
-        this.panes[0].visible = true;
-        this.panes[0].role = 'types';
-        this.panes[0].scope = 'file';
-        this.panes[0].title = 'Types';
+      case 'senders': {
+        const p1 = this.panes[0];
+        p1.title = 'Project Types';
+        p1.role = 'types';
+        p1.inputSource = 'project';
+        p1.display = 'flat';
+        p1.visible = true;
 
-        this.panes[1].visible = true;
-        this.panes[1].role = 'members';
-        this.panes[1].title = 'Members';
+        const p2 = this.panes[1];
+        p2.title = 'Members';
+        p2.role = 'members';
+        p2.inputSource = 'previous';
+        p2.display = 'flat';
+        p2.visible = true;
+
+        const p3 = this.panes[2];
+        p3.title = 'Callers (Senders)';
+        p3.role = 'callers';
+        p3.inputSource = 'previous';
+        p3.display = 'flat';
+        p3.visible = true;
         break;
+      }
 
-      default:
-        // standard structure browser
-        this.panes[0].visible = true;
-        this.panes[0].role = 'types';
-        this.panes[0].scope = 'file';
-        this.panes[0].title = 'Types';
+      case 'outline': {
+        const p1 = this.panes[0];
+        p1.title = 'Types';
+        p1.role = 'types';
+        p1.inputSource = 'file';
+        p1.display = 'flat';
+        p1.visible = true;
 
-        this.panes[1].visible = true;
-        this.panes[1].role = 'categories';
-        this.panes[1].title = 'Categories';
-
-        this.panes[2].visible = true;
-        this.panes[2].role = 'members';
-        this.panes[2].title = 'Members';
-
-        this.panes[3].visible = true;
-        this.panes[3].role = 'relations';
-        this.panes[3].relationsMode = 'references';
-        this.panes[3].title = 'Relations';
+        const p2 = this.panes[1];
+        p2.title = 'Members';
+        p2.role = 'members';
+        p2.inputSource = 'previous';
+        p2.display = 'flat';
+        p2.visible = true;
         break;
+      }
     }
 
-    this.syncContextKeys();
+    this.reassignSlotIds();
     await this.coordinator.sync();
+  }
+
+  private async promptRolePicker(
+    placeholder: string
+  ): Promise<{ label: string; role: PaneRole } | undefined> {
+    return vscode.window.showQuickPick(
+      [
+        {
+          label: 'Types',
+          description: 'Classes, Interfaces, Enums, Structs',
+          role: 'types' as PaneRole
+        },
+        {
+          label: 'Members',
+          description: 'Methods, Fields, Properties, Constants',
+          role: 'members' as PaneRole
+        },
+        {
+          label: 'References',
+          description: 'Workspace references to selected symbol',
+          role: 'references' as PaneRole
+        },
+        {
+          label: 'Implementations',
+          description: 'Implementations of selected symbol',
+          role: 'implementations' as PaneRole
+        },
+        {
+          label: 'Callers (Senders)',
+          description: 'Incoming calls to selected symbol',
+          role: 'callers' as PaneRole
+        },
+        {
+          label: 'Hierarchy',
+          description: 'Type hierarchy (subtypes/supertypes)',
+          role: 'hierarchy' as PaneRole
+        }
+      ],
+      { placeHolder: placeholder }
+    );
+  }
+
+  private getRoleLabel(role: PaneRole): string {
+    switch (role) {
+      case 'types':
+        return 'Types';
+      case 'members':
+        return 'Members';
+      case 'references':
+        return 'References';
+      case 'implementations':
+        return 'Implementations';
+      case 'callers':
+        return 'Callers (Senders)';
+      case 'hierarchy':
+        return 'Hierarchy';
+    }
+  }
+
+  private getInputLabel(input: PaneInputSource): string {
+    switch (input) {
+      case 'project':
+        return 'Project (Global)';
+      case 'cursor':
+        return 'Cursor (Editor Caret)';
+      case 'previous':
+        return 'Previous Pane';
+      case 'file':
+        return 'File (Active Editor)';
+    }
+  }
+
+  private getFiltersSummary(pane: PaneConfig): string {
+    const isTypes = pane.role === 'types';
+    const keys = isTypes
+      ? (['classes', 'interfaces', 'enums', 'structs', 'functions'] as const)
+      : (['methods', 'constructors', 'fields', 'properties', 'variables', 'constants'] as const);
+
+    const active = keys.filter((k) => pane.filters[k] !== false);
+    return `${active.length}/${keys.length} active`;
   }
 }

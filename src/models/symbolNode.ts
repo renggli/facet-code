@@ -63,3 +63,32 @@ export function unionMembers(types: readonly FacetSymbolNode[]): FacetSymbolNode
   }
   return result;
 }
+
+export function getSymbolIcon(kind: vscode.SymbolKind): vscode.ThemeIcon {
+  switch (kind) {
+    case vscode.SymbolKind.Class:
+      return new vscode.ThemeIcon('symbol-class');
+    case vscode.SymbolKind.Interface:
+      return new vscode.ThemeIcon('symbol-interface');
+    case vscode.SymbolKind.Enum:
+      return new vscode.ThemeIcon('symbol-enum');
+    case vscode.SymbolKind.Struct:
+      return new vscode.ThemeIcon('symbol-struct');
+    case vscode.SymbolKind.Function:
+      return new vscode.ThemeIcon('symbol-function');
+    case vscode.SymbolKind.Method:
+      return new vscode.ThemeIcon('symbol-method');
+    case vscode.SymbolKind.Constructor:
+      return new vscode.ThemeIcon('symbol-constructor');
+    case vscode.SymbolKind.Field:
+      return new vscode.ThemeIcon('symbol-field');
+    case vscode.SymbolKind.Property:
+      return new vscode.ThemeIcon('symbol-property');
+    case vscode.SymbolKind.Variable:
+      return new vscode.ThemeIcon('symbol-variable');
+    case vscode.SymbolKind.Constant:
+      return new vscode.ThemeIcon('symbol-constant');
+    default:
+      return new vscode.ThemeIcon('symbol-misc');
+  }
+}

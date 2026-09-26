@@ -34,32 +34,32 @@
 				},
 				{
 					"id": "facet.pane.2",
-					"name": "Categories",
-					"icon": "$(filter)",
+					"name": "Members",
+					"icon": "$(symbol-method)",
 					"when": "facet.pane.2.visible"
 				},
 				{
 					"id": "facet.pane.3",
-					"name": "Members",
-					"icon": "$(symbol-method)",
+					"name": "References",
+					"icon": "$(references)",
 					"when": "facet.pane.3.visible"
 				},
 				{
 					"id": "facet.pane.4",
-					"name": "Relations",
-					"icon": "$(references)",
+					"name": "Implementations",
+					"icon": "$(type-hierarchy-sub)",
 					"when": "facet.pane.4.visible"
 				},
 				{
 					"id": "facet.pane.5",
-					"name": "Extra Pane 1",
-					"icon": "$(layout)",
+					"name": "Callers",
+					"icon": "$(call-incoming)",
 					"when": "facet.pane.5.visible"
 				},
 				{
 					"id": "facet.pane.6",
-					"name": "Extra Pane 2",
-					"icon": "$(layout)",
+					"name": "Hierarchy",
+					"icon": "$(type-hierarchy)",
 					"when": "facet.pane.6.visible"
 				}
 			]
@@ -80,9 +80,9 @@
 		},
 		"commands": [
 			{
-				"command": "facet.pane.add",
-				"title": "Facet: Add Pane",
-				"icon": "$(add)"
+				"command": "facet.pane.configure",
+				"title": "Facet: Configure Pane",
+				"icon": "$(gear)"
 			},
 			{
 				"command": "facet.pane.presets",
@@ -90,48 +90,9 @@
 				"icon": "$(layers)"
 			},
 			{
-				"command": "facet.pane.configure",
-				"title": "Facet: Configure Pane",
-				"icon": "$(gear)"
-			},
-			{
-				"command": "facet.pane.remove",
-				"title": "Facet: Remove Pane",
-				"icon": "$(trash)"
-			},
-			{
-				"command": "facet.pane.moveUp",
-				"title": "Facet: Move Pane Up",
-				"icon": "$(arrow-up)"
-			},
-			{
-				"command": "facet.pane.moveDown",
-				"title": "Facet: Move Pane Down",
-				"icon": "$(arrow-down)"
-			},
-			{
 				"command": "facet.toggleScope",
 				"title": "Facet: Toggle Scope (File / Project)",
 				"icon": "$(globe)"
-			},
-			{
-				"command": "facet.toggleHierarchy",
-				"title": "Facet: Toggle Flat / Inherited Hierarchy",
-				"icon": "$(type-hierarchy)"
-			},
-			{
-				"command": "facet.toggleLayout",
-				"title": "Facet: Toggle Flat / Tree Layout",
-				"icon": "$(list-tree)"
-			},
-			{
-				"command": "facet.selectCategory",
-				"title": "Facet: Select Category"
-			},
-			{
-				"command": "facet.relations.switchMode",
-				"title": "Facet: Switch Relations Mode",
-				"icon": "$(settings)"
 			},
 			{
 				"command": "facet.revealRange",
@@ -141,44 +102,9 @@
 		"menus": {
 			"view/title": [
 				{
-					"command": "facet.pane.add",
-					"when": "view =~ /^facet\\.pane\\./",
-					"group": "navigation@0"
-				},
-				{
-					"command": "facet.pane.presets",
-					"when": "view =~ /^facet\\.pane\\./",
-					"group": "navigation@1"
-				},
-				{
-					"command": "facet.toggleScope",
-					"when": "view == facet.pane.1",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.toggleSide",
-					"when": "view == facet.pane.3",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.pane.moveUp",
-					"when": "view =~ /^facet\\.pane\\./",
-					"group": "navigation@3"
-				},
-				{
-					"command": "facet.pane.moveDown",
-					"when": "view =~ /^facet\\.pane\\./",
-					"group": "navigation@4"
-				},
-				{
 					"command": "facet.pane.configure",
 					"when": "view =~ /^facet\\.pane\\./",
-					"group": "navigation@5"
-				},
-				{
-					"command": "facet.pane.remove",
-					"when": "view =~ /^facet\\.pane\\./",
-					"group": "navigation@6"
+					"group": "navigation@1"
 				}
 			]
 		}

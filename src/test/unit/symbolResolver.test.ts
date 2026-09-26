@@ -176,4 +176,34 @@ export class Calculator {
     const types = await resolver.resolveWorkspaceTypes('');
     assert.ok(Array.isArray(types));
   });
+
+  test('matchesPaneFilters selectively filters types and members', () => {
+    const { matchesPaneFilters } = require('../../models/paneConfig');
+    const classNode: FacetSymbolNode = {
+      name: 'TestClass',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: new vscode.Range(0, 0, 0, 0),
+      selectionRange: new vscode.Range(0, 0, 0, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: []
+    };
+    const methodNode: FacetSymbolNode = {
+      name: 'testMethod',
+      kind: vscode.SymbolKind.Method,
+      uri: dummyUri,
+      range: new vscode.Range(0, 0, 0, 0),
+      selectionRange: new vscode.Range(0, 0, 0, 0),
+      category: MemberCategory.InstanceMethods,
+      isStatic: false,
+      children: []
+    };
+
+    assert.strictEqual(matchesPaneFilters(classNode, { classes: true }), true);
+    assert.strictEqual(matchesPaneFilters(classNode, { classes: false }), false);
+
+    assert.strictEqual(matchesPaneFilters(methodNode, { methods: true }), true);
+    assert.strictEqual(matchesPaneFilters(methodNode, { methods: false }), false);
+  });
 });

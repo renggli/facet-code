@@ -3,10 +3,10 @@ import * as vscode from 'vscode';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
 import { SymbolResolver } from '../../services/symbolResolver';
 import { TypesTreeProvider } from '../../providers/typesTreeProvider';
-import { CategoriesTreeProvider } from '../../providers/categoriesTreeProvider';
 import { MembersTreeProvider } from '../../providers/membersTreeProvider';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { MemberCategory, FacetSymbolNode } from '../../models/symbolNode';
+import { PaneConfig, createDefaultFilters } from '../../models/paneConfig';
 
 suite('FacetCoordinator Test Suite', () => {
   const dummyUri = vscode.Uri.file('/path/to/test.ts');
@@ -47,14 +47,12 @@ suite('FacetCoordinator Test Suite', () => {
   test('coordinator handles toggling hierarchy and layout', () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
-    const categoriesProvider = new CategoriesTreeProvider();
     const membersProvider = new MembersTreeProvider();
     const relationsProvider = new RelationsTreeProvider();
 
     const coordinator = new FacetCoordinator(
       resolver,
       typesProvider,
-      categoriesProvider,
       membersProvider,
       relationsProvider
     );
@@ -80,14 +78,12 @@ suite('FacetCoordinator Test Suite', () => {
   test('coordinator toggles scope between file and project', async () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
-    const categoriesProvider = new CategoriesTreeProvider();
     const membersProvider = new MembersTreeProvider();
     const relationsProvider = new RelationsTreeProvider();
 
     const coordinator = new FacetCoordinator(
       resolver,
       typesProvider,
-      categoriesProvider,
       membersProvider,
       relationsProvider
     );
@@ -106,30 +102,60 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('coordinator propagates type and category selection to members and relations', () => {
+  test('coordinator propagates type selection to members and relations', async () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
-    const categoriesProvider = new CategoriesTreeProvider();
     const membersProvider = new MembersTreeProvider();
     const relationsProvider = new RelationsTreeProvider();
 
     const coordinator = new FacetCoordinator(
       resolver,
       typesProvider,
-      categoriesProvider,
       membersProvider,
       relationsProvider
     );
 
-    coordinator.selectTypes([mockClass]);
+    await coordinator.selectTypes([mockClass]);
     const selectedMembers = relationsProvider.getSelectedMembers();
     assert.strictEqual(selectedMembers.length, 1);
     assert.strictEqual(selectedMembers[0].name, 'defaultConfig');
 
-    // Select category Constants
-    coordinator.selectCategory(MemberCategory.Constants);
-    assert.strictEqual(categoriesProvider.getSelectedCategory(), MemberCategory.Constants);
-    assert.strictEqual(membersProvider.getActiveCategory(), MemberCategory.Constants);
+    coordinator.dispose();
+  });
+
+  test('coordinator resolves slot children for types and members according to filters', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    const membersPaneConfig: PaneConfig = {
+      id: 'facet.pane.2',
+      title: 'Members',
+      role: 'members',
+      inputSource: 'previous',
+      navigateOnSelect: true,
+      followCursor: true,
+      filters: { ...createDefaultFilters(), constants: false },
+      display: 'flat',
+      visible: true
+    };
+
+    coordinator.setSlotSelection('facet.pane.1', [mockClass]);
+    // Mock getPreviousPane logic by mocking slot selection directly
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'types' });
+
+    const children = await coordinator.getSlotChildren(membersPaneConfig);
+    // defaultConfig (constant) is filtered out
+    assert.strictEqual(children.length, 1);
+    assert.strictEqual(children[0].name, 'placeOrder');
 
     coordinator.dispose();
   });

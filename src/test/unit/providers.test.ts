@@ -1,9 +1,8 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { TypesTreeProvider } from '../../providers/typesTreeProvider';
-import { CategoriesTreeProvider } from '../../providers/categoriesTreeProvider';
 import { MembersTreeProvider } from '../../providers/membersTreeProvider';
-import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
+import { RelationsTreeProvider, RelationItem } from '../../providers/relationsTreeProvider';
 import { FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
 
 suite('Providers Test Suite', () => {
@@ -72,20 +71,6 @@ suite('Providers Test Suite', () => {
     assert.strictEqual(treeItem.description, 'test.ts');
   });
 
-  test('CategoriesTreeProvider manages active category and counts', () => {
-    const provider = new CategoriesTreeProvider();
-    assert.strictEqual(provider.getSelectedCategory(), MemberCategory.All);
-
-    provider.setSelectedCategory(MemberCategory.Constructors);
-    assert.strictEqual(provider.getSelectedCategory(), MemberCategory.Constructors);
-
-    provider.setCounts({ [MemberCategory.Constructors]: 2 });
-    const children = provider.getChildren() as { id: MemberCategory; label: string }[];
-    const ctorItem = children.find((c) => c.id === MemberCategory.Constructors)!;
-    const treeItem = provider.getTreeItem(ctorItem as any);
-    assert.strictEqual(treeItem.description, '2 (active)');
-  });
-
   test('MembersTreeProvider aggregates and filters by category', () => {
     const provider = new MembersTreeProvider();
     provider.setSelectedTypes([mockType]);
@@ -113,7 +98,7 @@ suite('Providers Test Suite', () => {
     assert.strictEqual(counts[MemberCategory.Fields], 1);
   });
 
-  test('RelationsTreeProvider switches modes and updates targets', () => {
+  test('RelationsTreeProvider switches modes and generates readable tree items', () => {
     const provider = new RelationsTreeProvider();
     assert.strictEqual(provider.getMode(), 'references');
 
@@ -123,5 +108,20 @@ suite('Providers Test Suite', () => {
     provider.setSelectedMembers([mockType.children[0]]);
     assert.strictEqual(provider.getSelectedMembers().length, 1);
     assert.strictEqual(provider.getSelectedMembers()[0].name, 'doWork');
+
+    const sampleItem: RelationItem = {
+      label: 'const x = doWork();',
+      description: 'src/test.ts:42',
+      tooltip: '/path/to/src/test.ts:42\nconst x = doWork();',
+      iconPath: new vscode.ThemeIcon('references'),
+      uri: dummyUri,
+      range: dummyRange
+    };
+
+    const treeItem = provider.getTreeItem(sampleItem);
+    assert.strictEqual(treeItem.label, 'const x = doWork();');
+    assert.strictEqual(treeItem.description, 'src/test.ts:42');
+    assert.strictEqual(treeItem.tooltip, '/path/to/src/test.ts:42\nconst x = doWork();');
+    assert.strictEqual(treeItem.command?.command, 'facet.revealRange');
   });
 });
