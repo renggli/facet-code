@@ -84,6 +84,39 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(membersProvider.getLayoutMode(), 'tree');
     assert.strictEqual(coordinator.toggleLayout(), 'list');
 
+    // Toggle scope
+    assert.strictEqual(coordinator.scope, 'file');
+    assert.strictEqual(typesProvider.scope, 'file');
+
+    coordinator.dispose();
+  });
+
+  test('coordinator toggles scope between file and project', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const categoriesProvider = new CategoriesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      categoriesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    assert.strictEqual(coordinator.scope, 'file');
+    const newScope = await coordinator.toggleScope();
+    assert.strictEqual(newScope, 'project');
+    assert.strictEqual(coordinator.scope, 'project');
+    assert.strictEqual(typesProvider.scope, 'project');
+
+    const revertedScope = await coordinator.toggleScope();
+    assert.strictEqual(revertedScope, 'file');
+    assert.strictEqual(coordinator.scope, 'file');
+    assert.strictEqual(typesProvider.scope, 'file');
+
     coordinator.dispose();
   });
 

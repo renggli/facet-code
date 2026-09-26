@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FacetSymbolNode, MemberCategory } from '../models/symbolNode';
+import { FacetSymbolNode, MemberCategory, isTypeKind } from '../models/symbolNode';
 
 export class SymbolResolver {
   private cache = new Map<string, { version: number; symbols: FacetSymbolNode[] }>();
@@ -45,6 +45,60 @@ export class SymbolResolver {
 
     this.cache.set(key, { version: document.version, symbols: nodes });
     return nodes;
+  }
+
+  async resolveWorkspaceTypes(
+    query = '',
+    token?: vscode.CancellationToken
+  ): Promise<FacetSymbolNode[]> {
+    const rawSymbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+      'vscode.executeWorkspaceSymbolProvider',
+      query
+    );
+
+    if (token?.isCancellationRequested || !rawSymbols) {
+      return [];
+    }
+
+    const typeSymbols = rawSymbols.filter((s) => isTypeKind(s.kind));
+    const results: FacetSymbolNode[] = typeSymbols.map((s) => ({
+      name: s.name,
+      detail: s.containerName,
+      kind: s.kind,
+      uri: s.location.uri,
+      range: s.location.range,
+      selectionRange: s.location.range,
+      category: MemberCategory.All,
+      isStatic: false,
+      children: []
+    }));
+
+    return results.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async hydrateTypeNode(
+    typeNode: FacetSymbolNode,
+    token?: vscode.CancellationToken
+  ): Promise<FacetSymbolNode> {
+    if (typeNode.children && typeNode.children.length > 0) {
+      return typeNode;
+    }
+
+    try {
+      const doc = await vscode.workspace.openTextDocument(typeNode.uri);
+      const allDocSymbols = await this.resolveDocumentSymbols(doc, token);
+      const match = allDocSymbols.find((s) => s.name === typeNode.name && isTypeKind(s.kind));
+      if (match) {
+        typeNode.children = match.children;
+        for (const child of typeNode.children) {
+          child.parent = typeNode;
+        }
+      }
+    } catch (err) {
+      console.error('Error hydrating workspace type node:', err);
+    }
+
+    return typeNode;
   }
 
   public fromDocumentSymbol(

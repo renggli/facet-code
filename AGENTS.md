@@ -117,6 +117,7 @@ export interface FacetPipelineConfig {
 ## 5. Dynamic Manipulation & Menu Controls
 
 Each stage exposes:
+- **`facet.toggleScope`**: Toggles between `file` (active document AST) and `project` (workspace symbols with lazy member hydration). Configured via `facet.types.scope`.
 - **`facet.stage.configure`**: QuickPick menu to edit title, data source, display mode (list/tree/chips), side filter, and sort order.
 - **`facet.stage.moveLeft` / `facet.stage.moveUp`**: Shifts stage position earlier in pipeline.
 - **`facet.stage.moveRight` / `facet.stage.moveDown`**: Shifts stage position later in pipeline.

@@ -57,9 +57,10 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // 3. Wire Tree View Multi-Selection Events
+  typesView.title = 'Types (File)';
   context.subscriptions.push(
     typesView.onDidChangeSelection((e) => {
-      coordinator.selectTypes(e.selection);
+      void coordinator.selectTypes(e.selection);
     })
   );
 
@@ -84,6 +85,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   // 5. Register Commands
   context.subscriptions.push(
+    vscode.commands.registerCommand('facet.toggleScope', async () => {
+      const scope = await coordinator.toggleScope();
+      typesView.title = `Types (${scope === 'file' ? 'File' : 'Project'})`;
+    }),
     vscode.commands.registerCommand('facet.pipeline.addStage', () => {
       void deckProvider.promptAddStage();
     }),

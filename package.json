@@ -27,12 +27,6 @@
 		"views": {
 			"facet-container": [
 				{
-					"type": "webview",
-					"id": "facet.views.deck",
-					"name": "Navigation Deck",
-					"icon": "$(layout)"
-				},
-				{
 					"id": "facet.views.types",
 					"name": "Types",
 					"icon": "$(symbol-class)"
@@ -51,10 +45,36 @@
 					"id": "facet.views.relations",
 					"name": "Relations",
 					"icon": "$(references)"
+				},
+				{
+					"type": "webview",
+					"id": "facet.views.deck",
+					"name": "Navigation Deck",
+					"icon": "$(layout)",
+					"visibility": "collapsed"
 				}
 			]
 		},
+		"configuration": {
+			"title": "Facet",
+			"properties": {
+				"facet.types.scope": {
+					"type": "string",
+					"enum": [
+						"file",
+						"project"
+					],
+					"default": "file",
+					"description": "Scope for the Types view: current active file or all types across the project."
+				}
+			}
+		},
 		"commands": [
+			{
+				"command": "facet.toggleScope",
+				"title": "Facet: Toggle Scope (File / Project)",
+				"icon": "$(globe)"
+			},
 			{
 				"command": "facet.pipeline.addStage",
 				"title": "Facet: Add Stage",
@@ -102,19 +122,9 @@
 		"menus": {
 			"view/title": [
 				{
-					"command": "facet.pipeline.addStage",
-					"when": "view == facet.views.deck",
-					"group": "navigation@1"
-				},
-				{
-					"command": "facet.pipeline.toggleOrientation",
-					"when": "view == facet.views.deck",
-					"group": "navigation@2"
-				},
-				{
-					"command": "facet.pipeline.switchPreset",
-					"when": "view == facet.views.deck",
-					"group": "navigation@3"
+					"command": "facet.toggleScope",
+					"when": "view == facet.views.types",
+					"group": "navigation@0"
 				},
 				{
 					"command": "facet.toggleSide",
@@ -135,6 +145,21 @@
 					"command": "facet.relations.switchMode",
 					"when": "view == facet.views.relations",
 					"group": "navigation@4"
+				},
+				{
+					"command": "facet.pipeline.addStage",
+					"when": "view == facet.views.deck",
+					"group": "navigation@1"
+				},
+				{
+					"command": "facet.pipeline.toggleOrientation",
+					"when": "view == facet.views.deck",
+					"group": "navigation@2"
+				},
+				{
+					"command": "facet.pipeline.switchPreset",
+					"when": "view == facet.views.deck",
+					"group": "navigation@3"
 				}
 			]
 		}

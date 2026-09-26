@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
 import { SymbolResolver } from '../services/symbolResolver';
-import { TypesTreeProvider } from '../providers/typesTreeProvider';
+import { TypesTreeProvider, TypesScope } from '../providers/typesTreeProvider';
 import { CategoriesTreeProvider } from '../providers/categoriesTreeProvider';
 import { MembersTreeProvider } from '../providers/membersTreeProvider';
 import { RelationsTreeProvider, RelationsMode } from '../providers/relationsTreeProvider';
 import { FacetSymbolNode, MemberCategory, ClassSide, HierarchyMode, LayoutMode } from '../models/symbolNode';
-
 import { DeckViewProvider } from '../deck/deckViewProvider';
 
 export class FacetCoordinator implements vscode.Disposable {
@@ -13,6 +12,7 @@ export class FacetCoordinator implements vscode.Disposable {
   private debounceTimer?: NodeJS.Timeout;
   private currentEditor?: vscode.TextEditor;
 
+  public scope: TypesScope = 'file';
   public classSide: ClassSide = 'instance';
   public hierarchyMode: HierarchyMode = 'flat';
   public layoutMode: LayoutMode = 'list';
@@ -25,6 +25,7 @@ export class FacetCoordinator implements vscode.Disposable {
     public readonly relationsProvider: RelationsTreeProvider,
     public deckProvider?: DeckViewProvider
   ) {
+    this.typesProvider.scope = this.scope;
     this.membersProvider.setClassSide(this.classSide);
     this.membersProvider.setLayoutMode(this.layoutMode);
   }
@@ -35,7 +36,7 @@ export class FacetCoordinator implements vscode.Disposable {
   }
 
   public handleSelectionChange(editor: vscode.TextEditor): void {
-    if (this.currentEditor?.document.uri.toString() === editor.document.uri.toString()) {
+    if (this.scope === 'file' && this.currentEditor?.document.uri.toString() === editor.document.uri.toString()) {
       this.scheduleSync();
     }
   }
@@ -57,19 +58,35 @@ export class FacetCoordinator implements vscode.Disposable {
   }
 
   public async sync(): Promise<void> {
-    if (!this.currentEditor) {
-      this.typesProvider.setSymbols([]);
-      this.membersProvider.setSelectedTypes([]);
-      this.categoriesProvider.setCounts({});
-      this.relationsProvider.setSelectedMembers([]);
-      this.deckProvider?.setSymbols([]);
-      return;
-    }
-
     this.cancellationSource = new vscode.CancellationTokenSource();
     const token = this.cancellationSource.token;
 
     try {
+      if (this.scope === 'project') {
+        const types = await this.resolver.resolveWorkspaceTypes('', token);
+        if (token.isCancellationRequested) {
+          return;
+        }
+        this.typesProvider.setTypes(types);
+        this.deckProvider?.setSymbols(types);
+
+        if (types.length > 0) {
+          await this.selectTypes([types[0]]);
+        } else {
+          await this.selectTypes([]);
+        }
+        return;
+      }
+
+      if (!this.currentEditor) {
+        this.typesProvider.setSymbols([]);
+        this.membersProvider.setSelectedTypes([]);
+        this.categoriesProvider.setCounts({});
+        this.relationsProvider.setSelectedMembers([]);
+        this.deckProvider?.setSymbols([]);
+        return;
+      }
+
       const symbols = await this.resolver.resolveDocumentSymbols(this.currentEditor.document, token);
       if (token.isCancellationRequested) {
         return;
@@ -80,10 +97,9 @@ export class FacetCoordinator implements vscode.Disposable {
 
       const types = this.typesProvider.getTypes();
       if (types.length > 0) {
-        // Auto-select first type if nothing selected yet
-        this.selectTypes([types[0]]);
+        await this.selectTypes([types[0]]);
       } else {
-        this.selectTypes([]);
+        await this.selectTypes([]);
       }
     } catch (err) {
       if (!token.isCancellationRequested) {
@@ -92,7 +108,15 @@ export class FacetCoordinator implements vscode.Disposable {
     }
   }
 
-  public selectTypes(types: readonly FacetSymbolNode[]): void {
+  public async selectTypes(types: readonly FacetSymbolNode[]): Promise<void> {
+    if (this.scope === 'project') {
+      for (const t of types) {
+        if (!t.children || t.children.length === 0) {
+          await this.resolver.hydrateTypeNode(t);
+        }
+      }
+    }
+
     this.membersProvider.setSelectedTypes(types);
     const counts = this.membersProvider.getCategoryCounts();
     this.categoriesProvider.setCounts(counts);
@@ -112,6 +136,13 @@ export class FacetCoordinator implements vscode.Disposable {
 
   public selectMembers(members: readonly FacetSymbolNode[]): void {
     this.relationsProvider.setSelectedMembers(members);
+  }
+
+  public async toggleScope(): Promise<TypesScope> {
+    this.scope = this.scope === 'file' ? 'project' : 'file';
+    this.typesProvider.scope = this.scope;
+    await this.sync();
+    return this.scope;
   }
 
   public toggleSide(): ClassSide {

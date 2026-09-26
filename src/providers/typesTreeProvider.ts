@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import { FacetSymbolNode, isTypeKind } from '../models/symbolNode';
 
+export type TypesScope = 'file' | 'project';
+
 export class TypesTreeProvider implements vscode.TreeDataProvider<FacetSymbolNode> {
   private _onDidChangeTreeData = new vscode.EventEmitter<FacetSymbolNode | undefined | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  public scope: TypesScope = 'file';
   private types: FacetSymbolNode[] = [];
 
   refresh(): void {
@@ -13,6 +16,11 @@ export class TypesTreeProvider implements vscode.TreeDataProvider<FacetSymbolNod
 
   setSymbols(symbols: FacetSymbolNode[]): void {
     this.types = this.extractTypes(symbols);
+    this.refresh();
+  }
+
+  setTypes(types: FacetSymbolNode[]): void {
+    this.types = types;
     this.refresh();
   }
 
@@ -40,7 +48,13 @@ export class TypesTreeProvider implements vscode.TreeDataProvider<FacetSymbolNod
 
   getTreeItem(element: FacetSymbolNode): vscode.TreeItem {
     const item = new vscode.TreeItem(element.name, vscode.TreeItemCollapsibleState.None);
-    item.description = element.detail;
+
+    if (this.scope === 'project') {
+      const fileName = element.uri.path.split('/').pop() || '';
+      item.description = element.detail ? `${fileName} • ${element.detail}` : fileName;
+    } else {
+      item.description = element.detail;
+    }
 
     switch (element.kind) {
       case vscode.SymbolKind.Interface:

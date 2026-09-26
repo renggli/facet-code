@@ -52,7 +52,7 @@ suite('Providers Test Suite', () => {
     ]
   };
 
-  test('TypesTreeProvider extracts types and creates tree items', () => {
+  test('TypesTreeProvider extracts types and creates tree items with scope formatting', () => {
     const provider = new TypesTreeProvider();
     provider.setSymbols([mockType]);
 
@@ -60,9 +60,16 @@ suite('Providers Test Suite', () => {
     assert.strictEqual(types.length, 1);
     assert.strictEqual(types[0].name, 'TestClass');
 
-    const treeItem = provider.getTreeItem(types[0]);
+    // Default scope is file
+    assert.strictEqual(provider.scope, 'file');
+    let treeItem = provider.getTreeItem(types[0]);
     assert.strictEqual(treeItem.label, 'TestClass');
     assert.strictEqual(treeItem.command?.command, 'facet.revealRange');
+
+    // Switch to project scope
+    provider.scope = 'project';
+    treeItem = provider.getTreeItem(types[0]);
+    assert.strictEqual(treeItem.description, 'test.ts');
   });
 
   test('CategoriesTreeProvider manages active category and counts', () => {
