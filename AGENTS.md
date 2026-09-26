@@ -6,13 +6,14 @@
 
 ### Core Non-Negotiable Principles
 
-- **Exclusively Native VS Code UI:** Zero webviews, zero HTML/DOM, zero web runtime overhead. All UI elements are standard `vscode.TreeView` and `vscode.TreeDataProvider` components with native keyboard navigation, theming, Codicons, badges, and inline actions.
+- **Exclusively Native VS Code UI (Zero Webviews, Zero HTML/DOM):** Zero webviews, zero HTML/DOM, zero web runtime overhead. Never introduce Webviews, HTML, CSS, iframe, or web rendering layers. All UI elements are 100% native standard `vscode.TreeView` and `vscode.TreeDataProvider` components with native keyboard navigation, theming, Codicons, badges, and inline actions.
+- **Native Drag-and-Drop Reordering & Out-of-the-Box Piping (No Move/Reorder Menu Actions):** Pane reordering is performed exclusively through native VS Code workbench drag-and-drop. No artificial menu actions, toolbar buttons, or commands for "Move Up", "Move Down", or "Reorder". Dragging and dropping panes, adding panes, and removing panes work completely out of the box, with relative upstream chaining (`previousPane`) immediately and automatically adapting the piping to the visual sequence.
 - **Always-On Clarity & Navigation:** Symbol icons, contextual details (signatures, locations), and auto-reveal on click/selection are permanently enabled natively with zero toggle overhead.
 - **Dynamic Native Pane Pipeline:** Up to 6 configurable native pane slots (`facet.pane.1` .. `facet.pane.6`) hosted inside the `facet-container` Activity Bar view container:
   - **Single Contextual Menu per Pane (`facet.pane.configure` `$(gear)`):** Clean, uncluttered pane headers replacing bars of individual action icons.
   - **Distinct Strongly-Typed Pane Configurations:**
-    - `FilesPaneConfig`: Role `files`, glob file filtering, position/name sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), display (`flat`, `hierarchy`).
-    - `DirectoriesPaneConfig`: Role `directories`, glob filtering, position/name sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), display (`flat`, `hierarchy`).
+    - `DirectoriesPaneConfig`: Role `directories`, glob filtering, position/name sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), display (`current`, `flat`, `hierarchy`).
+    - `FilesPaneConfig`: Role `files`, glob file filtering, position/name sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), display (`current`, `flat`, `hierarchy`).
     - `TypesPaneConfig` & `HierarchyPaneConfig`: Role `types`/`hierarchy`, hierarchical vs. flat display mode, selectable subclass kinds, 26 symbol kind filters, position/name/category sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`).
     - `MembersPaneConfig`: Role `members`, 26 symbol kind filters, flat vs. hierarchical display, position/name/category sorting, input source (`openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`).
     - `DefinitionsPaneConfig`, `DeclarationsPaneConfig`, `ImplementationsPaneConfig`, `ReferencesPaneConfig`: Dedicated symbol relation/navigation views with readable snippet previews, file paths, 26 symbol kind filters, position/name sorting, input source (`previousPane`), selection source (`all`, `none`).
@@ -20,14 +21,16 @@
     - `ProblemsPaneConfig`: Workspace/editor/active diagnostics with severity grouping, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), position/name/category sorting.
     - `ChangesPaneConfig`: Dirty and changed files, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), position/name sorting.
   - **Pipeline Settings (Adding & Removing with Drag-and-Drop Resilience):**
-    - *Add Pane to End:* Append a new pane to the end of the pipeline sequence (up to 6 total slots).
+    - *Add Pane:* Append a new pane to the end of the pipeline sequence (up to 6 total slots).
     - *Remove Pane:* Hide this pane from the pipeline (enforcing minimum 1 visible pane), shifting subsequent slots without corrupting slot indexing or upstream references.
-    - *Drag-and-Drop Resilient Upstream Chaining:* Explicit relative upstream chaining (`previousPane`) decouples data flow from physical slot positions in the workbench.
-- **Predefined Presets (`facet.pane.presets`):**
-  - **Project Browser (Default):** Directories (hierarchical) -> Files -> Types (hierarchical) -> Members.
-  - **Implementors:** Types -> Members -> Implementations.
-  - **Callers:** Types -> Members -> Callers.
-  - **References:** Types -> Members -> References.
+  - **Presets**:
+    - Load the standard predefined preset.
+    - Allows to save / load presets to workspace, global settings.
+    - **Predefined Presets (`facet.pane.presets`):**
+      - **Project Browser:** Directories (hierarchical) -> Files -> Types (hierarchical) -> Members.
+      - **Implementors:** Types (hierarchical) -> Members -> Implementations.
+      - **Callers:** Types -> Members -> Callers.
+      - **References:** Types -> Members -> References.
 - **High-Readability Relations Display:**
   - Code snippet preview as label (trimmed source code line).
   - Relative workspace path and 1-based line number (`src/service.ts:42`) as description.
@@ -122,14 +125,14 @@
     - All (selects everything by default)
     - None (selects nothing by default)
     - Cursor (selects the item under the cursor)
-  - *Filter:* 
+  - *Filter:*
     - For files/directories this is a glob pattern on the full path
     - For types/members/definitions/declarations/implementations/references/callers/hierarchy this is toggles across 26 symbol kinds
-  - *Sort by:* 
+  - *Sort by:*
     - Position
     - Name
     - Category
-  - *Display:* 
+  - *Display:*
     - Flat vs Hierarchy (for files, directories, types, members, hierarchy)
   - (horizontal separator)
   - *Add Pane*: Append new pane to the end.
@@ -140,6 +143,11 @@
     - Implementors: types -> members -> implementors
     - Callers: types -> members -> callers
     - References: types -> members -> references
+- **Dynamic Title Commands (Replacing Static Slot Numbers):**
+  - *`Facet: Focus on $title`:* Dynamically surfaced in the Command Palette for each active pane in the pipeline (e.g., `Facet: Focus on Directories`, `Facet: Focus on Files`, `Facet: Focus on Types`, `Facet: Focus on Members`), immediately focusing that view.
+  - *`Facet: Configure $title`:* Dynamically surfaced in the Command Palette for each active pane, opening its contextual configuration menu directly.
+  - *`Facet: Focus on Pane...` & `Facet: Configure Pane...`:* QuickPick selector commands listing visible panes by their active titles.
+  - Static commands like `Facet: Configure Pane $N` are suppressed from the Command Palette to avoid unhelpful slot-indexed entries.
 - **`facet.revealRange`:** Navigates the active text editor to the target symbol range.
 
 ---

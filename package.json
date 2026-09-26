@@ -67,33 +67,37 @@
 		"commands": [
 			{
 				"command": "facet.pane.1.configure",
-				"title": "Facet: Configure Pane 1",
+				"title": "Configure",
 				"icon": "$(gear)"
 			},
 			{
 				"command": "facet.pane.2.configure",
-				"title": "Facet: Configure Pane 2",
+				"title": "Configure",
 				"icon": "$(gear)"
 			},
 			{
 				"command": "facet.pane.3.configure",
-				"title": "Facet: Configure Pane 3",
+				"title": "Configure",
 				"icon": "$(gear)"
 			},
 			{
 				"command": "facet.pane.4.configure",
-				"title": "Facet: Configure Pane 4",
+				"title": "Configure",
 				"icon": "$(gear)"
 			},
 			{
 				"command": "facet.pane.5.configure",
-				"title": "Facet: Configure Pane 5",
+				"title": "Configure",
 				"icon": "$(gear)"
 			},
 			{
 				"command": "facet.pane.6.configure",
-				"title": "Facet: Configure Pane 6",
+				"title": "Configure",
 				"icon": "$(gear)"
+			},
+			{
+				"command": "facet.pane.focus",
+				"title": "Facet: Focus on Pane..."
 			},
 			{
 				"command": "facet.pane.configure",
@@ -111,6 +115,32 @@
 			}
 		],
 		"menus": {
+			"commandPalette": [
+				{
+					"command": "facet.pane.1.configure",
+					"when": "false"
+				},
+				{
+					"command": "facet.pane.2.configure",
+					"when": "false"
+				},
+				{
+					"command": "facet.pane.3.configure",
+					"when": "false"
+				},
+				{
+					"command": "facet.pane.4.configure",
+					"when": "false"
+				},
+				{
+					"command": "facet.pane.5.configure",
+					"when": "false"
+				},
+				{
+					"command": "facet.pane.6.configure",
+					"when": "false"
+				}
+			],
 			"view/title": [
 				{
 					"command": "facet.pane.1.configure",
@@ -151,7 +181,7 @@
 		"watch": "tsc -watch -p ./",
 		"pretest": "npm run compile && npm run lint",
 		"lint": "eslint src",
-		"test:unit": "mocha -r ./out/test/unit/mockVscode.js --ui tdd out/test/unit/**/*.test.js",
+		"test:unit": "mocha -r ./out/test/unit/mockVscode.js --ui tdd --exit out/test/unit/**/*.test.js",
 		"test": "npm run test:unit"
 	},
 	"devDependencies": {

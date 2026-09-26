@@ -50,8 +50,28 @@ export class PanePipelineManager {
   }
 
   public syncContextKeys(): void {
+    const allRoles: PaneRole[] = [
+      'files',
+      'directories',
+      'types',
+      'members',
+      'definitions',
+      'declarations',
+      'implementations',
+      'references',
+      'problems',
+      'changes',
+      'callers',
+      'hierarchy'
+    ];
+    const visibleRoles = new Set(this.getVisiblePanes().map((p) => p.role));
+
     for (const pane of this.panes) {
       void vscode.commands.executeCommand('setContext', `${pane.id}.visible`, pane.visible);
+    }
+
+    for (const role of allRoles) {
+      void vscode.commands.executeCommand('setContext', `facet.role.${role}.visible`, visibleRoles.has(role));
     }
   }
 
@@ -132,6 +152,37 @@ export class PanePipelineManager {
 
     visible.splice(idx, 1);
     await this.applyVisiblePanes(visible);
+    return true;
+  }
+
+  public async reorderSlots(slotOrder: string[]): Promise<boolean> {
+    const visible = this.getVisiblePanes();
+    const visibleIds = visible.map((p) => p.id);
+
+    const orderedVisibleIds = slotOrder.filter((id) => visibleIds.includes(id));
+    for (const id of visibleIds) {
+      if (!orderedVisibleIds.includes(id)) {
+        orderedVisibleIds.push(id);
+      }
+    }
+
+    const unchanged = orderedVisibleIds.every((id, idx) => id === visibleIds[idx]);
+    if (unchanged) {
+      return false;
+    }
+
+    const newVisible = orderedVisibleIds.map((id) => visible.find((p) => p.id === id)!);
+    const hiddenPanes = this.panes.filter((p) => !p.visible);
+
+    if (newVisible.length > 0 && newVisible[0].inputSource === 'previousPane') {
+      newVisible[0].inputSource = (newVisible[0].role === 'members' ? 'openEditors' : 'project') as any;
+    }
+
+    this.panes = [...newVisible, ...hiddenPanes];
+    this.syncContextKeys();
+    this.coordinator.clearSlotSelections();
+    this._onDidUpdatePanes.fire();
+    await this.coordinator.sync();
     return true;
   }
 
@@ -218,6 +269,14 @@ export class PanePipelineManager {
           action: 'subclassTypes'
         });
       }
+    }
+
+    if (pane.role === 'files') {
+      items.push({
+        label: '$(file-submodule) Directory Traversal...',
+        description: ('recursive' in pane && (pane as any).recursive) ? 'Recursive' : 'Non-Recursive (Direct files only)',
+        action: 'recursive'
+      });
     }
 
     items.push({ label: 'Manage Panes', kind: vscode.QuickPickItemKind.Separator });
@@ -443,6 +502,31 @@ export class PanePipelineManager {
       case 'filters': {
         if ('filters' in pane) {
           await this.configureFilters(pane);
+        }
+        break;
+      }
+      case 'recursive': {
+        if (pane.role === 'files') {
+          const recPick = await vscode.window.showQuickPick(
+            [
+              {
+                label: 'Non-Recursive',
+                description: 'Show only files directly in selected directory',
+                recursive: false
+              },
+              {
+                label: 'Recursive',
+                description: 'Show files in selected directory and all subdirectories',
+                recursive: true
+              }
+            ],
+            { placeHolder: 'Select Directory Traversal Mode' }
+          );
+          if (recPick) {
+            (pane as any).recursive = recPick.recursive;
+            this._onDidUpdatePanes.fire();
+            this.coordinator.refreshSlot(pane.id);
+          }
         }
         break;
       }

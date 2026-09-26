@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { PaneFilters, matchesPaneFilters } from './paneConfig';
 
 export enum MemberCategory {
   All = 'all',
@@ -175,7 +176,8 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
 
 export function buildTypeHierarchy(
   types: readonly FacetSymbolNode[],
-  allowedSubclassKinds?: vscode.SymbolKind[]
+  allowedSubclassKinds?: vscode.SymbolKind[],
+  filters?: PaneFilters
 ): FacetSymbolNode[] {
   const typeMap = new Map<string, FacetSymbolNode[]>();
   for (const t of types) {
@@ -183,9 +185,11 @@ export function buildTypeHierarchy(
     list.push(t);
     typeMap.set(t.name, list);
     t.subTypes = [];
+    t.parent = undefined;
   }
 
   const childKeys = new Set<string>();
+  const childNames = new Set<string>();
 
   for (const t of types) {
     if (allowedSubclassKinds && !allowedSubclassKinds.includes(t.kind)) {
@@ -205,29 +209,72 @@ export function buildTypeHierarchy(
               continue;
             }
 
+            // Cycle detection
+            let curr: FacetSymbolNode | undefined = parent;
+            let cycle = false;
+            while (curr) {
+              if (curr.name === t.name) {
+                cycle = true;
+                break;
+              }
+              curr = curr.parent;
+            }
+            if (cycle) {
+              continue;
+            }
+
             if (!parent.subTypes) {
               parent.subTypes = [];
             }
-            if (!parent.subTypes.some((sub) => sub.name === t.name && sub.uri?.toString() === t.uri?.toString())) {
+            if (!parent.subTypes.some((sub) => sub.name === t.name)) {
               t.parent = parent;
               parent.subTypes.push(t);
             }
             childKeys.add(`${t.name}::${t.uri?.toString() || ''}`);
+            childNames.add(t.name);
           }
         }
       }
     }
   }
 
+  // Filter based on leaves: keep branches that lead to at least one matching leaf
+  const filterLeaves = (node: FacetSymbolNode): boolean => {
+    if (node.subTypes && node.subTypes.length > 0) {
+      node.subTypes = node.subTypes.filter((sub) => filterLeaves(sub));
+      if (node.subTypes.length > 0) {
+        return true;
+      }
+    }
+    return matchesPaneFilters(node, filters);
+  };
+
   const rootSeen = new Set<string>();
   const uniqueRoots: FacetSymbolNode[] = [];
   for (const t of types) {
     const key = `${t.name}::${t.uri?.toString() || ''}`;
-    if (!childKeys.has(key)) {
-      if (!rootSeen.has(key)) {
-        rootSeen.add(key);
-        uniqueRoots.push(t);
+    // Strictly exclude any type nested elsewhere in the hierarchy
+    if (childKeys.has(key) || childNames.has(t.name) || t.parent !== undefined) {
+      continue;
+    }
+
+    if (rootSeen.has(t.name)) {
+      // Merge subTypes into existing root node
+      const existing = uniqueRoots.find((r) => r.name === t.name);
+      if (existing && t.subTypes && t.subTypes.length > 0) {
+        existing.subTypes = existing.subTypes || [];
+        for (const sub of t.subTypes) {
+          if (!existing.subTypes.some((s) => s.name === sub.name)) {
+            existing.subTypes.push(sub);
+          }
+        }
       }
+      continue;
+    }
+
+    if (filterLeaves(t)) {
+      rootSeen.add(t.name);
+      uniqueRoots.push(t);
     }
   }
 

@@ -1,7 +1,11 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
+import { parseSlotOrderFromBuffer, WorkbenchLayoutWatcher } from '../../coordinator/workbenchLayoutWatcher';
 import { SymbolResolver } from '../../services/symbolResolver';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { SlotTreeProvider } from '../../providers/slotTreeProvider';
@@ -240,7 +244,13 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(manager.getVisiblePanes().length, 5);
     assert.strictEqual(manager.getVisiblePanes()[4].role, 'callers');
 
-    // 10. Test Remove Pane action from menu
+    // 10. Test Recursive traversal toggle for files pane
+    window.pushQuickPick({ action: 'recursive' });
+    window.pushQuickPick({ recursive: true });
+    await manager.configurePane('facet.pane.2');
+    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.recursive, true);
+
+    // 11. Test Remove Pane action from menu
     window.pushQuickPick({ action: 'remove' });
     await manager.configurePane('facet.pane.5');
     assert.strictEqual(manager.getVisiblePanes().length, 4);
@@ -327,4 +337,125 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
 
     coordinator.dispose();
   });
+
+  test('reorderSlots adapts piping to visual order and re-anchors index 0', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    // Initial slots: [facet.pane.1 (directories), facet.pane.2 (files), facet.pane.3 (types), facet.pane.4 (members)]
+    // Drag-and-drop workbench reordering sends new slot IDs sequence:
+    const changed = await manager.reorderSlots([
+      'facet.pane.3',
+      'facet.pane.1',
+      'facet.pane.2',
+      'facet.pane.4'
+    ]);
+    assert.ok(changed);
+
+    const visible = manager.getVisiblePanes();
+    assert.strictEqual(visible[0].id, 'facet.pane.3');
+    assert.strictEqual(visible[0].role, 'types');
+    // Because Types was at index 0 and had inputSource: 'previousPane', it must safely default to 'project'
+    assert.strictEqual(visible[0].inputSource, 'project');
+
+    assert.strictEqual(visible[1].id, 'facet.pane.1');
+    assert.strictEqual(visible[1].role, 'directories');
+
+    // Upstream piping relative to visual order:
+    // facet.pane.1's upstream is facet.pane.3
+    const upstream1 = coordinator.getPreviousPane('facet.pane.1');
+    assert.strictEqual(upstream1?.id, 'facet.pane.3');
+
+    // facet.pane.2's upstream is facet.pane.1
+    const upstream2 = coordinator.getPreviousPane('facet.pane.2');
+    assert.strictEqual(upstream2?.id, 'facet.pane.1');
+
+    // Repeating identical order returns false
+    const unchanged = await manager.reorderSlots([
+      'facet.pane.3',
+      'facet.pane.1',
+      'facet.pane.2',
+      'facet.pane.4'
+    ]);
+    assert.strictEqual(unchanged, false);
+
+    coordinator.dispose();
+  });
+
+  test('parseSlotOrderFromBuffer extracts slot order across multiple workbench storage formats', () => {
+    // Pattern 1: "facet.pane.X":{"order":N}
+    const buf1 = '{"facet.pane.2":{"order":0},"facet.pane.1":{"order":1},"facet.pane.3":{"order":2}}';
+    assert.deepStrictEqual(parseSlotOrderFromBuffer(buf1), ['facet.pane.2', 'facet.pane.1', 'facet.pane.3']);
+
+    // Pattern 2: {"order":N,"id":"facet.pane.X"}
+    const buf2 = '{"order":1,"id":"facet.pane.2"},{"order":0,"id":"facet.pane.1"}';
+    assert.deepStrictEqual(parseSlotOrderFromBuffer(buf2), ['facet.pane.1', 'facet.pane.2']);
+
+    // Pattern 3: "facet.pane.X" ... "order": N
+    const buf3 = '"facet.pane.4" some details "order": 0 ... "facet.pane.1" some details "order": 1';
+    assert.deepStrictEqual(parseSlotOrderFromBuffer(buf3), ['facet.pane.4', 'facet.pane.1']);
+
+    // Pattern 4: array of views without explicit order
+    const buf4 = '{"facet-container":[{"id":"facet.pane.3"},{"id":"facet.pane.2"},{"id":"facet.pane.1"}]}';
+    assert.deepStrictEqual(parseSlotOrderFromBuffer(buf4), ['facet.pane.3', 'facet.pane.2', 'facet.pane.1']);
+
+    // Insufficient matches (< 2 slots)
+    assert.strictEqual(parseSlotOrderFromBuffer('{"facet.pane.1":{"order":0}}'), undefined);
+    assert.strictEqual(parseSlotOrderFromBuffer('non-matching text'), undefined);
+    assert.strictEqual(parseSlotOrderFromBuffer(Buffer.from('non-matching buffer')), undefined);
+  });
+
+  test('WorkbenchLayoutWatcher detects storage file changes and notifies listener', () => {
+    // 1. Without storageUri: gracefully handles initialization and dispose
+    const watcherNoStorage = new WorkbenchLayoutWatcher(undefined, undefined, () => {});
+    watcherNoStorage.checkOrder();
+    watcherNoStorage.dispose();
+
+    // 2. With real temporary storage directory
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'facet-workbench-test-'));
+    const stateFile = path.join(tempDir, 'state.vscdb');
+    const walFile = path.join(tempDir, 'state.vscdb-wal');
+
+    // Initial state file
+    fs.writeFileSync(stateFile, '{"facet.pane.2":{"order":0},"facet.pane.1":{"order":1}}', 'utf8');
+
+    let reportedOrder: string[] = [];
+    let watcher: WorkbenchLayoutWatcher | undefined;
+    try {
+      watcher = new WorkbenchLayoutWatcher(vscode.Uri.file(stateFile), undefined, (order) => {
+        reportedOrder = order;
+      });
+
+      // Initial check should have populated reportedOrder
+      assert.deepStrictEqual(reportedOrder, ['facet.pane.2', 'facet.pane.1']);
+
+      // Checking order again without file modification should not re-trigger callback
+      reportedOrder = [];
+      watcher.checkOrder();
+      assert.deepStrictEqual(reportedOrder, []);
+
+      // Write updated slot order into WAL file
+      fs.writeFileSync(walFile, '{"facet.pane.1":{"order":0},"facet.pane.2":{"order":1}}', 'utf8');
+      watcher.checkOrder();
+      assert.deepStrictEqual(reportedOrder, ['facet.pane.1', 'facet.pane.2']);
+    } finally {
+      watcher?.dispose();
+
+      // Clean up temporary files
+      try {
+        if (fs.existsSync(walFile)) {
+          fs.unlinkSync(walFile);
+        }
+        if (fs.existsSync(stateFile)) {
+          fs.unlinkSync(stateFile);
+        }
+        fs.rmdirSync(tempDir);
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+  });
 });
+

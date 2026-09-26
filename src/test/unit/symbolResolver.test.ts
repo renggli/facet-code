@@ -481,4 +481,132 @@ export class Calculator {
     assert.strictEqual(baseClass.subTypes?.length, 1);
     assert.strictEqual(baseClass.subTypes[0].name, 'SubStruct');
   });
+
+  test('buildTypeHierarchy filters based on leaves and removes duplicates nested elsewhere', () => {
+    const { buildTypeHierarchy } = require('../../models/symbolNode');
+
+    const uri1 = vscode.Uri.file('/workspace/src/base.ts');
+    const uri2 = vscode.Uri.file('/workspace/src/middle.ts');
+    const uri3 = vscode.Uri.file('/workspace/src/leaf.ts');
+    const uri4 = vscode.Uri.file('/workspace/src/leaf_dup.ts');
+
+    const baseClass: FacetSymbolNode = {
+      name: 'BaseClass',
+      kind: vscode.SymbolKind.Class,
+      uri: uri1,
+      range: new vscode.Range(0, 0, 0, 0),
+      selectionRange: new vscode.Range(0, 0, 0, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: []
+    };
+
+    const middleClass: FacetSymbolNode = {
+      name: 'MiddleClass',
+      kind: vscode.SymbolKind.Class,
+      uri: uri2,
+      range: new vscode.Range(0, 0, 0, 0),
+      selectionRange: new vscode.Range(0, 0, 0, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['BaseClass']
+    };
+
+    const duplicateMiddle: FacetSymbolNode = {
+      name: 'MiddleClass',
+      kind: vscode.SymbolKind.Class,
+      uri: uri2,
+      range: new vscode.Range(10, 0, 10, 0),
+      selectionRange: new vscode.Range(10, 0, 10, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['BaseClass']
+    };
+
+    const leafClass: FacetSymbolNode = {
+      name: 'LeafClass',
+      kind: vscode.SymbolKind.Class,
+      uri: uri3,
+      range: new vscode.Range(0, 0, 0, 0),
+      selectionRange: new vscode.Range(0, 0, 0, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['MiddleClass']
+    };
+
+    const duplicateLeafClass: FacetSymbolNode = {
+      name: 'LeafClass',
+      kind: vscode.SymbolKind.Class,
+      uri: uri4,
+      range: new vscode.Range(0, 0, 0, 0),
+      selectionRange: new vscode.Range(0, 0, 0, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['MiddleClass']
+    };
+
+    const deadLeafStruct: FacetSymbolNode = {
+      name: 'DeadLeaf',
+      kind: vscode.SymbolKind.Struct,
+      uri: uri1,
+      range: new vscode.Range(5, 0, 5, 0),
+      selectionRange: new vscode.Range(5, 0, 5, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['BaseClass']
+    };
+
+    const standaloneStruct: FacetSymbolNode = {
+      name: 'StandaloneStruct',
+      kind: vscode.SymbolKind.Struct,
+      uri: uri1,
+      range: new vscode.Range(20, 0, 20, 0),
+      selectionRange: new vscode.Range(20, 0, 20, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: []
+    };
+
+    // Filter that only enables class, disabling struct
+    const filters = {
+      class: true,
+      struct: false
+    };
+
+    const roots = buildTypeHierarchy(
+      [
+        baseClass,
+        middleClass,
+        duplicateMiddle,
+        leafClass,
+        duplicateLeafClass,
+        deadLeafStruct,
+        standaloneStruct
+      ],
+      undefined,
+      filters
+    );
+
+    // Only BaseClass should be a root:
+    // - StandaloneStruct has no matching leaves and is struct -> pruned
+    // - DeadLeaf is a struct leaf -> pruned
+    // - MiddleClass and LeafClass are nested -> removed from roots
+    assert.strictEqual(roots.length, 1);
+    assert.strictEqual(roots[0].name, 'BaseClass');
+
+    // BaseClass retains MiddleClass (as ancestor of matching LeafClass), but prunes DeadLeaf
+    assert.strictEqual(roots[0].subTypes?.length, 1);
+    assert.strictEqual(roots[0].subTypes![0].name, 'MiddleClass');
+
+    // MiddleClass contains exactly 1 LeafClass (duplicates deduplicated)
+    assert.strictEqual(roots[0].subTypes![0].subTypes?.length, 1);
+    assert.strictEqual(roots[0].subTypes![0].subTypes![0].name, 'LeafClass');
+  });
 });

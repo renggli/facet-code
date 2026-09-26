@@ -4,6 +4,7 @@ import { RelationsTreeProvider } from './providers/relationsTreeProvider';
 import { SlotTreeProvider } from './providers/slotTreeProvider';
 import { FacetCoordinator } from './coordinator/facetCoordinator';
 import { PanePipelineManager } from './coordinator/panePipelineManager';
+import { WorkbenchLayoutWatcher } from './coordinator/workbenchLayoutWatcher';
 
 export function activate(context: vscode.ExtensionContext) {
   const resolver = new SymbolResolver();
@@ -84,8 +85,17 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Helper to focus on a pane slot
+  const focusPane = async (slotId: string) => {
+    try {
+      await vscode.commands.executeCommand(`${slotId}.focus`);
+    } catch {
+      // fallback
+    }
+  };
+
   // Helper to extract slot ID from context or prompt
-  const resolveSlotId = async (arg?: any): Promise<string | undefined> => {
+  const resolveSlotId = async (arg?: any, placeHolder = 'Select pane'): Promise<string | undefined> => {
     if (typeof arg === 'string' && arg.startsWith('facet.pane.')) {
       return arg;
     }
@@ -100,7 +110,7 @@ export function activate(context: vscode.ExtensionContext) {
         description: `Role: ${p.role}`,
         id: p.id
       })),
-      { placeHolder: 'Select pane' }
+      { placeHolder }
     );
     return picked?.id;
   };
@@ -115,9 +125,65 @@ export function activate(context: vscode.ExtensionContext) {
     );
   }
 
+  // Dynamic commands for current active panes (based on current order and configuration)
+  let dynamicPaneDisposables: vscode.Disposable[] = [];
+  const updateDynamicPaneCommands = () => {
+    for (const d of dynamicPaneDisposables) {
+      d.dispose();
+    }
+    dynamicPaneDisposables = [];
+
+    const visiblePanes = pipelineManager.getVisiblePanes();
+    const slugCounts = new Map<string, number>();
+
+    for (let idx = 0; idx < visiblePanes.length; idx++) {
+      const pane = visiblePanes[idx];
+      const baseSlug = (pane.title || pane.role).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `pane-${idx + 1}`;
+      const count = (slugCounts.get(baseSlug) || 0) + 1;
+      slugCounts.set(baseSlug, count);
+
+      const slotId = pane.id;
+      const targetSlug = count === 1 ? baseSlug : `${baseSlug}-${count}`;
+
+      try {
+        dynamicPaneDisposables.push(
+          vscode.commands.registerCommand(`facet.focus.${targetSlug}`, async () => {
+            await focusPane(slotId);
+          }),
+          vscode.commands.registerCommand(`facet.configure.${targetSlug}`, async () => {
+            await pipelineManager.configurePane(slotId);
+          })
+        );
+      } catch {
+        // ignore duplicate
+      }
+    }
+  };
+
   context.subscriptions.push(
+    pipelineManager.onDidUpdatePanes(() => {
+      updateDynamicPaneCommands();
+    }),
+    {
+      dispose: () => {
+        for (const d of dynamicPaneDisposables) {
+          d.dispose();
+        }
+        dynamicPaneDisposables = [];
+      }
+    }
+  );
+  updateDynamicPaneCommands();
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('facet.pane.focus', async (arg?: any) => {
+      const slotId = await resolveSlotId(arg, 'Select pane to focus');
+      if (slotId) {
+        await focusPane(slotId);
+      }
+    }),
     vscode.commands.registerCommand('facet.pane.configure', async (arg?: any) => {
-      const slotId = await resolveSlotId(arg);
+      const slotId = await resolveSlotId(arg, 'Select pane to configure');
       if (slotId) {
         await pipelineManager.configurePane(slotId);
       }
@@ -129,6 +195,26 @@ export function activate(context: vscode.ExtensionContext) {
       void coordinator.revealRange(uri, range);
     })
   );
+
+  // 5. Watch workbench layout for drag-and-drop reordering
+  const layoutWatcher = new WorkbenchLayoutWatcher(
+    context.storageUri,
+    context.globalStorageUri,
+    (newSlotOrder) => {
+      void pipelineManager.reorderSlots(newSlotOrder);
+    }
+  );
+  context.subscriptions.push(layoutWatcher);
+
+  if (vscode.window.onDidChangeWindowState) {
+    context.subscriptions.push(
+      vscode.window.onDidChangeWindowState((e) => {
+        if (e.focused) {
+          layoutWatcher.checkOrder();
+        }
+      })
+    );
+  }
 
   context.subscriptions.push(coordinator);
 

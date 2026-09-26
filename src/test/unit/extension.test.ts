@@ -50,5 +50,26 @@ suite('Extension Lifecycle Test Suite', () => {
 
     // Execute generic configure command with arg
     await vscode.commands.executeCommand('facet.pane.configure', 'facet.pane.2');
+    await vscode.commands.executeCommand('facet.pane.configure', { viewId: 'facet.pane.3' });
+
+    // Execute generic focus command with arg
+    await vscode.commands.executeCommand('facet.pane.focus', 'facet.pane.1');
+    await vscode.commands.executeCommand('facet.pane.focus', { viewId: 'facet.pane.2' });
+
+    // Execute generic configure & focus with QuickPick fallback (no arg)
+    const window = vscode.window as any;
+    window.pushQuickPick({ id: 'facet.pane.1', label: 'Directories' });
+    await vscode.commands.executeCommand('facet.pane.focus');
+
+    window.pushQuickPick({ id: 'facet.pane.2', label: 'Files' });
+    await vscode.commands.executeCommand('facet.pane.configure');
+
+    // Execute dynamic title/pane focus & configure commands
+    await vscode.commands.executeCommand('facet.focus.directories');
+    await vscode.commands.executeCommand('facet.configure.directories');
+    await vscode.commands.executeCommand('facet.focus.files');
+    await vscode.commands.executeCommand('facet.configure.files');
+    await vscode.commands.executeCommand('facet.focus.types');
+    await vscode.commands.executeCommand('facet.focus.members');
   });
 });

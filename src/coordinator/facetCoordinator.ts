@@ -10,7 +10,7 @@ import {
   extractTypeHeader,
   buildTypeHierarchy
 } from '../models/symbolNode';
-import { PaneConfig, SortOption, matchesPaneFilters, matchesGlob } from '../models/paneConfig';
+import { PaneConfig, FilesPaneConfig, SortOption, matchesPaneFilters, matchesGlob } from '../models/paneConfig';
 import { PanePipelineManager } from './panePipelineManager';
 
 export interface DirectoryNode {
@@ -506,8 +506,25 @@ export class FacetCoordinator implements vscode.Disposable {
         .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
     }
 
-    // Extract unique directories
-    const dirMap = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
+    // Extract base directories from candidates
+    const baseDirMap = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
+
+    const prevSel = config.inputSource === 'previousPane' ? this.getPreviousPaneSelection(config.id) : [];
+    const prevDirNodes = prevSel.filter((item) => item?.type === 'directory');
+
+    for (const dNode of prevDirNodes) {
+      if (dNode.relativePath) {
+        const normRel = dNode.relativePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+        if (normRel && normRel !== '.') {
+          baseDirMap.set(normRel, {
+            uri: dNode.uri,
+            relPath: normRel,
+            name: dNode.name || normRel.split('/').pop() || normRel
+          });
+        }
+      }
+    }
+
     for (const uri of candidateUris) {
       const fullPath = uri.fsPath;
       const lastSlash = Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\'));
@@ -520,9 +537,12 @@ export class FacetCoordinator implements vscode.Disposable {
         } catch {
           relPath = dirPath;
         }
+        relPath = relPath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
         if (relPath && relPath !== '.') {
           const name = relPath.split('/').pop() || relPath;
-          dirMap.set(relPath, { uri: dirUri, relPath, name });
+          if (!baseDirMap.has(relPath)) {
+            baseDirMap.set(relPath, { uri: dirUri, relPath, name });
+          }
         }
       }
     }
@@ -530,67 +550,143 @@ export class FacetCoordinator implements vscode.Disposable {
     const pattern = ('globPattern' in config ? config.globPattern : undefined) ||
       ('filePattern' in config ? config.filePattern : undefined);
 
-    let matchingDirs = Array.from(dirMap.values()).filter((d) => matchesGlob(d.relPath, pattern));
-
     const display = 'display' in config ? config.display : 'flat';
-    if (display === 'hierarchy') {
-      const rootNodes: DirectoryNode[] = [];
-      const nodeMap = new Map<string, DirectoryNode>();
-
-      matchingDirs.sort((a, b) => a.relPath.split('/').length - b.relPath.split('/').length);
-
-      for (const d of matchingDirs) {
-        const node: DirectoryNode = {
+    if (display === 'flat') {
+      const flatNodes: DirectoryNode[] = Array.from(baseDirMap.values())
+        .filter((d) => matchesGlob(d.relPath, pattern) || matchesGlob(d.name, pattern))
+        .map((d) => ({
           type: 'directory',
           uri: d.uri,
           name: d.name,
-          relativePath: d.relPath,
-          children: []
-        };
-        nodeMap.set(d.relPath, node);
+          relativePath: d.relPath
+        }));
 
-        const lastSlash = d.relPath.lastIndexOf('/');
-        if (lastSlash === -1) {
-          rootNodes.push(node);
-        } else {
-          const parentRel = d.relPath.slice(0, lastSlash);
-          const parentNode = nodeMap.get(parentRel);
-          if (parentNode) {
-            node.parent = parentNode;
-            parentNode.children = parentNode.children || [];
-            parentNode.children.push(node);
-          } else {
-            rootNodes.push(node);
-          }
-        }
-      }
-
-      const sortNodes = (nodes: DirectoryNode[]) => {
-        nodes.sort((a, b) =>
-          config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
-        );
-        for (const n of nodes) {
-          if (n.children && n.children.length > 0) {
-            sortNodes(n.children);
-          }
-        }
-      };
-      sortNodes(rootNodes);
-      return rootNodes;
+      flatNodes.sort((a, b) =>
+        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
+      );
+      return flatNodes;
     }
 
-    // Flat mode
-    const flatNodes: DirectoryNode[] = matchingDirs.map((d) => ({
-      type: 'directory',
-      uri: d.uri,
-      name: d.name,
-      relativePath: d.relPath
-    }));
+    // Hierarchy mode
+    // 1. Synthesize all ancestor path segments from baseDirMap
+    const allDirsMap = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
 
-    flatNodes.sort((a, b) =>
-      config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
+    for (const base of baseDirMap.values()) {
+      const parts = base.relPath.split('/');
+      let currentPath = '';
+      for (let i = 0; i < parts.length; i++) {
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+        if (!allDirsMap.has(currentPath)) {
+          let segUri = base.uri;
+          if (currentPath === base.relPath) {
+            segUri = base.uri;
+          } else {
+            try {
+              if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                segUri = vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, currentPath);
+              } else {
+                segUri = vscode.Uri.file(currentPath);
+              }
+            } catch {
+              segUri = base.uri;
+            }
+          }
+          allDirsMap.set(currentPath, {
+            uri: segUri,
+            relPath: currentPath,
+            name: parts[i]
+          });
+        }
+      }
+    }
+
+    // 2. Build DirectoryNode map
+    const nodeMap = new Map<string, DirectoryNode>();
+    for (const d of allDirsMap.values()) {
+      nodeMap.set(d.relPath, {
+        type: 'directory',
+        uri: d.uri,
+        name: d.name,
+        relativePath: d.relPath,
+        children: []
+      });
+    }
+
+    // 3. Link parent and children
+    const childRelPaths = new Set<string>();
+
+    for (const [relPath, node] of nodeMap) {
+      const lastSlash = relPath.lastIndexOf('/');
+      if (lastSlash !== -1) {
+        const parentRel = relPath.slice(0, lastSlash);
+        const parentNode = nodeMap.get(parentRel);
+        if (parentNode) {
+          node.parent = parentNode;
+          parentNode.children = parentNode.children || [];
+          if (!parentNode.children.some((c) => c.relativePath === node.relativePath)) {
+            parentNode.children.push(node);
+          }
+          childRelPaths.add(relPath);
+        }
+      }
+    }
+
+    // 4. Leaf-based filtering
+    const matchesDirectoryFilter = (node: DirectoryNode): boolean => {
+      if (!pattern || !pattern.trim()) {
+        return true;
+      }
+      return (
+        matchesGlob(node.relativePath, pattern) ||
+        matchesGlob(node.name, pattern) ||
+        node.relativePath.split('/').some((part) => matchesGlob(part, pattern))
+      );
+    };
+
+    const filterLeaves = (node: DirectoryNode): boolean => {
+      if (node.children && node.children.length > 0) {
+        node.children = node.children.filter((child) => filterLeaves(child));
+        if (node.children.length > 0) {
+          return true;
+        }
+      }
+      return matchesDirectoryFilter(node);
+    };
+
+    // 5. Roots extraction, strictly removing duplicates nested elsewhere
+    const rootNodes: DirectoryNode[] = [];
+    const rootSeen = new Set<string>();
+
+    const allNodes = Array.from(nodeMap.values()).sort(
+      (a, b) => a.relativePath.split('/').length - b.relativePath.split('/').length
     );
-    return flatNodes;
+
+    for (const node of allNodes) {
+      if (childRelPaths.has(node.relativePath) || node.parent !== undefined) {
+        continue;
+      }
+      if (rootSeen.has(node.relativePath)) {
+        continue;
+      }
+
+      if (filterLeaves(node)) {
+        rootSeen.add(node.relativePath);
+        rootNodes.push(node);
+      }
+    }
+
+    const sortNodes = (nodes: DirectoryNode[]) => {
+      nodes.sort((a, b) =>
+        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
+      );
+      for (const n of nodes) {
+        if (n.children && n.children.length > 0) {
+          sortNodes(n.children);
+        }
+      }
+    };
+    sortNodes(rootNodes);
+    return rootNodes;
   }
 
   private async getFileChildren(config: PaneConfig): Promise<vscode.Uri[]> {
@@ -632,9 +728,20 @@ export class FacetCoordinator implements vscode.Disposable {
             this.cachedWorkspaceFiles = [];
           }
         }
-        files = this.cachedWorkspaceFiles.filter((file) =>
-          dirPaths.some((dir) => file.fsPath.startsWith(dir))
-        );
+        const isRecursive = (config as FilesPaneConfig).recursive ?? false;
+        files = this.cachedWorkspaceFiles.filter((file) => {
+          const normFile = file.fsPath.replace(/\\/g, '/').replace(/\/+$/, '');
+          return dirPaths.some((dir) => {
+            const normDir = dir.replace(/\\/g, '/').replace(/\/+$/, '');
+            if (isRecursive) {
+              return normFile.startsWith(normDir + '/');
+            } else {
+              const lastSlash = normFile.lastIndexOf('/');
+              const fileDir = lastSlash !== -1 ? normFile.slice(0, lastSlash) : '';
+              return fileDir === normDir;
+            }
+          });
+        });
       } else {
         files = prevSel
           .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
@@ -810,8 +917,6 @@ export class FacetCoordinator implements vscode.Disposable {
     // Hydrate superTypes if missing across open tabs and disk files
     await this.hydrateMissingSuperTypes(rawTypes);
 
-    const filtered = rawTypes.filter((t) => matchesPaneFilters(t, filters));
-
     if (display === 'hierarchy') {
       let allowedKinds: vscode.SymbolKind[] | undefined;
       if (subclassTypes && subclassTypes.length > 0) {
@@ -823,10 +928,11 @@ export class FacetCoordinator implements vscode.Disposable {
         };
         allowedKinds = subclassTypes.map((k) => keyMap[k]).filter((k) => k !== undefined);
       }
-      const roots = buildTypeHierarchy(filtered, allowedKinds);
+      const roots = buildTypeHierarchy(rawTypes, allowedKinds, filters);
       return this.sortItems(roots, config.sort);
     }
 
+    const filtered = rawTypes.filter((t) => matchesPaneFilters(t, filters));
     return this.sortItems(filtered, config.sort);
   }
 

@@ -92,6 +92,81 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.dispose();
   });
 
+  test('coordinator filters hierarchical directories based on leaves and removes duplicates nested elsewhere', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+
+    const origFindFiles = vscode.workspace.findFiles;
+    const testFiles = [
+      vscode.Uri.file('/workspace/src/services/auth/login.ts'),
+      vscode.Uri.file('/workspace/src/services/billing/charge.ts'),
+      vscode.Uri.file('/workspace/src/models/user.ts'),
+      vscode.Uri.file('/workspace/test/unit/test.ts')
+    ];
+    (vscode.workspace as any).findFiles = async () => testFiles;
+
+    // 1. Filter by 'auth': leaf 'src/services/auth' matches
+    const dirConfigAuth = createDirectoriesPane('facet.pane.1', {
+      display: 'hierarchy',
+      inputSource: 'project',
+      globPattern: 'auth'
+    });
+
+    const authRoots = await coordinator.getSlotChildren(dirConfigAuth);
+    // Only 'src' should be a root. 'services' and 'auth' are nested elsewhere and must not appear in roots
+    assert.strictEqual(authRoots.length, 1);
+    assert.strictEqual(authRoots[0].name, 'src');
+    assert.strictEqual(authRoots[0].relativePath, 'src');
+
+    // Expand 'src': contains 'services', 'models' is pruned
+    const srcChildren = await coordinator.getSlotChildren(dirConfigAuth, authRoots[0]);
+    assert.strictEqual(srcChildren.length, 1);
+    assert.strictEqual(srcChildren[0].name, 'services');
+
+    // Expand 'services': contains 'auth', 'billing' is pruned
+    const servicesChildren = await coordinator.getSlotChildren(dirConfigAuth, srcChildren[0]);
+    assert.strictEqual(servicesChildren.length, 1);
+    assert.strictEqual(servicesChildren[0].name, 'auth');
+
+    // 'auth' has no subdirectories (leaf)
+    const authChildren = await coordinator.getSlotChildren(dirConfigAuth, servicesChildren[0]);
+    assert.strictEqual(authChildren.length, 0);
+
+    // Parent navigation works
+    assert.strictEqual(coordinator.getSlotParent(dirConfigAuth, servicesChildren[0]), srcChildren[0]);
+    assert.strictEqual(coordinator.getSlotParent(dirConfigAuth, srcChildren[0]), authRoots[0]);
+    assert.strictEqual(coordinator.getSlotParent(dirConfigAuth, authRoots[0]), undefined);
+
+    // 2. Filter by 'nonexistent': returns 0 roots
+    const dirConfigNone = createDirectoriesPane('facet.pane.1', {
+      display: 'hierarchy',
+      inputSource: 'project',
+      globPattern: 'nonexistent'
+    });
+    const noneRoots = await coordinator.getSlotChildren(dirConfigNone);
+    assert.strictEqual(noneRoots.length, 0);
+
+    // 3. No filter: roots should only be 'src' and 'test'; none of the nested directories appear in roots
+    const dirConfigAll = createDirectoriesPane('facet.pane.1', {
+      display: 'hierarchy',
+      inputSource: 'project'
+    });
+    const allRoots = await coordinator.getSlotChildren(dirConfigAll);
+    assert.strictEqual(allRoots.length, 2);
+    const rootRelPaths = allRoots.map((r: any) => r.relativePath);
+    assert.ok(rootRelPaths.includes('src'));
+    assert.ok(rootRelPaths.includes('test'));
+    assert.ok(!rootRelPaths.includes('src/services'));
+    assert.ok(!rootRelPaths.includes('src/services/auth'));
+    assert.ok(!rootRelPaths.includes('src/services/billing'));
+    assert.ok(!rootRelPaths.includes('src/models'));
+    assert.ok(!rootRelPaths.includes('test/unit'));
+
+    (vscode.workspace as any).findFiles = origFindFiles;
+    coordinator.dispose();
+  });
+
   test('coordinator handles problems pane with severity sorting and tree items', async () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
@@ -386,6 +461,63 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(treeItem.collapsibleState, vscode.TreeItemCollapsibleState.None);
     assert.ok(treeItem.command);
     assert.strictEqual(treeItem.command.command, 'vscode.open');
+
+    (vscode.workspace as any).findFiles = origFindFiles;
+    coordinator.dispose();
+  });
+
+  test('coordinator filters files non-recursively vs recursively when directory is selected in previous pane', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+
+    const origFindFiles = vscode.workspace.findFiles;
+    const testFiles = [
+      vscode.Uri.file('/workspace/src/app.ts'),
+      vscode.Uri.file('/workspace/src/utils.ts'),
+      vscode.Uri.file('/workspace/src/components/button.tsx'),
+      vscode.Uri.file('/workspace/src/components/modal/dialog.tsx'),
+      vscode.Uri.file('/workspace/test/app.test.ts')
+    ];
+    (vscode.workspace as any).findFiles = async () => testFiles;
+
+    const dirNode = {
+      type: 'directory',
+      uri: vscode.Uri.file('/workspace/src'),
+      name: 'src',
+      relativePath: 'src'
+    };
+
+    coordinator.setSlotSelection('facet.pane.1', [dirNode]);
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'directories' });
+
+    // Test non-recursive mode (default)
+    const nonRecursiveConfig = createFilesPane('facet.pane.2', {
+      inputSource: 'previousPane',
+      recursive: false
+    });
+
+    const directFiles = await coordinator.getSlotChildren(nonRecursiveConfig);
+    assert.strictEqual(directFiles.length, 2);
+    const directPaths = directFiles.map((u: vscode.Uri) => u.path);
+    assert.ok(directPaths.includes('/workspace/src/app.ts'));
+    assert.ok(directPaths.includes('/workspace/src/utils.ts'));
+    assert.ok(!directPaths.includes('/workspace/src/components/button.tsx'));
+
+    // Test recursive mode
+    const recursiveConfig = createFilesPane('facet.pane.2', {
+      inputSource: 'previousPane',
+      recursive: true
+    });
+
+    const allDescendantFiles = await coordinator.getSlotChildren(recursiveConfig);
+    assert.strictEqual(allDescendantFiles.length, 4);
+    const recursivePaths = allDescendantFiles.map((u: vscode.Uri) => u.path);
+    assert.ok(recursivePaths.includes('/workspace/src/app.ts'));
+    assert.ok(recursivePaths.includes('/workspace/src/utils.ts'));
+    assert.ok(recursivePaths.includes('/workspace/src/components/button.tsx'));
+    assert.ok(recursivePaths.includes('/workspace/src/components/modal/dialog.tsx'));
+    assert.ok(!recursivePaths.includes('/workspace/test/app.test.ts'));
 
     (vscode.workspace as any).findFiles = origFindFiles;
     coordinator.dispose();

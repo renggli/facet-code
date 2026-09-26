@@ -146,6 +146,7 @@ export interface FilesPaneConfig extends BasePaneConfig {
   display: 'flat' | 'hierarchy';
   globPattern?: string;
   filePattern?: string;
+  recursive?: boolean;
 }
 
 export interface DirectoriesPaneConfig extends BasePaneConfig {
@@ -283,6 +284,7 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
     selectionSource: 'none',
     sort: 'name',
     display: 'flat',
+    recursive: false,
     visible: true,
     ...overrides
   };
