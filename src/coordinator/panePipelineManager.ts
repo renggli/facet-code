@@ -17,6 +17,7 @@ import {
   createImplementationsPane,
   createCallersPane,
   createFilesPane,
+  createDirectoriesPane,
   createDefaultPanes
 } from '../models/paneConfig';
 import { FacetCoordinator } from './facetCoordinator';
@@ -145,7 +146,7 @@ export class PanePipelineManager {
     const isFirstPane = idx === 0;
 
     const items: (vscode.QuickPickItem & { action?: string })[] = [
-      { label: 'General Settings', kind: vscode.QuickPickItemKind.Separator },
+      { label: 'Pane Settings', kind: vscode.QuickPickItemKind.Separator },
       {
         label: '$(edit) Title',
         description: pane.title,
@@ -173,58 +174,74 @@ export class PanePipelineManager {
       }
     ];
 
-    if (pane.role === 'files') {
+    if (pane.role === 'files' || pane.role === 'directories') {
+      const currentPat = ('globPattern' in pane && pane.globPattern) || ('filePattern' in pane && pane.filePattern);
       items.push({
-        label: '$(regex) Regexp Filter...',
-        description: pane.filePattern ? `/${pane.filePattern}/` : 'None',
-        action: 'filePattern'
+        label: '$(filter) Filter (Glob Pattern)...',
+        description: currentPat ? currentPat : 'None',
+        action: 'globPattern'
       });
     }
 
-    if (pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy') {
-      if (pane.role === 'types' || pane.role === 'hierarchy') {
-        items.push({
-          label: '$(list-tree) Display Mode...',
-          description: pane.display === 'hierarchy' ? 'Hierarchy' : 'Flat',
-          action: 'display'
-        });
-        if (pane.display === 'hierarchy') {
-          items.push({
-            label: '$(type-hierarchy-sub) Subclass Kinds...',
-            description: (pane.subclassTypes || ['class', 'struct']).join(', '),
-            action: 'subclassTypes'
-          });
-        }
-      }
+    if (
+      pane.role === 'types' ||
+      pane.role === 'members' ||
+      pane.role === 'definitions' ||
+      pane.role === 'declarations' ||
+      pane.role === 'implementations' ||
+      pane.role === 'references' ||
+      pane.role === 'hierarchy'
+    ) {
       items.push({
         label: '$(filter) Filters...',
-        description: this.getFiltersSummary(pane),
+        description: this.getFiltersSummary(pane as any),
         action: 'filters'
       });
     }
 
-    items.push({ label: 'Pipeline Settings', kind: vscode.QuickPickItemKind.Separator });
+    if (
+      pane.role === 'files' ||
+      pane.role === 'directories' ||
+      pane.role === 'types' ||
+      pane.role === 'members' ||
+      pane.role === 'hierarchy'
+    ) {
+      items.push({
+        label: '$(list-tree) Display Mode...',
+        description: ('display' in pane && pane.display === 'hierarchy') ? 'Hierarchy' : 'Flat',
+        action: 'display'
+      });
+      if ('subclassTypes' in pane && pane.display === 'hierarchy') {
+        items.push({
+          label: '$(type-hierarchy-sub) Subclass Kinds...',
+          description: (pane.subclassTypes || ['class', 'struct']).join(', '),
+          action: 'subclassTypes'
+        });
+      }
+    }
+
+    items.push({ label: 'Manage Panes', kind: vscode.QuickPickItemKind.Separator });
 
     if (visible.length < 6) {
       items.push({
-        label: '$(add) Add Pane to End',
-        description: 'Append a new pane to the end of the pipeline',
+        label: '$(add) Add Pane',
+        description: 'Append a new pane',
         action: 'addEnd'
       });
     }
     if (visible.length > 1) {
       items.push({
         label: '$(trash) Remove Pane',
-        description: 'Remove this pane from the pipeline',
+        description: 'Remove this pane',
         action: 'remove'
       });
     }
 
     items.push(
-      { label: 'Presets', kind: vscode.QuickPickItemKind.Separator },
+      { label: 'Pane Presets', kind: vscode.QuickPickItemKind.Separator },
       {
         label: '$(layers) Apply Preset...',
-        description: 'Project Browser, Implementations, Callers, Compact Outline, File Browser',
+        description: 'Project Browser, Implementors, Callers, References',
         action: 'preset'
       }
     );
@@ -264,29 +281,29 @@ export class PanePipelineManager {
       }
       case 'input': {
         const inputOptions: { label: string; description: string; source: PaneInputSource }[] = [];
-        if (pane.role === 'files' || pane.role === 'types' || pane.role === 'hierarchy') {
+        if (['files', 'directories', 'types', 'problems', 'changes'].includes(pane.role)) {
           inputOptions.push({
             label: 'Project',
-            description: 'Workspace-wide files or symbols',
+            description: 'Workspace-wide files, directories, symbols, or issues',
             source: 'project'
           });
         }
-        if (pane.role === 'files' || pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy') {
+        if (['files', 'directories', 'types', 'members', 'problems', 'changes'].includes(pane.role)) {
           inputOptions.push({
             label: 'Open Editors',
-            description: 'Symbols or files from open editor tabs',
+            description: 'Items from open editor tabs',
             source: 'openEditors'
           });
           inputOptions.push({
             label: 'Active Editor',
-            description: 'Symbols or file from the active editor',
+            description: 'Items from the active editor',
             source: 'activeEditor'
           });
         }
         if (!isFirstPane) {
           inputOptions.push({
             label: 'Previous Pane',
-            description: 'Symbols from preceding visible pane',
+            description: 'Items from preceding visible pane',
             source: 'previousPane'
           });
         }
@@ -302,17 +319,17 @@ export class PanePipelineManager {
       }
       case 'selectionSource': {
         const options: { label: string; description: string; source: SelectionSource }[] = [];
-        if (pane.role !== 'references' && pane.role !== 'implementations' && pane.role !== 'callers') {
+        if (['files', 'directories', 'types', 'members', 'problems', 'changes'].includes(pane.role)) {
           options.push({
             label: 'Cursor',
-            description: 'Active cursor symbol (selects enclosing items across previous panes)',
+            description: 'Active cursor symbol or file (selects item under cursor)',
             source: 'cursor'
           });
         }
         options.push(
           {
             label: 'All',
-            description: 'Select all items in this pane',
+            description: 'Select all items in this pane by default',
             source: 'all'
           },
           {
@@ -340,14 +357,14 @@ export class PanePipelineManager {
           },
           {
             label: 'Position',
-            description: 'Sort by position in file',
+            description: 'Sort by position in file or directory path',
             sort: 'position'
           }
         ];
-        if (pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy') {
+        if (pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy' || pane.role === 'problems') {
           sortOptions.push({
             label: 'Category',
-            description: 'Group symbols by kind/category',
+            description: 'Group items by kind, category, or severity',
             sort: 'category'
           });
         }
@@ -361,18 +378,19 @@ export class PanePipelineManager {
         }
         break;
       }
-      case 'filePattern': {
-        if (pane.role === 'files') {
-          const pattern = await vscode.window.showInputBox({
-            value: pane.filePattern || '',
-            prompt: 'Enter regular expression filter for files (e.g. .*\\.ts$ or test)',
-            placeHolder: 'e.g. .*\\.ts$'
-          });
-          if (pattern !== undefined) {
-            pane.filePattern = pattern.trim() || undefined;
-            this._onDidUpdatePanes.fire();
-            this.coordinator.refreshSlot(pane.id);
-          }
+      case 'globPattern': {
+        const currentVal = ('globPattern' in pane && pane.globPattern) || ('filePattern' in pane && pane.filePattern) || '';
+        const pattern = await vscode.window.showInputBox({
+          value: currentVal,
+          prompt: 'Enter glob pattern on full path (e.g. src/**/*.ts, !*test*)',
+          placeHolder: 'e.g. src/**/*.ts'
+        });
+        if (pattern !== undefined) {
+          const trimmed = pattern.trim() || undefined;
+          (pane as any).globPattern = trimmed;
+          (pane as any).filePattern = trimmed;
+          this._onDidUpdatePanes.fire();
+          this.coordinator.refreshSlot(pane.id);
         }
         break;
       }
@@ -382,12 +400,12 @@ export class PanePipelineManager {
             [
               {
                 label: 'Hierarchy',
-                description: 'Tree hierarchy of subtypes and subclasses',
+                description: 'Tree hierarchy structure',
                 mode: 'hierarchy' as DisplayMode
               },
               {
                 label: 'Flat',
-                description: 'Alphabetical list without nesting',
+                description: 'Alphabetical or flat list without nesting',
                 mode: 'flat' as DisplayMode
               }
             ],
@@ -443,20 +461,21 @@ export class PanePipelineManager {
     }
   }
 
-  private async configureFilters(pane: PaneConfig & { filters: Record<string, boolean | undefined> }): Promise<void> {
-    const keys = pane.role === 'members' ? MEMBER_FILTER_KEYS : TYPE_FILTER_KEYS;
-    const filterOptions = keys.map((key) => {
-      const opt = ALL_SYMBOL_FILTER_OPTIONS.find((o) => o.key === key);
+  private async configureFilters(pane: PaneConfig & { filters?: Record<string, boolean | undefined> }): Promise<void> {
+    if (!pane.filters) {
+      pane.filters = {};
+    }
+    const filterOptions = ALL_SYMBOL_FILTER_OPTIONS.map((opt) => {
       return {
-        label: opt ? opt.label : key,
-        key,
-        picked: pane.filters[key] !== false
+        label: opt.label,
+        key: opt.key,
+        picked: pane.filters![opt.key] !== false
       };
     });
 
     const selected = await vscode.window.showQuickPick(filterOptions, {
       canPickMany: true,
-      placeHolder: 'Toggle filters (checked = visible)'
+      placeHolder: 'Toggle symbol filters across 26 kinds (checked = visible)'
     });
 
     if (selected) {
@@ -471,34 +490,29 @@ export class PanePipelineManager {
 
   public async applyPreset(presetName?: string): Promise<void> {
     const selected =
-      presetName ||
+      presetName?.toLowerCase() ||
       (
         await vscode.window.showQuickPick(
           [
             {
               label: 'Project Browser',
-              description: 'Types (Project) -> Members -> References',
+              description: 'Directories (Hierarchy) -> Files -> Types (Hierarchy) -> Members',
               preset: 'project'
             },
             {
-              label: 'Implementations Browser',
-              description: 'Types (Project) -> Members -> Implementations',
-              preset: 'implementations'
+              label: 'Implementors',
+              description: 'Types -> Members -> Implementations',
+              preset: 'implementors'
             },
             {
-              label: 'Callers Browser',
-              description: 'Types (Project) -> Members -> Callers',
+              label: 'Callers',
+              description: 'Types -> Members -> Callers',
               preset: 'callers'
             },
             {
-              label: 'Compact Outline',
-              description: 'Active Editor Types -> Members',
-              preset: 'outline'
-            },
-            {
-              label: 'File Browser',
-              description: 'Files (Project) -> Types -> Members',
-              preset: 'fileBrowser'
+              label: 'References',
+              description: 'Types -> Members -> References',
+              preset: 'references'
             }
           ],
           { placeHolder: 'Select Pane Pipeline Preset' }
@@ -514,12 +528,13 @@ export class PanePipelineManager {
       case 'project':
       default:
         newVisible = [
-          createTypesPane('', { title: 'Types', inputSource: 'project', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' }),
-          createReferencesPane('', { title: 'References', inputSource: 'previousPane', selectionSource: 'none' })
+          createDirectoriesPane('', { title: 'Directories', display: 'hierarchy', inputSource: 'project', selectionSource: 'cursor' }),
+          createFilesPane('', { title: 'Files', display: 'flat', inputSource: 'previousPane', selectionSource: 'cursor' }),
+          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'previousPane', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
-      case 'implementations':
+      case 'implementors':
         newVisible = [
           createTypesPane('', { title: 'Types', inputSource: 'project', selectionSource: 'cursor' }),
           createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' }),
@@ -533,17 +548,11 @@ export class PanePipelineManager {
           createCallersPane('', { title: 'Callers', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
-      case 'outline':
+      case 'references':
         newVisible = [
-          createTypesPane('', { title: 'Types', inputSource: 'activeEditor', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' })
-        ];
-        break;
-      case 'fileBrowser':
-        newVisible = [
-          createFilesPane('', { title: 'Files', inputSource: 'project', selectionSource: 'cursor' }),
-          createTypesPane('', { title: 'Types', inputSource: 'previousPane', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' })
+          createTypesPane('', { title: 'Types', inputSource: 'project', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' }),
+          createReferencesPane('', { title: 'References', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
     }
@@ -558,8 +567,13 @@ export class PanePipelineManager {
       [
         {
           label: 'Files',
-          description: 'Workspace files matching regexp pattern',
+          description: 'Workspace files matching glob pattern',
           role: 'files' as PaneRole
+        },
+        {
+          label: 'Directories',
+          description: 'Workspace directory hierarchy or flat paths',
+          role: 'directories' as PaneRole
         },
         {
           label: 'Types',
@@ -572,14 +586,34 @@ export class PanePipelineManager {
           role: 'members' as PaneRole
         },
         {
-          label: 'References',
-          description: 'Workspace references to selected symbol',
-          role: 'references' as PaneRole
+          label: 'Definitions',
+          description: 'Go to Definition relation',
+          role: 'definitions' as PaneRole
+        },
+        {
+          label: 'Declarations',
+          description: 'Go to Declaration relation',
+          role: 'declarations' as PaneRole
         },
         {
           label: 'Implementations',
           description: 'Implementations of selected symbol',
           role: 'implementations' as PaneRole
+        },
+        {
+          label: 'References',
+          description: 'Workspace references to selected symbol',
+          role: 'references' as PaneRole
+        },
+        {
+          label: 'Problems',
+          description: 'Workspace diagnostics and errors',
+          role: 'problems' as PaneRole
+        },
+        {
+          label: 'Changes',
+          description: 'Dirty and modified files',
+          role: 'changes' as PaneRole
         },
         {
           label: 'Callers',
@@ -600,14 +634,24 @@ export class PanePipelineManager {
     switch (role) {
       case 'files':
         return 'Files';
+      case 'directories':
+        return 'Directories';
       case 'types':
         return 'Types';
       case 'members':
         return 'Members';
-      case 'references':
-        return 'References';
+      case 'definitions':
+        return 'Definitions';
+      case 'declarations':
+        return 'Declarations';
       case 'implementations':
         return 'Implementations';
+      case 'references':
+        return 'References';
+      case 'problems':
+        return 'Problems';
+      case 'changes':
+        return 'Changes';
       case 'callers':
         return 'Callers';
       case 'hierarchy':
@@ -650,9 +694,11 @@ export class PanePipelineManager {
     }
   }
 
-  private getFiltersSummary(pane: PaneConfig & { filters: Record<string, boolean | undefined> }): string {
-    const keys = pane.role === 'members' ? MEMBER_FILTER_KEYS : TYPE_FILTER_KEYS;
-    const active = keys.filter((k) => pane.filters[k] !== false);
-    return `${active.length}/${keys.length} active`;
+  private getFiltersSummary(pane: PaneConfig & { filters?: Record<string, boolean | undefined> }): string {
+    if (!pane.filters) {
+      return 'All active';
+    }
+    const active = ALL_SYMBOL_FILTER_OPTIONS.filter((o) => pane.filters![o.key] !== false);
+    return `${active.length}/${ALL_SYMBOL_FILTER_OPTIONS.length} active`;
   }
 }

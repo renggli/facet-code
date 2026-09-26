@@ -11,20 +11,23 @@
 - **Dynamic Native Pane Pipeline:** Up to 6 configurable native pane slots (`facet.pane.1` .. `facet.pane.6`) hosted inside the `facet-container` Activity Bar view container:
   - **Single Contextual Menu per Pane (`facet.pane.configure` `$(gear)`):** Clean, uncluttered pane headers replacing bars of individual action icons.
   - **Distinct Strongly-Typed Pane Configurations:**
-    - `FilesPaneConfig`: Role `files`, regexp file filtering, file-based sorting, input source (`global`, `file`, `pane`), selection source (`cursor`, `all`, `none`).
-    - `TypesPaneConfig` & `HierarchyPaneConfig`: Role `types`/`hierarchy`, hierarchical vs. flat display mode, selectable subclass kinds, type-specific symbol filters (`class`, `interface`, `struct`, `enum`, `module`, `namespace`), grouped sorting.
-    - `MembersPaneConfig`: Role `members`, member-specific symbol filters (`method`, `field`, `property`, `constructor`, `constant`, `variable`, `function`, `event`, `operator`), flat vs. hierarchical display, grouped sorting.
-    - `ReferencesPaneConfig`, `ImplementationsPaneConfig`, `CallersPaneConfig`: Dedicated relation views with readable snippet previews, file paths, and upstream pane chaining.
+    - `FilesPaneConfig`: Role `files`, glob file filtering, position/name sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), display (`flat`, `hierarchy`).
+    - `DirectoriesPaneConfig`: Role `directories`, glob filtering, position/name sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), display (`flat`, `hierarchy`).
+    - `TypesPaneConfig` & `HierarchyPaneConfig`: Role `types`/`hierarchy`, hierarchical vs. flat display mode, selectable subclass kinds, 26 symbol kind filters, position/name/category sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`).
+    - `MembersPaneConfig`: Role `members`, 26 symbol kind filters, flat vs. hierarchical display, position/name/category sorting, input source (`openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`).
+    - `DefinitionsPaneConfig`, `DeclarationsPaneConfig`, `ImplementationsPaneConfig`, `ReferencesPaneConfig`: Dedicated symbol relation/navigation views with readable snippet previews, file paths, 26 symbol kind filters, position/name sorting, input source (`previousPane`), selection source (`all`, `none`).
+    - `CallersPaneConfig`: Incoming calls with container and snippet preview, input source (`previousPane`), selection source (`all`, `none`).
+    - `ProblemsPaneConfig`: Workspace/editor/active diagnostics with severity grouping, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), position/name/category sorting.
+    - `ChangesPaneConfig`: Dirty and changed files, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), position/name sorting.
   - **Pipeline Settings (Adding & Removing with Drag-and-Drop Resilience):**
     - *Add Pane to End:* Append a new pane to the end of the pipeline sequence (up to 6 total slots).
     - *Remove Pane:* Hide this pane from the pipeline (enforcing minimum 1 visible pane), shifting subsequent slots without corrupting slot indexing or upstream references.
-    - *Drag-and-Drop Resilient Upstream Chaining:* Explicit `inputPaneId` and role-based fallback resolution (`types`/`hierarchy` -> `files`, `members` -> `types`, `relations` -> `members`) decouple data flow from physical slot positions in the workbench.
+    - *Drag-and-Drop Resilient Upstream Chaining:* Explicit relative upstream chaining (`previousPane`) decouples data flow from physical slot positions in the workbench.
 - **Predefined Presets (`facet.pane.presets`):**
-  - **Project Browser:** Global Types (`global`) -> Members (`pane`) -> References (`pane`).
-  - **Implementations Browser:** Global Types (`global`) -> Members (`pane`) -> Implementations (`pane`).
-  - **Callers Browser:** Global Types (`global`) -> Members (`pane`) -> Callers (`pane`).
-  - **Compact Outline:** Active File Types (`file`) -> Members (`pane`).
-  - **File Browser:** Files (`global`) -> Types (`pane`) -> Members (`pane`).
+  - **Project Browser (Default):** Directories (hierarchical) -> Files -> Types (hierarchical) -> Members.
+  - **Implementors:** Types -> Members -> Implementations.
+  - **Callers:** Types -> Members -> Callers.
+  - **References:** Types -> Members -> References.
 - **High-Readability Relations Display:**
   - Code snippet preview as label (trimmed source code line).
   - Relative workspace path and 1-based line number (`src/service.ts:42`) as description.
@@ -32,7 +35,7 @@
 - **Universal Multi-Selection (`canSelectMany: true`):**
   - Selecting multiple files aggregates the union of their types in downstream panes.
   - Selecting multiple types aggregates the union of their members.
-  - Selecting multiple members computes combined references, callers, or implementations.
+  - Selecting multiple members computes combined references, callers, definitions, declarations, or implementations.
 - **Deep Cursor Tracking & Tree Sync:**
   - Cursor tracking identifies enclosing type, active member, and document URI simultaneously.
   - Synchronizes across all downstream and upstream tiers (Files -> Types -> Members), resolving exact tree references and auto-expanding hierarchical parents via `getParent()`.
@@ -59,25 +62,25 @@
 │  │ 100% Native Facet Navigation Deck (`facet-container`)            │  │
 │  │                                                                  │  │
 │  │  ┌────────────────────────────────────────────────────────────┐  │  │
-│  │  │ Native Pane 1: Files (`facet.pane.1`)                [⚙]   │  │  │
-│  │  │    [Input: Global] [Selection: Cursor]                     │  │  │
-│  │  │    - src/order.ts                                          │  │  │
-│  │  │    - src/payment.ts                                        │  │  │
+│  │  │ Native Pane 1: Directories (`facet.pane.1`)           [⚙]   │  │  │
+│  │  │    [Input: Project] [Display: Hierarchy] [Selection: Cursor│  │  │
+│  │  │    - 📁 src                                                 │  │  │
+│  │  │      - 📁 services                                          │  │  │
 │  │  ├────────────────────────────────────────────────────────────┤  │  │
-│  │  │ Native Pane 2: Types (`facet.pane.2`)                [⚙]   │  │  │
+│  │  │ Native Pane 2: Files (`facet.pane.2`)                 [⚙]   │  │  │
+│  │  │    [Input: Previous Pane] [Selection: Cursor]              │  │  │
+│  │  │    - 📄 order.ts                                            │  │  │
+│  │  │    - 📄 payment.ts                                          │  │  │
+│  │  ├────────────────────────────────────────────────────────────┤  │  │
+│  │  │ Native Pane 3: Types (`facet.pane.3`)                 [⚙]   │  │  │
 │  │  │    [Input: Previous Pane] [Display: Hierarchy]             │  │  │
 │  │  │    - Class OrderService                                    │  │  │
 │  │  │    - Class PaymentProcessor                                │  │  │
 │  │  ├────────────────────────────────────────────────────────────┤  │  │
-│  │  │ Native Pane 3: Members (`facet.pane.3`)              [⚙]   │  │  │
+│  │  │ Native Pane 4: Members (`facet.pane.4`)               [⚙]   │  │  │
 │  │  │    [Input: Previous Pane] [Filters: Methods, Fields]       │  │  │
 │  │  │    - #processPayment()                                     │  │  │
 │  │  │    - #validateOrder()                                      │  │  │
-│  │  ├────────────────────────────────────────────────────────────┤  │  │
-│  │  │ Native Pane 4: References (`facet.pane.4`)           [⚙]   │  │  │
-│  │  │    [Input: Previous Pane] [Readable Snippets + Paths]      │  │  │
-│  │  │    - orderService.processPayment(cart) src/cart.ts:42      │  │  │
-│  │  │    - testProcessPayment()              test/cart.test.ts:18│  │  │
 │  │  └────────────────────────────────────────────────────────────┘  │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                    ▲                                   │
@@ -106,27 +109,28 @@
     - Declarations
     - Implementations
     - References
+    - Callers
+    - Hierarchy
     - Problems
     - Changes
   - *Input Source:*
     - Project (for files, directories, types, problems, changes)
     - Open Editors (for files, directories, types, members, problems, changes)
-    - Active Error (for types, members, problems, changes)
-    - Previous Pane (for files, directories, types, members, definitions, declarations, implementations, problems, changes)
+    - Active Editor (for files, directories, types, members, problems, changes)
+    - Previous Pane (for files, directories, types, members, definitions, declarations, implementations, references, callers, hierarchy, problems, changes)
   - *Selection Source:*
     - All (selects everything by default)
     - None (selects nothing by default)
     - Cursor (selects the item under the cursor)
   - *Filter:* 
-    - For files/directories this is a glob pattern 
-    - For types/members/definitions/declarations/implementations/references this is toggles across 26 symbol kinds
+    - For files/directories this is a glob pattern on the full path
+    - For types/members/definitions/declarations/implementations/references/callers/hierarchy this is toggles across 26 symbol kinds
   - *Sort by:* 
     - Position
     - Name
     - Category
   - *Display:* 
-    - Flat vs Hierarchy (for files, directories, types, members)
-    - ... 
+    - Flat vs Hierarchy (for files, directories, types, members, hierarchy)
   - (horizontal separator)
   - *Add Pane*: Append new pane to the end.
   - *Remove Pane*: Removes the current pane.
@@ -159,5 +163,5 @@
    - Move cursor in editor and verify simultaneous highlighting in `Files`, `Types`, and `Members` panes.
    - Click `Add Pane to End`: select `Callers` and confirm a new pane is appended in sequence.
    - Click `Remove Pane`: confirm pane is hidden and remaining slots remapped cleanly without breaking bindings.
-   - Drag and drop views in VS Code workbench: verify upstream data flow remains linked via role-based fallbacks and explicit `inputPaneId`.
-   - Select `Project Browser` preset: confirm Pane 1 shows global project types, Pane 2 shows members, and Pane 3 shows readable code snippets in references.
+   - Drag and drop views in VS Code workbench: verify upstream data flow remains linked via relative visible sequence.
+   - Select `Project Browser` preset: confirm Pane 1 shows directories, Pane 2 shows files, Pane 3 shows types, and Pane 4 shows members.

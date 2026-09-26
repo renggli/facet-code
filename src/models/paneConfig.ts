@@ -3,10 +3,15 @@ import { FacetSymbolNode } from './symbolNode';
 
 export type PaneRole =
   | 'files'
+  | 'directories'
   | 'types'
   | 'members'
-  | 'references'
+  | 'definitions'
+  | 'declarations'
   | 'implementations'
+  | 'references'
+  | 'problems'
+  | 'changes'
   | 'callers'
   | 'hierarchy';
 
@@ -138,6 +143,18 @@ export interface FilesPaneConfig extends BasePaneConfig {
   inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
+  display: 'flat' | 'hierarchy';
+  globPattern?: string;
+  filePattern?: string;
+}
+
+export interface DirectoriesPaneConfig extends BasePaneConfig {
+  role: 'directories';
+  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
+  selectionSource: 'cursor' | 'all' | 'none';
+  sort: 'position' | 'name';
+  display: 'flat' | 'hierarchy';
+  globPattern?: string;
   filePattern?: string;
 }
 
@@ -160,11 +177,20 @@ export interface MembersPaneConfig extends BasePaneConfig {
   filters: PaneFilters;
 }
 
-export interface ReferencesPaneConfig extends BasePaneConfig {
-  role: 'references';
+export interface DefinitionsPaneConfig extends BasePaneConfig {
+  role: 'definitions';
   inputSource: 'previousPane';
   selectionSource: 'all' | 'none';
   sort: 'position' | 'name';
+  filters: PaneFilters;
+}
+
+export interface DeclarationsPaneConfig extends BasePaneConfig {
+  role: 'declarations';
+  inputSource: 'previousPane';
+  selectionSource: 'all' | 'none';
+  sort: 'position' | 'name';
+  filters: PaneFilters;
 }
 
 export interface ImplementationsPaneConfig extends BasePaneConfig {
@@ -172,12 +198,35 @@ export interface ImplementationsPaneConfig extends BasePaneConfig {
   inputSource: 'previousPane';
   selectionSource: 'all' | 'none';
   sort: 'position' | 'name';
+  filters: PaneFilters;
+}
+
+export interface ReferencesPaneConfig extends BasePaneConfig {
+  role: 'references';
+  inputSource: 'previousPane';
+  selectionSource: 'all' | 'none';
+  sort: 'position' | 'name';
+  filters: PaneFilters;
 }
 
 export interface CallersPaneConfig extends BasePaneConfig {
   role: 'callers';
   inputSource: 'previousPane';
   selectionSource: 'all' | 'none';
+  sort: 'position' | 'name';
+}
+
+export interface ProblemsPaneConfig extends BasePaneConfig {
+  role: 'problems';
+  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
+  selectionSource: 'cursor' | 'all' | 'none';
+  sort: 'position' | 'name' | 'category';
+}
+
+export interface ChangesPaneConfig extends BasePaneConfig {
+  role: 'changes';
+  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
+  selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
 }
 
@@ -193,10 +242,15 @@ export interface HierarchyPaneConfig extends BasePaneConfig {
 
 export type PaneConfig =
   | FilesPaneConfig
+  | DirectoriesPaneConfig
   | TypesPaneConfig
   | MembersPaneConfig
-  | ReferencesPaneConfig
+  | DefinitionsPaneConfig
+  | DeclarationsPaneConfig
   | ImplementationsPaneConfig
+  | ReferencesPaneConfig
+  | ProblemsPaneConfig
+  | ChangesPaneConfig
   | CallersPaneConfig
   | HierarchyPaneConfig;
 
@@ -209,8 +263,8 @@ export function createDefaultFilters(keys?: SymbolKindKey[]): PaneFilters {
   return filters as PaneFilters;
 }
 
-export function matchesPaneFilters(node: FacetSymbolNode, filters?: PaneFilters): boolean {
-  if (!filters) {
+export function matchesPaneFilters(node: { kind?: vscode.SymbolKind }, filters?: PaneFilters): boolean {
+  if (!filters || node.kind === undefined) {
     return true;
   }
   const key = SYMBOL_KIND_TO_KEY[node.kind];
@@ -228,6 +282,21 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
     inputSource: 'project',
     selectionSource: 'none',
     sort: 'name',
+    display: 'flat',
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createDirectoriesPane(id: string, overrides?: Partial<DirectoriesPaneConfig>): DirectoriesPaneConfig {
+  return {
+    id,
+    title: 'Directories',
+    role: 'directories',
+    inputSource: 'project',
+    selectionSource: 'none',
+    sort: 'name',
+    display: 'hierarchy',
     visible: true,
     ...overrides
   };
@@ -275,6 +344,7 @@ export function createReferencesPane(
     inputSource: 'previousPane',
     selectionSource: 'none',
     sort: 'name',
+    filters: createDefaultFilters(),
     visible: true,
     ...overrides
   };
@@ -291,6 +361,7 @@ export function createImplementationsPane(
     inputSource: 'previousPane',
     selectionSource: 'none',
     sort: 'name',
+    filters: createDefaultFilters(),
     visible: true,
     ...overrides
   };
@@ -304,6 +375,72 @@ export function createCallersPane(id: string, overrides?: Partial<CallersPaneCon
     inputSource: 'previousPane',
     selectionSource: 'none',
     sort: 'name',
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createDefinitionsPane(
+  id: string,
+  overrides?: Partial<DefinitionsPaneConfig>
+): DefinitionsPaneConfig {
+  return {
+    id,
+    title: 'Definitions',
+    role: 'definitions',
+    inputSource: 'previousPane',
+    selectionSource: 'none',
+    sort: 'name',
+    filters: createDefaultFilters(),
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createDeclarationsPane(
+  id: string,
+  overrides?: Partial<DeclarationsPaneConfig>
+): DeclarationsPaneConfig {
+  return {
+    id,
+    title: 'Declarations',
+    role: 'declarations',
+    inputSource: 'previousPane',
+    selectionSource: 'none',
+    sort: 'name',
+    filters: createDefaultFilters(),
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createProblemsPane(
+  id: string,
+  overrides?: Partial<ProblemsPaneConfig>
+): ProblemsPaneConfig {
+  return {
+    id,
+    title: 'Problems',
+    role: 'problems',
+    inputSource: 'project',
+    selectionSource: 'none',
+    sort: 'position',
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createChangesPane(
+  id: string,
+  overrides?: Partial<ChangesPaneConfig>
+): ChangesPaneConfig {
+  return {
+    id,
+    title: 'Changes',
+    role: 'changes',
+    inputSource: 'project',
+    selectionSource: 'none',
+    sort: 'position',
     visible: true,
     ...overrides
   };
@@ -332,14 +469,24 @@ export function createPaneByRole(role: PaneRole, id: string, overrides?: Partial
   switch (role) {
     case 'files':
       return createFilesPane(id, overrides);
+    case 'directories':
+      return createDirectoriesPane(id, overrides);
     case 'types':
       return createTypesPane(id, overrides);
     case 'members':
       return createMembersPane(id, overrides);
-    case 'references':
-      return createReferencesPane(id, overrides);
+    case 'definitions':
+      return createDefinitionsPane(id, overrides);
+    case 'declarations':
+      return createDeclarationsPane(id, overrides);
     case 'implementations':
       return createImplementationsPane(id, overrides);
+    case 'references':
+      return createReferencesPane(id, overrides);
+    case 'problems':
+      return createProblemsPane(id, overrides);
+    case 'changes':
+      return createChangesPane(id, overrides);
     case 'callers':
       return createCallersPane(id, overrides);
     case 'hierarchy':
@@ -349,11 +496,119 @@ export function createPaneByRole(role: PaneRole, id: string, overrides?: Partial
 
 export function createDefaultPanes(): PaneConfig[] {
   return [
-    createTypesPane('facet.pane.1', { visible: true }),
-    createMembersPane('facet.pane.2', { visible: true }),
-    createReferencesPane('facet.pane.3', { visible: true }),
-    createImplementationsPane('facet.pane.4', { visible: false }),
-    createCallersPane('facet.pane.5', { visible: false }),
-    createHierarchyPane('facet.pane.6', { visible: false })
+    createDirectoriesPane('facet.pane.1', {
+      visible: true,
+      display: 'hierarchy',
+      inputSource: 'project',
+      selectionSource: 'cursor'
+    }),
+    createFilesPane('facet.pane.2', {
+      visible: true,
+      display: 'flat',
+      inputSource: 'previousPane',
+      selectionSource: 'cursor'
+    }),
+    createTypesPane('facet.pane.3', {
+      visible: true,
+      display: 'hierarchy',
+      inputSource: 'previousPane',
+      selectionSource: 'cursor'
+    }),
+    createMembersPane('facet.pane.4', {
+      visible: true,
+      display: 'flat',
+      inputSource: 'previousPane',
+      selectionSource: 'none'
+    }),
+    createReferencesPane('facet.pane.5', {
+      visible: false,
+      inputSource: 'previousPane',
+      selectionSource: 'none'
+    }),
+    createImplementationsPane('facet.pane.6', {
+      visible: false,
+      inputSource: 'previousPane',
+      selectionSource: 'none'
+    })
   ];
 }
+
+export function matchesGlob(path: string, pattern?: string): boolean {
+  if (!pattern || !pattern.trim()) {
+    return true;
+  }
+  const trimmed = pattern.trim();
+  const normalizedPath = path.replace(/\\/g, '/');
+
+  // If pattern looks like a regexp: e.g. /foo/i
+  if (trimmed.startsWith('/') && trimmed.lastIndexOf('/') > 0) {
+    try {
+      const lastSlash = trimmed.lastIndexOf('/');
+      const body = trimmed.slice(1, lastSlash);
+      const flags = trimmed.slice(lastSlash + 1);
+      const re = new RegExp(body, flags || 'i');
+      return re.test(normalizedPath);
+    } catch {
+      // Fall through to glob matching
+    }
+  }
+
+  // Convert glob pattern to regular expression
+  let isNegated = false;
+  let glob = trimmed;
+  if (glob.startsWith('!')) {
+    isNegated = true;
+    glob = glob.slice(1);
+  }
+
+  let regexStr = '';
+  let inGroup = false;
+
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === '*') {
+      if (glob[i + 1] === '*') {
+        i++;
+        if (glob[i + 1] === '/') {
+          i++;
+          regexStr += '(?:.+/)?';
+        } else {
+          regexStr += '.*';
+        }
+      } else {
+        regexStr += '[^/]*';
+      }
+    } else if (c === '?') {
+      regexStr += '[^/]';
+    } else if (c === '{') {
+      inGroup = true;
+      regexStr += '(';
+    } else if (c === '}') {
+      inGroup = false;
+      regexStr += ')';
+    } else if (c === ',' && inGroup) {
+      regexStr += '|';
+    } else if (['.', '(', ')', '+', '^', '$', '[', ']', '|'].includes(c)) {
+      regexStr += '\\' + c;
+    } else {
+      regexStr += c;
+    }
+  }
+
+  // If glob has no slashes, match against either full path or basename
+  if (!glob.includes('/')) {
+    regexStr = '(?:^|.*/)' + regexStr + '$';
+  } else {
+    regexStr = '^' + regexStr + '$';
+  }
+
+  try {
+    const re = new RegExp(regexStr, 'i');
+    const matched = re.test(normalizedPath);
+    return isNegated ? !matched : matched;
+  } catch {
+    const matched = normalizedPath.toLowerCase().includes(glob.toLowerCase());
+    return isNegated ? !matched : matched;
+  }
+}
+

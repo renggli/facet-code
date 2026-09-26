@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { activate } from '../../extension';
+import { activate, deactivate } from '../../extension';
 
 suite('Extension Lifecycle Test Suite', () => {
   test('activate registers tree views and commands without throwing', () => {
@@ -30,5 +30,25 @@ suite('Extension Lifecycle Test Suite', () => {
     });
 
     assert.ok(subscriptions.length > 0);
+  });
+
+  test('registered commands execute without throwing', async () => {
+    assert.doesNotThrow(() => {
+      deactivate();
+    });
+
+    // Execute configured slot command
+    await vscode.commands.executeCommand('facet.pane.1.configure');
+
+    // Execute presets command
+    await vscode.commands.executeCommand('facet.pane.presets');
+
+    // Execute revealRange command
+    const dummyUri = vscode.Uri.file('/fake/test.ts');
+    const dummyRange = new vscode.Range(0, 0, 0, 0);
+    await vscode.commands.executeCommand('facet.revealRange', dummyUri, dummyRange);
+
+    // Execute generic configure command with arg
+    await vscode.commands.executeCommand('facet.pane.configure', 'facet.pane.2');
   });
 });

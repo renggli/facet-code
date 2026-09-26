@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { FacetSymbolNode } from '../models/symbolNode';
 
-export type RelationsMode = 'references' | 'callers' | 'implementations';
+export type RelationsMode = 'references' | 'callers' | 'implementations' | 'definitions' | 'declarations';
 
 export interface RelationItem {
   label: string;
@@ -10,6 +10,7 @@ export interface RelationItem {
   iconPath?: vscode.ThemeIcon;
   uri: vscode.Uri;
   range: vscode.Range;
+  kind?: vscode.SymbolKind;
 }
 
 async function getLineSnippet(uri: vscode.Uri, lineIndex: number, fallback: string): Promise<string> {
@@ -102,6 +103,16 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
           allResults.push(...impls);
           break;
         }
+        case 'definitions': {
+          const defs = await this.fetchDefinitionsForNode(node);
+          allResults.push(...defs);
+          break;
+        }
+        case 'declarations': {
+          const decls = await this.fetchDeclarationsForNode(node);
+          allResults.push(...decls);
+          break;
+        }
       }
     }
 
@@ -131,7 +142,8 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
         tooltip: `${loc.uri.fsPath}:${lineNum}\n${snippet}`,
         iconPath: new vscode.ThemeIcon('references'),
         uri: loc.uri,
-        range: loc.range
+        range: loc.range,
+        kind: node.kind
       });
     }
 
@@ -198,7 +210,74 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
         tooltip: `Implementation in ${loc.uri.fsPath}:${lineNum}\n${snippet}`,
         iconPath: new vscode.ThemeIcon('type-hierarchy-sub'),
         uri: loc.uri,
-        range: loc.range
+        range: loc.range,
+        kind: node.kind
+      });
+    }
+
+    return items;
+  }
+
+  async fetchDefinitionsForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+    const locations = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
+      'vscode.executeDefinitionProvider',
+      node.uri,
+      node.selectionRange.start
+    );
+
+    if (!locations || locations.length === 0) {
+      return [];
+    }
+
+    const items: RelationItem[] = [];
+    for (const loc of locations) {
+      const uri = 'targetUri' in loc ? loc.targetUri : loc.uri;
+      const range = 'targetRange' in loc ? loc.targetRange : loc.range;
+      const relPath = vscode.workspace.asRelativePath(uri);
+      const lineNum = range.start.line + 1;
+      const snippet = await getLineSnippet(uri, range.start.line, node.name);
+
+      items.push({
+        label: snippet,
+        description: `${relPath}:${lineNum}`,
+        tooltip: `Definition in ${uri.fsPath}:${lineNum}\n${snippet}`,
+        iconPath: new vscode.ThemeIcon('symbol-field'),
+        uri,
+        range,
+        kind: node.kind
+      });
+    }
+
+    return items;
+  }
+
+  async fetchDeclarationsForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+    const locations = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
+      'vscode.executeDeclarationProvider',
+      node.uri,
+      node.selectionRange.start
+    );
+
+    if (!locations || locations.length === 0) {
+      return [];
+    }
+
+    const items: RelationItem[] = [];
+    for (const loc of locations) {
+      const uri = 'targetUri' in loc ? loc.targetUri : loc.uri;
+      const range = 'targetRange' in loc ? loc.targetRange : loc.range;
+      const relPath = vscode.workspace.asRelativePath(uri);
+      const lineNum = range.start.line + 1;
+      const snippet = await getLineSnippet(uri, range.start.line, node.name);
+
+      items.push({
+        label: snippet,
+        description: `${relPath}:${lineNum}`,
+        tooltip: `Declaration in ${uri.fsPath}:${lineNum}\n${snippet}`,
+        iconPath: new vscode.ThemeIcon('symbol-interface'),
+        uri,
+        range,
+        kind: node.kind
       });
     }
 

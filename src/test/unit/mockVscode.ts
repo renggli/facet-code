@@ -138,12 +138,31 @@ export class CancellationTokenSource {
   dispose(): void {}
 }
 
+export enum QuickPickItemKind {
+  Separator = -1,
+  Default = 0
+}
+
+export enum ExtensionMode {
+  Production = 1,
+  Development = 2,
+  Test = 3
+}
+
+type QuickPickResponder = ((items: any, options?: any) => any) | any;
+type InputBoxResponder = ((options?: any) => any) | any;
+
+const quickPickQueue: QuickPickResponder[] = [];
+const inputBoxQueue: InputBoxResponder[] = [];
+const registeredCommands = new Map<string, (...args: any[]) => any>();
+const extensionRegistry = new Map<string, any>();
+
 export const workspace = {
-  textDocuments: [],
+  textDocuments: [] as any[],
   asRelativePath(uriOrPath: any): string {
     return typeof uriOrPath === 'string' ? uriOrPath : uriOrPath.path || uriOrPath.fsPath;
   },
-  findFiles: async () => [],
+  findFiles: async (_include?: any, _exclude?: any): Promise<any[]> => [],
   openTextDocument: async (uri: any) => ({
     uri,
     version: 1,
@@ -154,20 +173,43 @@ export const workspace = {
   }
 };
 
-export enum ExtensionMode {
-  Production = 1,
-  Development = 2,
-  Test = 3
-}
-
 export const window = {
-  activeTextEditor: undefined,
-  showTextDocument: async () => ({
+  activeTextEditor: undefined as any,
+  showTextDocument: async (docOrUri: any) => ({
+    document: docOrUri,
     revealRange: () => {},
     selection: new Selection(0, 0, 0, 0)
   }),
-  showQuickPick: async () => undefined,
-  showInputBox: async () => undefined,
+  showQuickPick: async (items: any, options?: any) => {
+    if (quickPickQueue.length > 0) {
+      const responder = quickPickQueue.shift();
+      if (typeof responder === 'function') {
+        return responder(items, options);
+      }
+      return responder;
+    }
+    return undefined;
+  },
+  showInputBox: async (options?: any) => {
+    if (inputBoxQueue.length > 0) {
+      const responder = inputBoxQueue.shift();
+      if (typeof responder === 'function') {
+        return responder(options);
+      }
+      return responder;
+    }
+    return undefined;
+  },
+  pushQuickPick: (responder: QuickPickResponder) => {
+    quickPickQueue.push(responder);
+  },
+  pushInputBox: (responder: InputBoxResponder) => {
+    inputBoxQueue.push(responder);
+  },
+  clearPromptQueues: () => {
+    quickPickQueue.length = 0;
+    inputBoxQueue.length = 0;
+  },
   createTreeView: () => ({
     title: '',
     onDidChangeSelection: () => ({ dispose: () => {} }),
@@ -178,9 +220,49 @@ export const window = {
   onDidChangeTextEditorSelection: () => ({ dispose: () => {} })
 };
 
+export enum DiagnosticSeverity {
+  Error = 0,
+  Warning = 1,
+  Information = 2,
+  Hint = 3
+}
+
+export const languages = {
+  getDiagnostics: (_uri?: any): any[] => []
+};
+
 export const commands = {
-  executeCommand: async () => undefined,
-  registerCommand: () => ({ dispose: () => {} })
+  executeCommand: async (command: string, ...args: any[]) => {
+    const handler = registeredCommands.get(command);
+    if (handler) {
+      return handler(...args);
+    }
+    return undefined;
+  },
+  registerCommand: (command: string, handler: (...args: any[]) => any) => {
+    registeredCommands.set(command, handler);
+    return {
+      dispose: () => {
+        registeredCommands.delete(command);
+      }
+    };
+  },
+  setHandler: (command: string, handler: (...args: any[]) => any) => {
+    registeredCommands.set(command, handler);
+  },
+  clearHandlers: () => {
+    registeredCommands.clear();
+  }
+};
+
+export const extensions = {
+  getExtension: (id: string): any => extensionRegistry.get(id),
+  registerExtension: (id: string, extension: any) => {
+    extensionRegistry.set(id, extension);
+  },
+  clearExtensions: () => {
+    extensionRegistry.clear();
+  }
 };
 
 export const mockVscode = {
@@ -189,6 +271,8 @@ export const mockVscode = {
   Selection,
   Uri,
   SymbolKind,
+  DiagnosticSeverity,
+  QuickPickItemKind,
   ExtensionMode,
   TreeItemCollapsibleState,
   TreeItem,
@@ -197,7 +281,9 @@ export const mockVscode = {
   CancellationTokenSource,
   workspace,
   window,
-  commands
+  languages,
+  commands,
+  extensions
 };
 
 const origRequire = Module.prototype.require;

@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { SymbolResolver } from '../../services/symbolResolver';
 import { MemberCategory, filterMembers, unionMembers, FacetSymbolNode } from '../../models/symbolNode';
+import { commands } from './mockVscode';
 
 suite('SymbolResolver & Models Test Suite', () => {
   const resolver = new SymbolResolver();
@@ -330,5 +331,154 @@ export class Calculator {
 
     // IPet does NOT have Dog as subType (interface must not mix in classes)
     assert.strictEqual(petInterface.subTypes?.length || 0, 0);
+  });
+
+  test('resolveWorkspaceTypes queries workspace symbols and maps correctly', async () => {
+    commands.setHandler('vscode.executeWorkspaceSymbolProvider', (_query: string) => [
+      {
+        name: 'OrderController',
+        containerName: 'Controllers',
+        kind: vscode.SymbolKind.Class,
+        location: { uri: dummyUri, range: new vscode.Range(0, 0, 10, 0) }
+      },
+      {
+        name: 'nonTypeVariable',
+        containerName: 'Controllers',
+        kind: vscode.SymbolKind.Variable,
+        location: { uri: dummyUri, range: new vscode.Range(12, 0, 12, 10) }
+      }
+    ]);
+
+    const results = await resolver.resolveWorkspaceTypes('Order');
+    assert.strictEqual(results.length, 1);
+    assert.strictEqual(results[0].name, 'OrderController');
+    assert.strictEqual(results[0].detail, 'Controllers');
+
+    commands.clearHandlers();
+  });
+
+  test('resolveWorkspaceTypes falls back to scanning files when workspace symbols empty', async () => {
+    commands.setHandler('vscode.executeWorkspaceSymbolProvider', () => []);
+
+    const origFindFiles = vscode.workspace.findFiles;
+    const origOpenTextDocument = vscode.workspace.openTextDocument;
+
+    const testFileUri = vscode.Uri.file('/workspace/src/models.ts');
+    (vscode.workspace as any).findFiles = async () => [testFileUri];
+    (vscode.workspace as any).openTextDocument = async () => ({
+      uri: testFileUri,
+      version: 1,
+      getText: () => 'export class CustomerModel { id: string; }'
+    });
+
+    const types = await resolver.resolveWorkspaceTypes();
+    assert.strictEqual(types.length, 1);
+    assert.strictEqual(types[0].name, 'CustomerModel');
+
+    (vscode.workspace as any).findFiles = origFindFiles;
+    (vscode.workspace as any).openTextDocument = origOpenTextDocument;
+    commands.clearHandlers();
+  });
+
+  test('resolveDocumentSymbols handles Tier 1 (DocumentSymbol) and Tier 2 (SymbolInformation)', async () => {
+    const testDoc = {
+      uri: dummyUri,
+      version: 1,
+      getText: () => ''
+    };
+
+    // Tier 1: DocumentSymbol hierarchy
+    commands.setHandler('vscode.executeDocumentSymbolProvider', () => [
+      {
+        name: 'MyTier1Class',
+        detail: 'detail',
+        kind: vscode.SymbolKind.Class,
+        range: new vscode.Range(0, 0, 10, 0),
+        selectionRange: new vscode.Range(0, 6, 0, 18),
+        children: [
+          {
+            name: 'myMethod',
+            detail: '() => void',
+            kind: vscode.SymbolKind.Method,
+            range: new vscode.Range(2, 2, 4, 3),
+            selectionRange: new vscode.Range(2, 2, 2, 10),
+            children: []
+          }
+        ]
+      }
+    ]);
+
+    const tier1Nodes = await resolver.resolveDocumentSymbols(testDoc as any);
+    assert.strictEqual(tier1Nodes.length, 1);
+    assert.strictEqual(tier1Nodes[0].name, 'MyTier1Class');
+    assert.strictEqual(tier1Nodes[0].children.length, 1);
+    assert.strictEqual(tier1Nodes[0].children[0].name, 'myMethod');
+
+    // Tier 2: Flat SymbolInformation with containerName
+    const testDoc2 = {
+      uri: vscode.Uri.file('/path/to/test2.ts'),
+      version: 1,
+      getText: () => ''
+    };
+
+    commands.setHandler('vscode.executeDocumentSymbolProvider', () => [
+      {
+        name: 'MyTier2Class',
+        containerName: '',
+        kind: vscode.SymbolKind.Class,
+        location: { uri: testDoc2.uri, range: new vscode.Range(0, 0, 10, 0) }
+      },
+      {
+        name: 'myMethod2',
+        containerName: 'MyTier2Class',
+        kind: vscode.SymbolKind.Method,
+        location: { uri: testDoc2.uri, range: new vscode.Range(2, 2, 4, 3) }
+      }
+    ]);
+
+    const tier2Nodes = await resolver.resolveDocumentSymbols(testDoc2 as any);
+    assert.strictEqual(tier2Nodes.length, 1);
+    assert.strictEqual(tier2Nodes[0].name, 'MyTier2Class');
+    assert.strictEqual(tier2Nodes[0].children.length, 1);
+    assert.strictEqual(tier2Nodes[0].children[0].name, 'myMethod2');
+
+    commands.clearHandlers();
+  });
+
+  test('buildTypeHierarchy respects allowedSubclassKinds filter', () => {
+    const { buildTypeHierarchy } = require('../../models/symbolNode');
+
+    const baseClass: FacetSymbolNode = {
+      name: 'Base',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: new vscode.Range(0, 0, 0, 0),
+      selectionRange: new vscode.Range(0, 0, 0, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: []
+    };
+
+    const subStruct: FacetSymbolNode = {
+      name: 'SubStruct',
+      kind: vscode.SymbolKind.Struct,
+      uri: dummyUri,
+      range: new vscode.Range(1, 0, 1, 0),
+      selectionRange: new vscode.Range(1, 0, 1, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['Base']
+    };
+
+    // When only Class is allowed as subclass, SubStruct is not linked as subtype
+    buildTypeHierarchy([baseClass, subStruct], [vscode.SymbolKind.Class]);
+    assert.strictEqual(baseClass.subTypes?.length || 0, 0);
+
+    // When Struct is allowed, SubStruct is linked
+    buildTypeHierarchy([baseClass, subStruct], [vscode.SymbolKind.Class, vscode.SymbolKind.Struct]);
+    assert.strictEqual(baseClass.subTypes?.length, 1);
+    assert.strictEqual(baseClass.subTypes[0].name, 'SubStruct');
   });
 });

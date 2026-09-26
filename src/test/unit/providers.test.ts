@@ -1,9 +1,8 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { TypesTreeProvider } from '../../providers/typesTreeProvider';
-import { MembersTreeProvider } from '../../providers/membersTreeProvider';
 import { RelationsTreeProvider, RelationItem } from '../../providers/relationsTreeProvider';
 import { FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
+import { commands } from './mockVscode';
 
 suite('Providers Test Suite', () => {
   const dummyUri = vscode.Uri.file('/path/to/test.ts');
@@ -27,76 +26,9 @@ suite('Providers Test Suite', () => {
         category: MemberCategory.InstanceMethods,
         isStatic: false,
         children: []
-      },
-      {
-        name: 'instanceField',
-        kind: vscode.SymbolKind.Field,
-        uri: dummyUri,
-        range: dummyRange,
-        selectionRange: dummyRange,
-        category: MemberCategory.Fields,
-        isStatic: false,
-        children: []
-      },
-      {
-        name: 'createInstance',
-        kind: vscode.SymbolKind.Method,
-        uri: dummyUri,
-        range: dummyRange,
-        selectionRange: dummyRange,
-        category: MemberCategory.StaticMethods,
-        isStatic: true,
-        children: []
       }
     ]
   };
-
-  test('TypesTreeProvider extracts types and creates tree items with scope formatting', () => {
-    const provider = new TypesTreeProvider();
-    provider.setSymbols([mockType]);
-
-    const types = provider.getTypes();
-    assert.strictEqual(types.length, 1);
-    assert.strictEqual(types[0].name, 'TestClass');
-
-    // Default scope is file
-    assert.strictEqual(provider.scope, 'file');
-    let treeItem = provider.getTreeItem(types[0]);
-    assert.strictEqual(treeItem.label, 'TestClass');
-    assert.strictEqual(treeItem.command?.command, 'facet.revealRange');
-
-    // Switch to project scope
-    provider.scope = 'project';
-    treeItem = provider.getTreeItem(types[0]);
-    assert.strictEqual(treeItem.description, 'test.ts');
-  });
-
-  test('MembersTreeProvider aggregates and filters by category', () => {
-    const provider = new MembersTreeProvider();
-    provider.setSelectedTypes([mockType]);
-
-    // Initial state: all categories
-    let members = provider.getFilteredMembers();
-    assert.strictEqual(members.length, 3);
-
-    // Switch category filter to Fields
-    provider.setActiveCategory(MemberCategory.Fields);
-    members = provider.getFilteredMembers();
-    assert.strictEqual(members.length, 1);
-    assert.strictEqual(members[0].name, 'instanceField');
-
-    // Switch category filter to StaticMethods
-    provider.setActiveCategory(MemberCategory.StaticMethods);
-    members = provider.getFilteredMembers();
-    assert.strictEqual(members.length, 1);
-    assert.strictEqual(members[0].name, 'createInstance');
-
-    // Category counts calculation
-    const counts = provider.getCategoryCounts();
-    assert.strictEqual(counts[MemberCategory.All], 3);
-    assert.strictEqual(counts[MemberCategory.StaticMethods], 1);
-    assert.strictEqual(counts[MemberCategory.Fields], 1);
-  });
 
   test('RelationsTreeProvider switches modes and generates readable tree items', () => {
     const provider = new RelationsTreeProvider();
@@ -104,6 +36,15 @@ suite('Providers Test Suite', () => {
 
     provider.setMode('callers');
     assert.strictEqual(provider.getMode(), 'callers');
+
+    provider.setMode('definitions');
+    assert.strictEqual(provider.getMode(), 'definitions');
+
+    provider.setMode('declarations');
+    assert.strictEqual(provider.getMode(), 'declarations');
+
+    provider.setMode('implementations');
+    assert.strictEqual(provider.getMode(), 'implementations');
 
     provider.setSelectedMembers([mockType.children[0]]);
     assert.strictEqual(provider.getSelectedMembers().length, 1);
@@ -123,5 +64,71 @@ suite('Providers Test Suite', () => {
     assert.strictEqual(treeItem.description, 'src/test.ts:42');
     assert.strictEqual(treeItem.tooltip, '/path/to/src/test.ts:42\nconst x = doWork();');
     assert.strictEqual(treeItem.command?.command, 'facet.revealRange');
+  });
+
+  test('RelationsTreeProvider fetchRelationsForNodes queries LSP commands for all modes', async () => {
+    const provider = new RelationsTreeProvider();
+
+    // 1. References
+    commands.setHandler('vscode.executeReferenceProvider', (uri: any, _pos: any) => [
+      { uri, range: dummyRange }
+    ]);
+    const refs = await provider.fetchRelationsForNodes([mockType.children[0]], 'references');
+    assert.strictEqual(refs.length, 1);
+    assert.strictEqual(refs[0].uri.toString(), dummyUri.toString());
+
+    // 2. Callers
+    commands.setHandler('vscode.prepareCallHierarchy', (uri: any, _pos: any) => [
+      { name: 'callerFunc', uri, detail: 'CallerClass', selectionRange: dummyRange }
+    ]);
+    commands.setHandler('vscode.provideIncomingCalls', () => [
+      {
+        from: {
+          name: 'callerFunc',
+          uri: dummyUri,
+          detail: 'CallerClass',
+          range: dummyRange,
+          selectionRange: dummyRange
+        }
+      }
+    ]);
+    const callers = await provider.fetchRelationsForNodes([mockType.children[0]], 'callers');
+    assert.strictEqual(callers.length, 1);
+    assert.strictEqual(callers[0].label, 'CallerClass.callerFunc()');
+
+    // Callers with empty prepareCallHierarchy
+    commands.setHandler('vscode.prepareCallHierarchy', () => []);
+    const emptyCallers = await provider.fetchRelationsForNodes([mockType.children[0]], 'callers');
+    assert.strictEqual(emptyCallers.length, 0);
+
+    // 3. Implementations
+    commands.setHandler('vscode.executeImplementationProvider', (uri: any, _pos: any) => [
+      { uri, range: dummyRange }
+    ]);
+    const impls = await provider.fetchRelationsForNodes([mockType.children[0]], 'implementations');
+    assert.strictEqual(impls.length, 1);
+
+    // 4. Definitions (Location + LocationLink)
+    commands.setHandler('vscode.executeDefinitionProvider', (uri: any, _pos: any) => [
+      { uri, range: dummyRange },
+      { targetUri: uri, targetRange: dummyRange }
+    ]);
+    const defs = await provider.fetchRelationsForNodes([mockType.children[0]], 'definitions');
+    assert.strictEqual(defs.length, 2);
+
+    // 5. Declarations (Location + LocationLink)
+    commands.setHandler('vscode.executeDeclarationProvider', (uri: any, _pos: any) => [
+      { uri, range: dummyRange },
+      { targetUri: uri, targetRange: dummyRange }
+    ]);
+    const decls = await provider.fetchRelationsForNodes([mockType.children[0]], 'declarations');
+    assert.strictEqual(decls.length, 2);
+
+    // Empty results for definitions
+    commands.setHandler('vscode.executeDefinitionProvider', () => []);
+    const emptyDefs = await provider.fetchRelationsForNodes([mockType.children[0]], 'definitions');
+    assert.strictEqual(emptyDefs.length, 0);
+
+    commands.clearHandlers();
   });
 });

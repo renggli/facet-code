@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
 import { SymbolResolver } from './services/symbolResolver';
-import { TypesTreeProvider } from './providers/typesTreeProvider';
-import { MembersTreeProvider } from './providers/membersTreeProvider';
 import { RelationsTreeProvider } from './providers/relationsTreeProvider';
 import { SlotTreeProvider } from './providers/slotTreeProvider';
 import { FacetCoordinator } from './coordinator/facetCoordinator';
@@ -9,14 +7,10 @@ import { PanePipelineManager } from './coordinator/panePipelineManager';
 
 export function activate(context: vscode.ExtensionContext) {
   const resolver = new SymbolResolver();
-  const typesProvider = new TypesTreeProvider();
-  const membersProvider = new MembersTreeProvider();
   const relationsProvider = new RelationsTreeProvider();
 
   const coordinator = new FacetCoordinator(
     resolver,
-    typesProvider,
-    membersProvider,
     relationsProvider
   );
 
@@ -133,9 +127,6 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('facet.revealRange', (uri: vscode.Uri, range: vscode.Range) => {
       void coordinator.revealRange(uri, range);
-    }),
-    vscode.commands.registerCommand('facet.toggleScope', async () => {
-      await coordinator.toggleScope();
     })
   );
 

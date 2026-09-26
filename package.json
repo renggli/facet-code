@@ -28,55 +28,41 @@
 			"facet-container": [
 				{
 					"id": "facet.pane.1",
-					"name": "Types",
-					"icon": "$(symbol-class)",
+					"name": "Directories",
+					"icon": "$(folder)",
 					"when": "facet.pane.1.visible"
 				},
 				{
 					"id": "facet.pane.2",
-					"name": "Members",
-					"icon": "$(symbol-method)",
+					"name": "Files",
+					"icon": "$(file)",
 					"when": "facet.pane.2.visible"
 				},
 				{
 					"id": "facet.pane.3",
-					"name": "References",
-					"icon": "$(references)",
+					"name": "Types",
+					"icon": "$(symbol-class)",
 					"when": "facet.pane.3.visible"
 				},
 				{
 					"id": "facet.pane.4",
-					"name": "Implementations",
-					"icon": "$(type-hierarchy-sub)",
+					"name": "Members",
+					"icon": "$(symbol-method)",
 					"when": "facet.pane.4.visible"
 				},
 				{
 					"id": "facet.pane.5",
-					"name": "Callers",
-					"icon": "$(call-incoming)",
+					"name": "References",
+					"icon": "$(references)",
 					"when": "facet.pane.5.visible"
 				},
 				{
 					"id": "facet.pane.6",
-					"name": "Hierarchy",
-					"icon": "$(type-hierarchy)",
+					"name": "Implementations",
+					"icon": "$(type-hierarchy-sub)",
 					"when": "facet.pane.6.visible"
 				}
 			]
-		},
-		"configuration": {
-			"title": "Facet",
-			"properties": {
-				"facet.types.scope": {
-					"type": "string",
-					"enum": [
-						"file",
-						"project"
-					],
-					"default": "file",
-					"description": "Scope for the Types view: current active file or all types across the project."
-				}
-			}
 		},
 		"commands": [
 			{
@@ -118,11 +104,6 @@
 				"command": "facet.pane.presets",
 				"title": "Facet: View Presets",
 				"icon": "$(layers)"
-			},
-			{
-				"command": "facet.toggleScope",
-				"title": "Facet: Toggle Scope (File / Project)",
-				"icon": "$(globe)"
 			},
 			{
 				"command": "facet.revealRange",
