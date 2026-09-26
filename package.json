@@ -27,24 +27,40 @@
 		"views": {
 			"facet-container": [
 				{
-					"id": "facet.views.types",
+					"id": "facet.pane.1",
 					"name": "Types",
-					"icon": "$(symbol-class)"
+					"icon": "$(symbol-class)",
+					"when": "facet.pane.1.visible"
 				},
 				{
-					"id": "facet.views.categories",
+					"id": "facet.pane.2",
 					"name": "Categories",
-					"icon": "$(filter)"
+					"icon": "$(filter)",
+					"when": "facet.pane.2.visible"
 				},
 				{
-					"id": "facet.views.members",
+					"id": "facet.pane.3",
 					"name": "Members",
-					"icon": "$(symbol-method)"
+					"icon": "$(symbol-method)",
+					"when": "facet.pane.3.visible"
 				},
 				{
-					"id": "facet.views.relations",
+					"id": "facet.pane.4",
 					"name": "Relations",
-					"icon": "$(references)"
+					"icon": "$(references)",
+					"when": "facet.pane.4.visible"
+				},
+				{
+					"id": "facet.pane.5",
+					"name": "Extra Pane 1",
+					"icon": "$(layout)",
+					"when": "facet.pane.5.visible"
+				},
+				{
+					"id": "facet.pane.6",
+					"name": "Extra Pane 2",
+					"icon": "$(layout)",
+					"when": "facet.pane.6.visible"
 				}
 			]
 		},
@@ -63,6 +79,36 @@
 			}
 		},
 		"commands": [
+			{
+				"command": "facet.pane.add",
+				"title": "Facet: Add Pane",
+				"icon": "$(add)"
+			},
+			{
+				"command": "facet.pane.presets",
+				"title": "Facet: View Presets",
+				"icon": "$(layers)"
+			},
+			{
+				"command": "facet.pane.configure",
+				"title": "Facet: Configure Pane",
+				"icon": "$(gear)"
+			},
+			{
+				"command": "facet.pane.remove",
+				"title": "Facet: Remove Pane",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "facet.pane.moveUp",
+				"title": "Facet: Move Pane Up",
+				"icon": "$(arrow-up)"
+			},
+			{
+				"command": "facet.pane.moveDown",
+				"title": "Facet: Move Pane Down",
+				"icon": "$(arrow-down)"
+			},
 			{
 				"command": "facet.toggleScope",
 				"title": "Facet: Toggle Scope (File / Project)",
@@ -100,29 +146,44 @@
 		"menus": {
 			"view/title": [
 				{
-					"command": "facet.toggleScope",
-					"when": "view == facet.views.types",
+					"command": "facet.pane.add",
+					"when": "view =~ /^facet\\.pane\\./",
 					"group": "navigation@0"
 				},
 				{
-					"command": "facet.toggleSide",
-					"when": "view == facet.views.members || view == facet.views.types",
+					"command": "facet.pane.presets",
+					"when": "view =~ /^facet\\.pane\\./",
 					"group": "navigation@1"
 				},
 				{
-					"command": "facet.toggleHierarchy",
-					"when": "view == facet.views.members || view == facet.views.types",
+					"command": "facet.toggleScope",
+					"when": "view == facet.pane.1",
 					"group": "navigation@2"
 				},
 				{
-					"command": "facet.toggleLayout",
-					"when": "view == facet.views.members",
+					"command": "facet.toggleSide",
+					"when": "view == facet.pane.3",
+					"group": "navigation@2"
+				},
+				{
+					"command": "facet.pane.moveUp",
+					"when": "view =~ /^facet\\.pane\\./",
 					"group": "navigation@3"
 				},
 				{
-					"command": "facet.relations.switchMode",
-					"when": "view == facet.views.relations",
+					"command": "facet.pane.moveDown",
+					"when": "view =~ /^facet\\.pane\\./",
 					"group": "navigation@4"
+				},
+				{
+					"command": "facet.pane.configure",
+					"when": "view =~ /^facet\\.pane\\./",
+					"group": "navigation@5"
+				},
+				{
+					"command": "facet.pane.remove",
+					"when": "view =~ /^facet\\.pane\\./",
+					"group": "navigation@6"
 				}
 			]
 		}

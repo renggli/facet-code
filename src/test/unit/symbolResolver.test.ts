@@ -172,4 +172,9 @@ export class Calculator {
     assert.ok(names.includes('onlyInA'));
     assert.ok(names.includes('onlyInB'));
   });
+
+  test('resolveWorkspaceTypes returns type nodes safely', async () => {
+    const types = await resolver.resolveWorkspaceTypes('');
+    assert.ok(Array.isArray(types));
+  });
 });

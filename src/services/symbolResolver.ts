@@ -51,29 +51,91 @@ export class SymbolResolver {
     query = '',
     token?: vscode.CancellationToken
   ): Promise<FacetSymbolNode[]> {
-    const rawSymbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
-      'vscode.executeWorkspaceSymbolProvider',
-      query
-    );
+    let rawSymbols: vscode.SymbolInformation[] | undefined;
 
-    if (token?.isCancellationRequested || !rawSymbols) {
+    try {
+      rawSymbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+        'vscode.executeWorkspaceSymbolProvider',
+        query
+      );
+    } catch {
+      rawSymbols = undefined;
+    }
+
+    if (token?.isCancellationRequested) {
       return [];
     }
 
-    const typeSymbols = rawSymbols.filter((s) => isTypeKind(s.kind));
-    const results: FacetSymbolNode[] = typeSymbols.map((s) => ({
-      name: s.name,
-      detail: s.containerName,
-      kind: s.kind,
-      uri: s.location.uri,
-      range: s.location.range,
-      selectionRange: s.location.range,
-      category: MemberCategory.All,
-      isStatic: false,
-      children: []
-    }));
+    let results: FacetSymbolNode[] = [];
+
+    if (rawSymbols && rawSymbols.length > 0) {
+      const typeSymbols = rawSymbols.filter((s) => isTypeKind(s.kind));
+      results = typeSymbols.map((s) => ({
+        name: s.name,
+        detail: s.containerName,
+        kind: s.kind,
+        uri: s.location.uri,
+        range: s.location.range,
+        selectionRange: s.location.range,
+        category: MemberCategory.All,
+        isStatic: false,
+        children: []
+      }));
+    }
+
+    // Fallback: If LSP returned no workspace types (common on empty queries or unindexed projects),
+    // scan workspace files directly using findFiles and multi-tier AST extraction!
+    if (results.length === 0) {
+      results = await this.scanWorkspaceTypesFromFiles(token);
+    }
 
     return results.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  public async scanWorkspaceTypesFromFiles(token?: vscode.CancellationToken): Promise<FacetSymbolNode[]> {
+    const fileUris = await vscode.workspace.findFiles(
+      '**/*.{ts,js,tsx,jsx,dart,py,go,rs,java,cs,cpp,c,h}',
+      '**/{node_modules,.git,dist,out,build}/**',
+      200
+    );
+
+    if (token?.isCancellationRequested || !fileUris || fileUris.length === 0) {
+      return [];
+    }
+
+    const typeNodes: FacetSymbolNode[] = [];
+
+    for (const uri of fileUris) {
+      if (token?.isCancellationRequested) {
+        break;
+      }
+      try {
+        const fileDoc = await vscode.workspace.openTextDocument(uri);
+        const docSymbols = await this.resolveDocumentSymbols(fileDoc, token);
+        const types = this.extractTypesOnly(docSymbols);
+        typeNodes.push(...types);
+      } catch {
+        // Continue scanning other files
+      }
+    }
+
+    return typeNodes;
+  }
+
+  private extractTypesOnly(nodes: FacetSymbolNode[]): FacetSymbolNode[] {
+    const result: FacetSymbolNode[] = [];
+    const walk = (list: FacetSymbolNode[]) => {
+      for (const node of list) {
+        if (isTypeKind(node.kind)) {
+          result.push(node);
+        }
+        if (node.children && node.children.length > 0) {
+          walk(node.children);
+        }
+      }
+    };
+    walk(nodes);
+    return result;
   }
 
   async hydrateTypeNode(

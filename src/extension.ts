@@ -4,7 +4,9 @@ import { TypesTreeProvider } from './providers/typesTreeProvider';
 import { CategoriesTreeProvider } from './providers/categoriesTreeProvider';
 import { MembersTreeProvider } from './providers/membersTreeProvider';
 import { RelationsTreeProvider, RelationsMode } from './providers/relationsTreeProvider';
+import { SlotTreeProvider } from './providers/slotTreeProvider';
 import { FacetCoordinator } from './coordinator/facetCoordinator';
+import { PanePipelineManager } from './coordinator/panePipelineManager';
 import { MemberCategory } from './models/symbolNode';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -22,70 +24,166 @@ export function activate(context: vscode.ExtensionContext) {
     relationsProvider
   );
 
-  // 1. Register Native Tree Views (100% Native VS Code UI)
-  const typesView = vscode.window.createTreeView('facet.views.types', {
-    treeDataProvider: typesProvider,
-    canSelectMany: true,
-    showCollapseAll: true
-  });
-  typesView.title = 'Types (File)';
+  const pipelineManager = new PanePipelineManager(coordinator);
 
-  const categoriesView = vscode.window.createTreeView('facet.views.categories', {
-    treeDataProvider: categoriesProvider,
-    canSelectMany: false
-  });
+  // 1. Register 6 Dynamic Native Pane Slots
+  const slotViews = new Map<string, vscode.TreeView<any>>();
+  const slotProviders = new Map<string, SlotTreeProvider>();
 
-  const membersView = vscode.window.createTreeView('facet.views.members', {
-    treeDataProvider: membersProvider,
-    canSelectMany: true,
-    showCollapseAll: true
-  });
+  for (const pane of pipelineManager.getPanes()) {
+    const slotProvider = new SlotTreeProvider(
+      pane,
+      typesProvider,
+      categoriesProvider,
+      membersProvider,
+      relationsProvider
+    );
+    slotProviders.set(pane.id, slotProvider);
 
-  const relationsView = vscode.window.createTreeView('facet.views.relations', {
-    treeDataProvider: relationsProvider,
-    canSelectMany: false,
-    showCollapseAll: true
-  });
+    const treeView = vscode.window.createTreeView(pane.id, {
+      treeDataProvider: slotProvider,
+      canSelectMany: true,
+      showCollapseAll: true
+    });
+    treeView.title = pane.title;
+    slotViews.set(pane.id, treeView);
 
-  // 2. Wire Tree View Multi-Selection Events
-  context.subscriptions.push(
-    typesView.onDidChangeSelection((e) => {
-      void coordinator.selectTypes(e.selection);
-    })
-  );
+    context.subscriptions.push(
+      treeView.onDidChangeSelection((e) => {
+        if (pane.role === 'types') {
+          void coordinator.selectTypes(e.selection);
+        } else if (pane.role === 'members') {
+          coordinator.selectMembers(e.selection);
+        }
+      }),
+      treeView
+    );
+  }
 
-  context.subscriptions.push(
-    membersView.onDidChangeSelection((e) => {
-      coordinator.selectMembers(e.selection);
-    })
-  );
-
-  // 3. Track Editor Lifecycle with Debounce
+  // 2. Track Editor Lifecycle with Debounce
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       coordinator.handleEditorChange(editor);
-    })
-  );
-
-  context.subscriptions.push(
+    }),
     vscode.window.onDidChangeTextEditorSelection((e) => {
       coordinator.handleSelectionChange(e.textEditor);
     })
   );
 
-  // 4. Register Native Commands
+  // Helper to extract slot ID from context or prompt
+  const resolveSlotId = async (arg?: any): Promise<string | undefined> => {
+    if (typeof arg === 'string' && arg.startsWith('facet.pane.')) {
+      return arg;
+    }
+    if (arg && typeof arg.viewId === 'string') {
+      return arg.viewId;
+    }
+
+    const visiblePanes = pipelineManager.getVisiblePanes();
+    const picked = await vscode.window.showQuickPick(
+      visiblePanes.map((p) => ({ label: p.title, description: `Role: ${p.role}`, id: p.id })),
+      { placeHolder: 'Select pane' }
+    );
+    return picked?.id;
+  };
+
+  // 3. Register Native Pane Pipeline Commands
   context.subscriptions.push(
+    vscode.commands.registerCommand('facet.pane.add', async () => {
+      const added = await pipelineManager.addPane();
+      if (added) {
+        const view = slotViews.get(added.id);
+        if (view) {
+          view.title = added.title;
+        }
+      }
+    }),
+    vscode.commands.registerCommand('facet.pane.presets', async () => {
+      await pipelineManager.applyPreset();
+      for (const p of pipelineManager.getPanes()) {
+        const view = slotViews.get(p.id);
+        if (view) {
+          view.title = p.title;
+        }
+        slotProviders.get(p.id)?.refresh();
+      }
+    }),
+    vscode.commands.registerCommand('facet.pane.configure', async (arg?: any) => {
+      const slotId = await resolveSlotId(arg);
+      if (slotId) {
+        await pipelineManager.configurePane(slotId);
+        const pane = pipelineManager.getPane(slotId);
+        const view = slotViews.get(slotId);
+        if (pane && view) {
+          view.title = pane.title;
+        }
+        slotProviders.get(slotId)?.refresh();
+      }
+    }),
+    vscode.commands.registerCommand('facet.pane.remove', async (arg?: any) => {
+      const slotId = await resolveSlotId(arg);
+      if (slotId) {
+        pipelineManager.removePane(slotId);
+      }
+    }),
+    vscode.commands.registerCommand('facet.pane.moveUp', async (arg?: any) => {
+      const slotId = await resolveSlotId(arg);
+      if (slotId) {
+        pipelineManager.movePane(slotId, 'up');
+        for (const p of pipelineManager.getPanes()) {
+          const view = slotViews.get(p.id);
+          if (view) {
+            view.title = p.title;
+          }
+          slotProviders.get(p.id)?.refresh();
+        }
+      }
+    }),
+    vscode.commands.registerCommand('facet.pane.moveDown', async (arg?: any) => {
+      const slotId = await resolveSlotId(arg);
+      if (slotId) {
+        pipelineManager.movePane(slotId, 'down');
+        for (const p of pipelineManager.getPanes()) {
+          const view = slotViews.get(p.id);
+          if (view) {
+            view.title = p.title;
+          }
+          slotProviders.get(p.id)?.refresh();
+        }
+      }
+    }),
     vscode.commands.registerCommand('facet.toggleScope', async () => {
       const scope = await coordinator.toggleScope();
-      typesView.title = `Types (${scope === 'file' ? 'File' : 'Project'})`;
+      const pane1 = pipelineManager.getPane('facet.pane.1');
+      if (pane1 && pane1.role === 'types') {
+        pane1.title = `Types (${scope === 'file' ? 'File' : 'Project'})`;
+        const view1 = slotViews.get('facet.pane.1');
+        if (view1) {
+          view1.title = pane1.title;
+        }
+      }
     }),
     vscode.commands.registerCommand('facet.toggleSide', () => {
       const nextSide = coordinator.toggleSide();
-      membersView.title = `Members (${nextSide === 'both' ? 'All' : nextSide})`;
+      const pane3 = pipelineManager.getPane('facet.pane.3');
+      if (pane3 && pane3.role === 'members') {
+        pane3.title = `Members (${nextSide === 'both' ? 'All' : nextSide})`;
+        const view3 = slotViews.get('facet.pane.3');
+        if (view3) {
+          view3.title = pane3.title;
+        }
+      }
     }),
     vscode.commands.registerCommand('facet.toggleHierarchy', () => {
       const mode = coordinator.toggleHierarchy();
-      typesView.title = `Types (${mode === 'flat' ? 'Flat' : 'Inherited'})`;
+      const pane1 = pipelineManager.getPane('facet.pane.1');
+      if (pane1 && pane1.role === 'types') {
+        pane1.title = `Types (${mode === 'flat' ? 'Flat' : 'Inherited'})`;
+        const view1 = slotViews.get('facet.pane.1');
+        if (view1) {
+          view1.title = pane1.title;
+        }
+      }
     }),
     vscode.commands.registerCommand('facet.toggleLayout', () => {
       coordinator.toggleLayout();
@@ -105,7 +203,6 @@ export function activate(context: vscode.ExtensionContext) {
 
       if (picked) {
         coordinator.setRelationsMode(picked.mode as RelationsMode);
-        relationsView.title = `Relations: ${picked.label}`;
       }
     }),
     vscode.commands.registerCommand('facet.revealRange', (uri: vscode.Uri, range: vscode.Range) => {
@@ -113,7 +210,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  context.subscriptions.push(typesView, categoriesView, membersView, relationsView, coordinator);
+  context.subscriptions.push(coordinator);
 
   // Initial load
   if (vscode.window.activeTextEditor) {
