@@ -80,8 +80,38 @@
 		},
 		"commands": [
 			{
+				"command": "facet.pane.1.configure",
+				"title": "Facet: Configure Pane 1",
+				"icon": "$(gear)"
+			},
+			{
+				"command": "facet.pane.2.configure",
+				"title": "Facet: Configure Pane 2",
+				"icon": "$(gear)"
+			},
+			{
+				"command": "facet.pane.3.configure",
+				"title": "Facet: Configure Pane 3",
+				"icon": "$(gear)"
+			},
+			{
+				"command": "facet.pane.4.configure",
+				"title": "Facet: Configure Pane 4",
+				"icon": "$(gear)"
+			},
+			{
+				"command": "facet.pane.5.configure",
+				"title": "Facet: Configure Pane 5",
+				"icon": "$(gear)"
+			},
+			{
+				"command": "facet.pane.6.configure",
+				"title": "Facet: Configure Pane 6",
+				"icon": "$(gear)"
+			},
+			{
 				"command": "facet.pane.configure",
-				"title": "Facet: Configure Pane",
+				"title": "Facet: Configure Pane...",
 				"icon": "$(gear)"
 			},
 			{
@@ -102,8 +132,33 @@
 		"menus": {
 			"view/title": [
 				{
-					"command": "facet.pane.configure",
-					"when": "view =~ /^facet\\.pane\\./",
+					"command": "facet.pane.1.configure",
+					"when": "view == facet.pane.1",
+					"group": "navigation@1"
+				},
+				{
+					"command": "facet.pane.2.configure",
+					"when": "view == facet.pane.2",
+					"group": "navigation@1"
+				},
+				{
+					"command": "facet.pane.3.configure",
+					"when": "view == facet.pane.3",
+					"group": "navigation@1"
+				},
+				{
+					"command": "facet.pane.4.configure",
+					"when": "view == facet.pane.4",
+					"group": "navigation@1"
+				},
+				{
+					"command": "facet.pane.5.configure",
+					"when": "view == facet.pane.5",
+					"group": "navigation@1"
+				},
+				{
+					"command": "facet.pane.6.configure",
+					"when": "view == facet.pane.6",
 					"group": "navigation@1"
 				}
 			]

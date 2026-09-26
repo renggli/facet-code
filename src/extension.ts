@@ -106,6 +106,15 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   // 4. Register Native Pane Pipeline Commands
+  for (let i = 1; i <= 6; i++) {
+    const slotId = `facet.pane.${i}`;
+    context.subscriptions.push(
+      vscode.commands.registerCommand(`${slotId}.configure`, async () => {
+        await pipelineManager.configurePane(slotId);
+      })
+    );
+  }
+
   context.subscriptions.push(
     vscode.commands.registerCommand('facet.pane.configure', async (arg?: any) => {
       const slotId = await resolveSlotId(arg);
