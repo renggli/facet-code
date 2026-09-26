@@ -27,30 +27,36 @@ export function activate(context: vscode.ExtensionContext) {
   const slotProviders = new Map<string, SlotTreeProvider>();
 
   const updateTitlesAndRefresh = () => {
-    for (const pane of pipelineManager.getPanes()) {
-      const view = slotViews.get(pane.id);
-      if (view) {
+    for (let i = 1; i <= 6; i++) {
+      const slotId = `facet.pane.${i}`;
+      const pane = pipelineManager.getPane(slotId);
+      const view = slotViews.get(slotId);
+      if (view && pane) {
         view.title = pane.title;
       }
-      slotProviders.get(pane.id)?.refresh();
+      slotProviders.get(slotId)?.refresh();
     }
   };
 
-  for (const pane of pipelineManager.getPanes()) {
-    const slotProvider = new SlotTreeProvider(pane, coordinator);
-    slotProviders.set(pane.id, slotProvider);
+  for (let i = 1; i <= 6; i++) {
+    const slotId = `facet.pane.${i}`;
+    const slotProvider = new SlotTreeProvider(slotId, coordinator);
+    slotProviders.set(slotId, slotProvider);
 
-    const treeView = vscode.window.createTreeView(pane.id, {
+    const treeView = vscode.window.createTreeView(slotId, {
       treeDataProvider: slotProvider,
       canSelectMany: true,
       showCollapseAll: true
     });
-    treeView.title = pane.title;
-    slotViews.set(pane.id, treeView);
+    const pane = pipelineManager.getPane(slotId);
+    if (pane) {
+      treeView.title = pane.title;
+    }
+    slotViews.set(slotId, treeView);
 
     context.subscriptions.push(
       treeView.onDidChangeSelection((e) => {
-        void coordinator.handleSlotSelection(pane.id, e.selection);
+        void coordinator.handleSlotSelection(slotId, e.selection);
       }),
       treeView
     );

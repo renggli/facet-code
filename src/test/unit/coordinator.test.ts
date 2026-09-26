@@ -6,7 +6,7 @@ import { TypesTreeProvider } from '../../providers/typesTreeProvider';
 import { MembersTreeProvider } from '../../providers/membersTreeProvider';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { MemberCategory, FacetSymbolNode } from '../../models/symbolNode';
-import { PaneConfig, createDefaultFilters } from '../../models/paneConfig';
+import { PaneConfig, createDefaultFilters, createFilesPane } from '../../models/paneConfig';
 
 suite('FacetCoordinator Test Suite', () => {
   const dummyUri = vscode.Uri.file('/path/to/test.ts');
@@ -395,18 +395,10 @@ suite('FacetCoordinator Test Suite', () => {
 
     (vscode.workspace as any).findFiles = async () => testFiles;
 
-    const filesPaneConfig: PaneConfig = {
-      id: 'facet.pane.1',
-      title: 'Files',
-      role: 'files',
-      inputSource: 'global',
-      selectionSource: 'none',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
+    const filesPaneConfig = createFilesPane('facet.pane.1', {
       filePattern: '.*\\.ts$',
-      display: 'flat',
-      visible: true
-    };
+      sort: 'alphabetical'
+    });
 
     const matched = await coordinator.getSlotChildren(filesPaneConfig);
     assert.strictEqual(matched.length, 3);

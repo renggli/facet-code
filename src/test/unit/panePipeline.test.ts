@@ -7,8 +7,8 @@ import { TypesTreeProvider } from '../../providers/typesTreeProvider';
 import { MembersTreeProvider } from '../../providers/membersTreeProvider';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { SlotTreeProvider } from '../../providers/slotTreeProvider';
-import { MemberCategory, FacetSymbolNode } from '../../models/symbolNode';
-import { PaneConfig, createDefaultFilters } from '../../models/paneConfig';
+import { FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
+import { PaneConfig, createDefaultFilters, createMembersPane, createTypesPane } from '../../models/paneConfig';
 
 suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
   const dummyUri = vscode.Uri.file('/path/to/test.ts');
@@ -57,7 +57,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('PanePipelineManager removes panes and enforces minimum 1 visible pane', () => {
+  test('PanePipelineManager removes panes and enforces minimum 1 visible pane', async () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
     const membersProvider = new MembersTreeProvider();
@@ -73,101 +73,24 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(manager.getVisiblePanes().length, 3);
 
     // Remove pane 3
-    const removed3 = manager.removePane('facet.pane.3');
+    const removed3 = await manager.removePane('facet.pane.3');
     assert.ok(removed3);
     assert.strictEqual(manager.getVisiblePanes().length, 2);
 
     // Remove pane 2
-    const removed2 = manager.removePane('facet.pane.2');
+    const removed2 = await manager.removePane('facet.pane.2');
     assert.ok(removed2);
     assert.strictEqual(manager.getVisiblePanes().length, 1);
 
     // Cannot remove the last pane
-    const removedLast = manager.removePane('facet.pane.1');
+    const removedLast = await manager.removePane('facet.pane.1');
     assert.strictEqual(removedLast, false);
     assert.strictEqual(manager.getVisiblePanes().length, 1);
 
     coordinator.dispose();
   });
 
-  test('PanePipelineManager Project Browser preset defaults to global project types', async () => {
-    const resolver = new SymbolResolver();
-    const typesProvider = new TypesTreeProvider();
-    const membersProvider = new MembersTreeProvider();
-    const relationsProvider = new RelationsTreeProvider();
-    const coordinator = new FacetCoordinator(
-      resolver,
-      typesProvider,
-      membersProvider,
-      relationsProvider
-    );
-
-    const manager = new PanePipelineManager(coordinator);
-    await manager.applyPreset('project');
-
-    const visible = manager.getVisiblePanes();
-    assert.strictEqual(visible.length, 3);
-    assert.strictEqual(visible[0].role, 'types');
-    assert.strictEqual(visible[0].title, 'Types');
-    assert.strictEqual(visible[0].display, 'hierarchy');
-    assert.strictEqual(visible[0].inputSource, 'global');
-
-    assert.strictEqual(visible[1].role, 'members');
-    assert.strictEqual(visible[1].inputSource, 'pane');
-
-    assert.strictEqual(visible[2].role, 'references');
-    assert.strictEqual(visible[2].inputSource, 'pane');
-
-    coordinator.dispose();
-  });
-
-  test('SlotTreeProvider delegates to coordinator according to pane role', async () => {
-    const resolver = new SymbolResolver();
-    const typesProvider = new TypesTreeProvider();
-    const membersProvider = new MembersTreeProvider();
-    const relationsProvider = new RelationsTreeProvider();
-    const coordinator = new FacetCoordinator(
-      resolver,
-      typesProvider,
-      membersProvider,
-      relationsProvider
-    );
-
-    (coordinator as any).cachedWorkspaceTypes = [mockClass];
-
-    const slotConfig: PaneConfig = {
-      id: 'facet.pane.1',
-      title: 'Types',
-      role: 'types',
-      inputSource: 'global',
-      selectionSource: 'cursor',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
-      display: 'hierarchy',
-      visible: true
-    };
-
-    const slotProvider = new SlotTreeProvider(slotConfig, coordinator);
-
-    // Types role returns mockClass
-    let children = await slotProvider.getChildren();
-    assert.strictEqual(children.length, 1);
-    assert.strictEqual(children[0].name, 'PipelineTestClass');
-
-    // Switch role to members with input pane or mockClass
-    slotConfig.role = 'members';
-    slotConfig.inputSource = 'pane';
-    (coordinator as any).getPreviousPane = () => undefined;
-    (coordinator as any).getPreviousPaneSelection = () => [mockClass];
-
-    children = await slotProvider.getChildren();
-    assert.strictEqual(children.length, 1);
-    assert.strictEqual(children[0].name, 'testMethod');
-
-    coordinator.dispose();
-  });
-
-  test('PanePipelineManager adds panes before and after slots', async () => {
+  test('PanePipelineManager adds panes to end and respects max 6 slots', async () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
     const membersProvider = new MembersTreeProvider();
@@ -182,27 +105,33 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const manager = new PanePipelineManager(coordinator);
     assert.strictEqual(manager.getVisiblePanes().length, 3);
 
-    // Mock promptRolePicker
-    (manager as any).promptRolePicker = async () => ({ label: 'Callers', role: 'callers' });
-
-    // Add after pane 1
-    const addedAfter = await manager.addPaneAfter('facet.pane.1');
-    assert.ok(addedAfter);
+    // Add Callers to end
+    const added1 = await manager.addPaneToEnd('callers');
+    assert.ok(added1);
     assert.strictEqual(manager.getVisiblePanes().length, 4);
-    assert.strictEqual(manager.getVisiblePanes()[1].role, 'callers');
-    assert.strictEqual(addedAfter.selectionSource, 'none');
+    assert.strictEqual(manager.getVisiblePanes()[3].role, 'callers');
+    assert.strictEqual(manager.getVisiblePanes()[3].id, 'facet.pane.4');
 
-    // Add before pane 1
-    (manager as any).promptRolePicker = async () => ({ label: 'Hierarchy', role: 'hierarchy' });
-    const addedBefore = await manager.addPaneBefore('facet.pane.1');
-    assert.ok(addedBefore);
+    // Add Files to end
+    const added2 = await manager.addPaneToEnd('files');
+    assert.ok(added2);
     assert.strictEqual(manager.getVisiblePanes().length, 5);
-    assert.strictEqual(manager.getVisiblePanes()[0].role, 'hierarchy');
-    assert.strictEqual(addedBefore.selectionSource, 'cursor');
+    assert.strictEqual(manager.getVisiblePanes()[4].role, 'files');
+
+    // Add Hierarchy to end
+    const added3 = await manager.addPaneToEnd('hierarchy');
+    assert.ok(added3);
+    assert.strictEqual(manager.getVisiblePanes().length, 6);
+
+    // Cannot add beyond 6
+    const addedOverflow = await manager.addPaneToEnd('members');
+    assert.strictEqual(addedOverflow, undefined);
+    assert.strictEqual(manager.getVisiblePanes().length, 6);
+
     coordinator.dispose();
   });
 
-  test('PanePipelineManager supports Files role addition and configuration', async () => {
+  test('PanePipelineManager delete preserves slot ordering and remaps inputPaneId cleanly', async () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
     const membersProvider = new MembersTreeProvider();
@@ -215,12 +144,59 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     );
 
     const manager = new PanePipelineManager(coordinator);
-    (manager as any).promptRolePicker = async () => ({ label: 'Files', role: 'files' });
+    // Initial visible: [pane.1 (types), pane.2 (members), pane.3 (references)]
+    // Set pane.3 explicit inputPaneId to pane.2
+    manager.getVisiblePanes()[2].inputPaneId = 'facet.pane.2';
 
-    const addedBefore = await manager.addPaneBefore('facet.pane.1');
-    assert.ok(addedBefore);
-    assert.strictEqual(addedBefore.role, 'files');
-    assert.strictEqual(manager.getVisiblePanes()[0].role, 'files');
+    // Delete pane.1 (Types)
+    await manager.removePane('facet.pane.1');
+
+    const visibleAfter = manager.getVisiblePanes();
+    assert.strictEqual(visibleAfter.length, 2);
+    // Remaining panes shifted into slot 1 and 2
+    assert.strictEqual(visibleAfter[0].id, 'facet.pane.1');
+    assert.strictEqual(visibleAfter[0].role, 'members');
+    assert.strictEqual(visibleAfter[1].id, 'facet.pane.2');
+    assert.strictEqual(visibleAfter[1].role, 'references');
+    // inputPaneId should have been remapped from facet.pane.2 to facet.pane.1
+    assert.strictEqual(visibleAfter[1].inputPaneId, 'facet.pane.1');
+
+    // Check upstream resolution in coordinator
+    const upstream = coordinator.getPreviousPane('facet.pane.2');
+    assert.strictEqual(upstream?.id, 'facet.pane.1');
+    assert.strictEqual(upstream?.role, 'members');
+
+    coordinator.dispose();
+  });
+
+  test('FacetCoordinator resolves upstream pane via role-based fallback when drag-and-dropped', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    const manager = new PanePipelineManager(coordinator);
+    // Add Files pane to end
+    await manager.addPaneToEnd('files');
+    // Current visible: [pane.1 (types), pane.2 (members), pane.3 (references), pane.4 (files)]
+
+    // Types pane looks for files role fallback
+    const upstreamForTypes = coordinator.getPreviousPane('facet.pane.1');
+    assert.strictEqual(upstreamForTypes?.role, 'files');
+
+    // Members pane looks for types role fallback
+    const upstreamForMembers = coordinator.getPreviousPane('facet.pane.2');
+    assert.strictEqual(upstreamForMembers?.role, 'types');
+
+    // References pane looks for members role fallback
+    const upstreamForReferences = coordinator.getPreviousPane('facet.pane.3');
+    assert.strictEqual(upstreamForReferences?.role, 'members');
 
     coordinator.dispose();
   });

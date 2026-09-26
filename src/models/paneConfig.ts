@@ -1,7 +1,15 @@
 import * as vscode from 'vscode';
 import { FacetSymbolNode } from './symbolNode';
 
-export type PaneRole = 'files' | 'types' | 'members' | 'references' | 'implementations' | 'callers' | 'hierarchy';
+export type PaneRole =
+  | 'files'
+  | 'types'
+  | 'members'
+  | 'references'
+  | 'implementations'
+  | 'callers'
+  | 'hierarchy';
+
 export type PaneInputSource = 'global' | 'file' | 'pane';
 export type SelectionSource = 'none' | 'all' | 'cursor';
 export type SortOption = 'alphabetical' | 'fileOrder' | 'grouped';
@@ -64,6 +72,28 @@ export const ALL_SYMBOL_FILTER_OPTIONS: { key: SymbolKindKey; label: string; kin
   { key: 'variable', label: 'Variable', kind: vscode.SymbolKind.Variable }
 ];
 
+export const TYPE_FILTER_KEYS: SymbolKindKey[] = [
+  'class',
+  'interface',
+  'struct',
+  'enum',
+  'module',
+  'namespace'
+];
+
+export const MEMBER_FILTER_KEYS: SymbolKindKey[] = [
+  'method',
+  'field',
+  'property',
+  'constructor',
+  'constant',
+  'variable',
+  'function',
+  'enumMember',
+  'event',
+  'operator'
+];
+
 export const SYMBOL_KIND_TO_KEY: Record<number, SymbolKindKey> = {
   [vscode.SymbolKind.File]: 'file',
   [vscode.SymbolKind.Module]: 'module',
@@ -97,29 +127,93 @@ export type PaneFilters = {
   [K in SymbolKindKey]?: boolean;
 };
 
-export interface PaneConfig {
+export interface BasePaneConfig {
   id: string; // e.g. 'facet.pane.1'
   title: string;
-  role: PaneRole;
-  inputSource: PaneInputSource;
-  selectionSource: SelectionSource;
-  sort: SortOption;
-  filters: PaneFilters;
-  filePattern?: string;
-  display: DisplayMode;
-  subclassTypes?: SymbolKindKey[];
   visible: boolean;
+  inputPaneId?: string;
 }
 
-export function createDefaultFilters(): PaneFilters {
+export interface FilesPaneConfig extends BasePaneConfig {
+  role: 'files';
+  inputSource: 'global' | 'file' | 'pane';
+  selectionSource: 'cursor' | 'all' | 'none';
+  sort: 'alphabetical' | 'fileOrder';
+  filePattern?: string;
+}
+
+export interface TypesPaneConfig extends BasePaneConfig {
+  role: 'types';
+  inputSource: 'global' | 'file' | 'pane';
+  selectionSource: 'cursor' | 'all' | 'none';
+  sort: 'alphabetical' | 'fileOrder' | 'grouped';
+  display: 'flat' | 'hierarchy';
+  subclassTypes?: SymbolKindKey[];
+  filters: PaneFilters;
+}
+
+export interface MembersPaneConfig extends BasePaneConfig {
+  role: 'members';
+  inputSource: 'global' | 'file' | 'pane';
+  selectionSource: 'cursor' | 'all' | 'none';
+  sort: 'alphabetical' | 'fileOrder' | 'grouped';
+  display: 'flat' | 'hierarchy';
+  filters: PaneFilters;
+}
+
+export interface ReferencesPaneConfig extends BasePaneConfig {
+  role: 'references';
+  inputSource: 'file' | 'pane';
+  selectionSource: 'all' | 'none';
+  sort: 'alphabetical' | 'fileOrder';
+}
+
+export interface ImplementationsPaneConfig extends BasePaneConfig {
+  role: 'implementations';
+  inputSource: 'file' | 'pane';
+  selectionSource: 'all' | 'none';
+  sort: 'alphabetical' | 'fileOrder';
+}
+
+export interface CallersPaneConfig extends BasePaneConfig {
+  role: 'callers';
+  inputSource: 'file' | 'pane';
+  selectionSource: 'all' | 'none';
+  sort: 'alphabetical' | 'fileOrder';
+}
+
+export interface HierarchyPaneConfig extends BasePaneConfig {
+  role: 'hierarchy';
+  inputSource: 'global' | 'file' | 'pane';
+  selectionSource: 'cursor' | 'all' | 'none';
+  sort: 'alphabetical' | 'fileOrder' | 'grouped';
+  display: 'hierarchy';
+  subclassTypes?: SymbolKindKey[];
+  filters: PaneFilters;
+}
+
+export type PaneConfig =
+  | FilesPaneConfig
+  | TypesPaneConfig
+  | MembersPaneConfig
+  | ReferencesPaneConfig
+  | ImplementationsPaneConfig
+  | CallersPaneConfig
+  | HierarchyPaneConfig;
+
+export function createDefaultFilters(keys?: SymbolKindKey[]): PaneFilters {
   const filters: Partial<Record<SymbolKindKey, boolean>> = {};
-  for (const opt of ALL_SYMBOL_FILTER_OPTIONS) {
-    filters[opt.key] = true;
+  const targetKeys = keys || ALL_SYMBOL_FILTER_OPTIONS.map((o) => o.key);
+  for (const k of targetKeys) {
+    filters[k] = true;
   }
   return filters as PaneFilters;
 }
 
-export function matchesPaneFilters(node: FacetSymbolNode, filters: PaneFilters): boolean {
+export function matchesPaneFilters(node: FacetSymbolNode, filters?: PaneFilters): boolean {
+  if (!filters) {
+    return true;
+  }
   const key = SYMBOL_KIND_TO_KEY[node.kind];
   if (key && filters[key] === false) {
     return false;
@@ -127,75 +221,140 @@ export function matchesPaneFilters(node: FacetSymbolNode, filters: PaneFilters):
   return true;
 }
 
+export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>): FilesPaneConfig {
+  return {
+    id,
+    title: 'Files',
+    role: 'files',
+    inputSource: 'global',
+    selectionSource: 'none',
+    sort: 'alphabetical',
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createTypesPane(id: string, overrides?: Partial<TypesPaneConfig>): TypesPaneConfig {
+  return {
+    id,
+    title: 'Types',
+    role: 'types',
+    inputSource: 'global',
+    selectionSource: 'cursor',
+    sort: 'alphabetical',
+    display: 'hierarchy',
+    subclassTypes: ['class', 'struct'],
+    filters: createDefaultFilters(TYPE_FILTER_KEYS),
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createMembersPane(id: string, overrides?: Partial<MembersPaneConfig>): MembersPaneConfig {
+  return {
+    id,
+    title: 'Members',
+    role: 'members',
+    inputSource: 'pane',
+    selectionSource: 'none',
+    sort: 'alphabetical',
+    display: 'flat',
+    filters: createDefaultFilters(MEMBER_FILTER_KEYS),
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createReferencesPane(
+  id: string,
+  overrides?: Partial<ReferencesPaneConfig>
+): ReferencesPaneConfig {
+  return {
+    id,
+    title: 'References',
+    role: 'references',
+    inputSource: 'pane',
+    selectionSource: 'none',
+    sort: 'alphabetical',
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createImplementationsPane(
+  id: string,
+  overrides?: Partial<ImplementationsPaneConfig>
+): ImplementationsPaneConfig {
+  return {
+    id,
+    title: 'Implementations',
+    role: 'implementations',
+    inputSource: 'pane',
+    selectionSource: 'none',
+    sort: 'alphabetical',
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createCallersPane(id: string, overrides?: Partial<CallersPaneConfig>): CallersPaneConfig {
+  return {
+    id,
+    title: 'Callers',
+    role: 'callers',
+    inputSource: 'pane',
+    selectionSource: 'none',
+    sort: 'alphabetical',
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createHierarchyPane(
+  id: string,
+  overrides?: Partial<HierarchyPaneConfig>
+): HierarchyPaneConfig {
+  return {
+    id,
+    title: 'Hierarchy',
+    role: 'hierarchy',
+    inputSource: 'pane',
+    selectionSource: 'cursor',
+    sort: 'alphabetical',
+    display: 'hierarchy',
+    subclassTypes: ['class', 'struct'],
+    filters: createDefaultFilters(TYPE_FILTER_KEYS),
+    visible: true,
+    ...overrides
+  };
+}
+
+export function createPaneByRole(role: PaneRole, id: string, overrides?: Partial<any>): PaneConfig {
+  switch (role) {
+    case 'files':
+      return createFilesPane(id, overrides);
+    case 'types':
+      return createTypesPane(id, overrides);
+    case 'members':
+      return createMembersPane(id, overrides);
+    case 'references':
+      return createReferencesPane(id, overrides);
+    case 'implementations':
+      return createImplementationsPane(id, overrides);
+    case 'callers':
+      return createCallersPane(id, overrides);
+    case 'hierarchy':
+      return createHierarchyPane(id, overrides);
+  }
+}
+
 export function createDefaultPanes(): PaneConfig[] {
   return [
-    {
-      id: 'facet.pane.1',
-      title: 'Types',
-      role: 'types',
-      inputSource: 'global',
-      selectionSource: 'cursor',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
-      display: 'hierarchy',
-      subclassTypes: ['class', 'struct'],
-      visible: true
-    },
-    {
-      id: 'facet.pane.2',
-      title: 'Members',
-      role: 'members',
-      inputSource: 'pane',
-      selectionSource: 'none',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
-      display: 'flat',
-      visible: true
-    },
-    {
-      id: 'facet.pane.3',
-      title: 'References',
-      role: 'references',
-      inputSource: 'pane',
-      selectionSource: 'none',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
-      display: 'flat',
-      visible: true
-    },
-    {
-      id: 'facet.pane.4',
-      title: 'Implementations',
-      role: 'implementations',
-      inputSource: 'pane',
-      selectionSource: 'none',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
-      display: 'flat',
-      visible: false
-    },
-    {
-      id: 'facet.pane.5',
-      title: 'Callers',
-      role: 'callers',
-      inputSource: 'pane',
-      selectionSource: 'none',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
-      display: 'flat',
-      visible: false
-    },
-    {
-      id: 'facet.pane.6',
-      title: 'Hierarchy',
-      role: 'hierarchy',
-      inputSource: 'pane',
-      selectionSource: 'cursor',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
-      display: 'hierarchy',
-      subclassTypes: ['class', 'struct'],
-      visible: false
-    }
+    createTypesPane('facet.pane.1', { visible: true }),
+    createMembersPane('facet.pane.2', { visible: true }),
+    createReferencesPane('facet.pane.3', { visible: true }),
+    createImplementationsPane('facet.pane.4', { visible: false }),
+    createCallersPane('facet.pane.5', { visible: false }),
+    createHierarchyPane('facet.pane.6', { visible: false })
   ];
 }

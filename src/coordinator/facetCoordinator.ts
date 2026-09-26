@@ -69,6 +69,10 @@ export class FacetCoordinator implements vscode.Disposable {
     this.slotSelections.set(slotId, selection);
   }
 
+  public clearSlotSelections(): void {
+    this.slotSelections.clear();
+  }
+
   public refreshSlot(slotId: string): void {
     this._onDidRefreshSlot.fire(slotId);
   }
@@ -148,8 +152,13 @@ export class FacetCoordinator implements vscode.Disposable {
       this.setSlotSelection(pane.id, [itemToSet]);
       this._onRevealInView.fire({ slotId: pane.id, node: itemToSet });
 
-      if (i + 1 < visible.length && visible[i + 1].inputSource === 'pane') {
-        this.refreshSlot(visible[i + 1].id);
+      for (const other of visible) {
+        if (other.id !== pane.id && other.inputSource === 'pane') {
+          const upstream = this.getPreviousPane(other.id);
+          if (upstream && upstream.id === pane.id) {
+            this.refreshSlot(other.id);
+          }
+        }
       }
     }
 
@@ -211,14 +220,14 @@ export class FacetCoordinator implements vscode.Disposable {
         const items = await this.getSlotChildren(pane);
         this.setSlotSelection(slotId, items);
         this.refreshSlot(slotId);
-        // Refresh downstream panes whose input is 'pane'
+        // Refresh downstream panes whose input is 'pane' and upstream is this slot
         if (this.pipelineManager) {
           const visible = this.pipelineManager.getVisiblePanes();
-          const idx = visible.findIndex((p) => p.id === slotId);
-          if (idx !== -1) {
-            for (let i = idx + 1; i < visible.length; i++) {
-              if (visible[i].inputSource === 'pane') {
-                this.refreshSlot(visible[i].id);
+          for (const other of visible) {
+            if (other.id !== slotId && other.inputSource === 'pane') {
+              const upstream = this.getPreviousPane(other.id);
+              if (upstream && upstream.id === slotId) {
+                this.refreshSlot(other.id);
               }
             }
           }
@@ -319,16 +328,16 @@ export class FacetCoordinator implements vscode.Disposable {
         }
       }
 
-      // Refresh downstream panes whose input is 'pane'
+      // Refresh downstream panes whose input is 'pane' and upstream is this slot
       if (this.pipelineManager) {
         const visible = this.pipelineManager.getVisiblePanes();
-        const idx = visible.findIndex((p) => p.id === slotId);
-        if (idx !== -1) {
-          for (let i = idx + 1; i < visible.length; i++) {
-            if (visible[i].inputSource === 'pane') {
-              this.refreshSlot(visible[i].id);
-              if (visible[i].selectionSource === 'all') {
-                this.handlePaneSelectionSourceChange(visible[i].id);
+        for (const other of visible) {
+          if (other.id !== slotId && other.inputSource === 'pane') {
+            const upstream = this.getPreviousPane(other.id);
+            if (upstream && upstream.id === slotId) {
+              this.refreshSlot(other.id);
+              if (other.selectionSource === 'all') {
+                this.handlePaneSelectionSourceChange(other.id);
               }
             }
           }
@@ -343,7 +352,63 @@ export class FacetCoordinator implements vscode.Disposable {
     if (!this.pipelineManager) {
       return undefined;
     }
+    const current = this.pipelineManager.getPane(slotId);
+    if (!current) {
+      return undefined;
+    }
+
     const visible = this.pipelineManager.getVisiblePanes();
+
+    // 1. Explicit inputPaneId binding
+    if (current.inputPaneId) {
+      const explicit = visible.find((p) => p.id === current.inputPaneId && p.id !== slotId);
+      if (explicit) {
+        return explicit;
+      }
+    }
+
+    // 2. Role-based upstream chaining fallback
+    // Types / Hierarchy looks for a visible Files pane
+    if (current.role === 'types' || current.role === 'hierarchy') {
+      const filesPane = visible.find((p) => p.role === 'files' && p.id !== slotId);
+      if (filesPane) {
+        return filesPane;
+      }
+    }
+
+    // Members looks for a visible Types or Hierarchy pane (or Files pane)
+    if (current.role === 'members') {
+      const typePane = visible.find(
+        (p) => (p.role === 'types' || p.role === 'hierarchy') && p.id !== slotId
+      );
+      if (typePane) {
+        return typePane;
+      }
+      const filesPane = visible.find((p) => p.role === 'files' && p.id !== slotId);
+      if (filesPane) {
+        return filesPane;
+      }
+    }
+
+    // Relations (references / implementations / callers) looks for Members pane, then Types
+    if (
+      current.role === 'references' ||
+      current.role === 'implementations' ||
+      current.role === 'callers'
+    ) {
+      const memberPane = visible.find((p) => p.role === 'members' && p.id !== slotId);
+      if (memberPane) {
+        return memberPane;
+      }
+      const typePane = visible.find(
+        (p) => (p.role === 'types' || p.role === 'hierarchy') && p.id !== slotId
+      );
+      if (typePane) {
+        return typePane;
+      }
+    }
+
+    // 3. Fallback: preceding visible pane in sequence
     const idx = visible.findIndex((p) => p.id === slotId);
     return idx > 0 ? visible[idx - 1] : undefined;
   }
@@ -407,7 +472,7 @@ export class FacetCoordinator implements vscode.Disposable {
         .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
     }
 
-    if (config.filePattern && config.filePattern.trim()) {
+    if ('filePattern' in config && config.filePattern && config.filePattern.trim()) {
       try {
         const regex = new RegExp(config.filePattern.trim(), 'i');
         files = files.filter((u) => {
@@ -470,12 +535,16 @@ export class FacetCoordinator implements vscode.Disposable {
   }
 
   private async getTypeChildren(config: PaneConfig, element?: any): Promise<any[]> {
+    const display = 'display' in config ? config.display : 'flat';
+    const filters = 'filters' in config ? config.filters : undefined;
+    const subclassTypes = 'subclassTypes' in config ? config.subclassTypes : undefined;
+
     if (element) {
-      if (config.display === 'hierarchy') {
+      if (display === 'hierarchy') {
         const node = element as FacetSymbolNode;
         const subTypes = node.subTypes || [];
         const filtered = subTypes.filter(
-          (c) => isTypeKind(c.kind) && matchesPaneFilters(c, config.filters)
+          (c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters)
         );
         return this.sortItems(filtered, config.sort);
       }
@@ -520,18 +589,18 @@ export class FacetCoordinator implements vscode.Disposable {
     // Hydrate superTypes if missing across open tabs and disk files
     await this.hydrateMissingSuperTypes(rawTypes);
 
-    const filtered = rawTypes.filter((t) => matchesPaneFilters(t, config.filters));
+    const filtered = rawTypes.filter((t) => matchesPaneFilters(t, filters));
 
-    if (config.display === 'hierarchy') {
+    if (display === 'hierarchy') {
       let allowedKinds: vscode.SymbolKind[] | undefined;
-      if (config.subclassTypes && config.subclassTypes.length > 0) {
+      if (subclassTypes && subclassTypes.length > 0) {
         const keyMap: Record<string, vscode.SymbolKind> = {
           class: vscode.SymbolKind.Class,
           interface: vscode.SymbolKind.Interface,
           struct: vscode.SymbolKind.Struct,
           enum: vscode.SymbolKind.Enum
         };
-        allowedKinds = config.subclassTypes.map((k) => keyMap[k]).filter((k) => k !== undefined);
+        allowedKinds = subclassTypes.map((k) => keyMap[k]).filter((k) => k !== undefined);
       }
       const roots = buildTypeHierarchy(filtered, allowedKinds);
       return this.sortItems(roots, config.sort);
@@ -541,10 +610,13 @@ export class FacetCoordinator implements vscode.Disposable {
   }
 
   private async getMemberChildren(config: PaneConfig, element?: any): Promise<any[]> {
+    const display = 'display' in config ? config.display : 'flat';
+    const filters = 'filters' in config ? config.filters : undefined;
+
     if (element) {
-      if (config.display === 'hierarchy' && element.children) {
+      if (display === 'hierarchy' && element.children) {
         const children = (element.children as FacetSymbolNode[]).filter((c) =>
-          matchesPaneFilters(c, config.filters)
+          matchesPaneFilters(c, filters)
         );
         return this.sortItems(children, config.sort);
       }
@@ -609,7 +681,7 @@ export class FacetCoordinator implements vscode.Disposable {
     }
 
     const rawMembers = unionMembers(targetTypes);
-    const filtered = rawMembers.filter((m) => matchesPaneFilters(m, config.filters));
+    const filtered = rawMembers.filter((m) => matchesPaneFilters(m, filters));
 
     return this.sortItems(filtered, config.sort);
   }
@@ -723,11 +795,12 @@ export class FacetCoordinator implements vscode.Disposable {
     const isTypeRole = config.role === 'types' || config.role === 'hierarchy';
     let hasChildren = false;
 
-    if (config.display === 'hierarchy') {
+    if ('display' in config && config.display === 'hierarchy') {
       if (isTypeRole) {
+        const filters = 'filters' in config ? config.filters : undefined;
         hasChildren = Boolean(
           node.subTypes &&
-            node.subTypes.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, config.filters))
+            node.subTypes.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters))
         );
       } else {
         hasChildren = Boolean(node.children && node.children.length > 0);

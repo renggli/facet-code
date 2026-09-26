@@ -6,10 +6,17 @@ import {
   SelectionSource,
   SortOption,
   DisplayMode,
-  PaneFilters,
-  ALL_SYMBOL_FILTER_OPTIONS,
   SymbolKindKey,
-  createDefaultFilters,
+  ALL_SYMBOL_FILTER_OPTIONS,
+  TYPE_FILTER_KEYS,
+  MEMBER_FILTER_KEYS,
+  createPaneByRole,
+  createTypesPane,
+  createMembersPane,
+  createReferencesPane,
+  createImplementationsPane,
+  createCallersPane,
+  createFilesPane,
   createDefaultPanes
 } from '../models/paneConfig';
 import { FacetCoordinator } from './facetCoordinator';
@@ -47,106 +54,83 @@ export class PanePipelineManager {
     }
   }
 
-  private reassignSlotIds(): void {
-    const visible = this.getVisiblePanes();
-    const hidden = this.panes.filter((p) => !p.visible);
-    const combined = [...visible, ...hidden];
+  public async applyVisiblePanes(newVisible: PaneConfig[]): Promise<void> {
+    const totalSlots = 6;
+    const clampedVisible = newVisible.slice(0, totalSlots);
 
-    for (let i = 0; i < combined.length; i++) {
-      combined[i].id = `facet.pane.${i + 1}`;
+    // Build old slotId -> new slotId mapping
+    const oldIdToNewId = new Map<string, string>();
+    for (let i = 0; i < clampedVisible.length; i++) {
+      const oldId = clampedVisible[i].id;
+      const newId = `facet.pane.${i + 1}`;
+      if (oldId) {
+        oldIdToNewId.set(oldId, newId);
+      }
     }
-    this.panes = combined;
+
+    const updatedPanes: PaneConfig[] = [];
+    for (let i = 0; i < clampedVisible.length; i++) {
+      const p = clampedVisible[i];
+      p.id = `facet.pane.${i + 1}`;
+      p.visible = true;
+
+      // Remap explicit inputPaneId if present
+      if (p.inputPaneId) {
+        p.inputPaneId = oldIdToNewId.get(p.inputPaneId);
+      }
+
+      if (i === 0 && p.inputSource === 'pane' && !p.inputPaneId) {
+        p.inputSource = 'global';
+      }
+      updatedPanes.push(p);
+    }
+
+    for (let i = clampedVisible.length; i < totalSlots; i++) {
+      const slotId = `facet.pane.${i + 1}`;
+      const hiddenPane = createMembersPane(slotId, { visible: false });
+      updatedPanes.push(hiddenPane);
+    }
+
+    this.panes = updatedPanes;
     this.syncContextKeys();
+    this.coordinator.clearSlotSelections();
     this._onDidUpdatePanes.fire();
-  }
-
-  public async addPaneBefore(slotId: string): Promise<PaneConfig | undefined> {
-    const visible = this.getVisiblePanes();
-    if (visible.length >= 6) {
-      void vscode.window.showWarningMessage?.('Maximum number of native panes (6) reached.');
-      return undefined;
-    }
-
-    const idx = visible.findIndex((p) => p.id === slotId);
-    if (idx === -1) {
-      return undefined;
-    }
-
-    const rolePick = await this.promptRolePicker('Select Role for Previous Pane');
-    if (!rolePick) {
-      return undefined;
-    }
-
-    const isTypesOrHierarchy = rolePick.role === 'types' || rolePick.role === 'hierarchy';
-    const newPane: PaneConfig = {
-      id: '',
-      title: rolePick.label,
-      role: rolePick.role,
-      inputSource: idx === 0 ? 'global' : 'pane',
-      selectionSource: idx === 0 ? 'cursor' : 'none',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
-      display: isTypesOrHierarchy ? 'hierarchy' : 'flat',
-      subclassTypes: isTypesOrHierarchy ? ['class', 'struct'] : undefined,
-      visible: true
-    };
-
-    visible.splice(idx, 0, newPane);
-
-    const hidden = this.panes.filter((p) => !p.visible);
-    hidden.pop(); // Remove one hidden slot to maintain total 6 slots
-
-    this.panes = [...visible, ...hidden];
-    this.reassignSlotIds();
     await this.coordinator.sync();
-
-    return newPane;
   }
 
-  public async addPaneAfter(slotId: string): Promise<PaneConfig | undefined> {
+  public async addPaneToEnd(role?: PaneRole): Promise<PaneConfig | undefined> {
     const visible = this.getVisiblePanes();
     if (visible.length >= 6) {
       void vscode.window.showWarningMessage?.('Maximum number of native panes (6) reached.');
       return undefined;
     }
 
-    const idx = visible.findIndex((p) => p.id === slotId);
-    if (idx === -1) {
-      return undefined;
+    let targetRole = role;
+    let label = '';
+    if (!targetRole) {
+      const rolePick = await this.promptRolePicker('Select Role for New Pane');
+      if (!rolePick) {
+        return undefined;
+      }
+      targetRole = rolePick.role;
+      label = rolePick.label;
+    } else {
+      label = this.getRoleLabel(targetRole);
     }
 
-    const rolePick = await this.promptRolePicker('Select Role for Next Pane');
-    if (!rolePick) {
-      return undefined;
-    }
-
-    const isTypesOrHierarchy = rolePick.role === 'types' || rolePick.role === 'hierarchy';
-    const newPane: PaneConfig = {
-      id: '',
-      title: rolePick.label,
-      role: rolePick.role,
-      inputSource: 'pane',
+    const newPane = createPaneByRole(targetRole, '', {
+      title: label,
+      inputSource: visible.length === 0 ? 'global' : 'pane',
       selectionSource: 'none',
-      sort: 'alphabetical',
-      filters: createDefaultFilters(),
-      display: isTypesOrHierarchy ? 'hierarchy' : 'flat',
-      subclassTypes: isTypesOrHierarchy ? ['class', 'struct'] : undefined,
       visible: true
-    };
+    });
 
-    visible.splice(idx + 1, 0, newPane);
-
-    const hidden = this.panes.filter((p) => !p.visible);
-    hidden.pop();
-
-    this.panes = [...visible, ...hidden];
-    this.reassignSlotIds();
-    await this.coordinator.sync();
-
+    visible.push(newPane);
+    await this.applyVisiblePanes(visible);
     return newPane;
   }
 
-  public removePane(slotId: string): boolean {
+  public async removePane(slotId: string): Promise<boolean> {
     const visible = this.getVisiblePanes();
     if (visible.length <= 1) {
       void vscode.window.showWarningMessage?.('At least one pane must remain in the pipeline.');
@@ -158,14 +142,8 @@ export class PanePipelineManager {
       return false;
     }
 
-    const [removed] = visible.splice(idx, 1);
-    removed.visible = false;
-
-    const hidden = this.panes.filter((p) => !p.visible);
-    this.panes = [...visible, ...hidden, removed];
-    this.reassignSlotIds();
-    void this.coordinator.sync();
-
+    visible.splice(idx, 1);
+    await this.applyVisiblePanes(visible);
     return true;
   }
 
@@ -176,9 +154,8 @@ export class PanePipelineManager {
     }
 
     const visible = this.getVisiblePanes();
-    const paneIndex = visible.findIndex((p) => p.id === slotId);
-    const isFirstPane = paneIndex === 0;
-    const supportsHierarchy = pane.role === 'types' || pane.role === 'hierarchy';
+    const idx = visible.findIndex((p) => p.id === slotId);
+    const isFirstPane = idx === 0;
 
     const items: (vscode.QuickPickItem & { action?: string })[] = [
       { label: 'General Settings', kind: vscode.QuickPickItemKind.Separator },
@@ -206,11 +183,6 @@ export class PanePipelineManager {
         label: '$(sort-precedence) Sort',
         description: `Current: ${this.getSortLabel(pane.sort)}`,
         action: 'sort'
-      },
-      {
-        label: '$(filter) Filters...',
-        description: this.getFiltersSummary(pane),
-        action: 'filters'
       }
     ];
 
@@ -222,35 +194,50 @@ export class PanePipelineManager {
       });
     }
 
-    if (supportsHierarchy) {
+    if (pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy') {
+      if (pane.role === 'types' || pane.role === 'hierarchy') {
+        items.push({
+          label: '$(list-tree) Display Mode...',
+          description: pane.display === 'hierarchy' ? 'Hierarchy' : 'Flat',
+          action: 'display'
+        });
+        if (pane.display === 'hierarchy') {
+          items.push({
+            label: '$(type-hierarchy-sub) Subclass Kinds...',
+            description: (pane.subclassTypes || ['class', 'struct']).join(', '),
+            action: 'subclassTypes'
+          });
+        }
+      }
       items.push({
-        label: '$(list-tree) Display...',
-        description: pane.display === 'hierarchy' ? 'Hierarchy' : 'Flat',
-        action: 'display'
+        label: '$(filter) Filters...',
+        description: this.getFiltersSummary(pane),
+        action: 'filters'
+      });
+    }
+
+    items.push({ label: 'Pipeline Settings', kind: vscode.QuickPickItemKind.Separator });
+
+    if (visible.length < 6) {
+      items.push({
+        label: '$(add) Add Pane to End',
+        description: 'Append a new pane to the end of the pipeline',
+        action: 'addEnd'
+      });
+    }
+    if (visible.length > 1) {
+      items.push({
+        label: '$(trash) Remove Pane',
+        description: 'Remove this pane from the pipeline',
+        action: 'remove'
       });
     }
 
     items.push(
-      { label: 'Pipeline Settings', kind: vscode.QuickPickItemKind.Separator },
-      {
-        label: '$(add) Add Previous Pane',
-        description: 'Insert a new pane before this one',
-        action: 'addPrevious'
-      },
-      {
-        label: '$(add) Add Next Pane',
-        description: 'Insert a new pane after this one',
-        action: 'addNext'
-      },
-      {
-        label: '$(trash) Remove Pane',
-        description: 'Remove this pane from the pipeline',
-        action: 'remove'
-      },
       { label: 'Presets', kind: vscode.QuickPickItemKind.Separator },
       {
         label: '$(layers) Apply Preset...',
-        description: 'Project Browser, Implementations, Callers, Outline',
+        description: 'Project Browser, Implementations, Callers, Outline, File Browser',
         action: 'preset'
       }
     );
@@ -278,26 +265,30 @@ export class PanePipelineManager {
       case 'type': {
         const rolePick = await this.promptRolePicker('Select Pane Type');
         if (rolePick) {
-          pane.role = rolePick.role;
-          pane.title = rolePick.label;
-          this._onDidUpdatePanes.fire();
-          await this.coordinator.sync();
+          const newPane = createPaneByRole(rolePick.role, pane.id, {
+            title: rolePick.label,
+            inputSource: isFirstPane ? 'global' : pane.inputSource,
+            visible: true
+          });
+          visible[idx] = newPane;
+          await this.applyVisiblePanes(visible);
         }
         break;
       }
       case 'input': {
-        const inputOptions: { label: string; description: string; source: PaneInputSource }[] = [
-          {
+        const inputOptions: { label: string; description: string; source: PaneInputSource }[] = [];
+        if (pane.role !== 'references' && pane.role !== 'implementations' && pane.role !== 'callers') {
+          inputOptions.push({
             label: 'Global',
-            description: 'Workspace-wide symbols',
+            description: 'Workspace-wide symbols or files',
             source: 'global'
-          },
-          {
-            label: 'File',
-            description: 'Symbols in active editor document',
-            source: 'file'
-          }
-        ];
+          });
+        }
+        inputOptions.push({
+          label: 'File',
+          description: 'Symbols in active editor document',
+          source: 'file'
+        });
         if (!isFirstPane) {
           inputOptions.push({
             label: 'Pane',
@@ -310,32 +301,55 @@ export class PanePipelineManager {
         });
         if (inputPick) {
           pane.inputSource = inputPick.source;
+          if (inputPick.source === 'pane') {
+            const candidatePanes = visible.filter((p) => p.id !== slotId);
+            if (candidatePanes.length > 1) {
+              const targetPick = await vscode.window.showQuickPick(
+                candidatePanes.map((p) => ({
+                  label: p.title,
+                  description: `Role: ${p.role} (${p.id})`,
+                  paneId: p.id
+                })),
+                { placeHolder: 'Select Upstream Source Pane' }
+              );
+              if (targetPick) {
+                pane.inputPaneId = targetPick.paneId;
+              }
+            } else if (candidatePanes.length === 1) {
+              pane.inputPaneId = candidatePanes[0].id;
+            }
+          } else {
+            pane.inputPaneId = undefined;
+          }
           this._onDidUpdatePanes.fire();
           await this.coordinator.sync();
         }
         break;
       }
       case 'selectionSource': {
-        const selPick = await vscode.window.showQuickPick(
-          [
-            {
-              label: 'Cursor',
-              description: 'Symbol at editor cursor (selects all previous panes)',
-              source: 'cursor' as SelectionSource
-            },
-            {
-              label: 'All',
-              description: 'Select all symbols in this pane',
-              source: 'all' as SelectionSource
-            },
-            {
-              label: 'None',
-              description: 'No automatic selection synchronization',
-              source: 'none' as SelectionSource
-            }
-          ],
-          { placeHolder: 'Select Selection Source' }
+        const options: { label: string; description: string; source: SelectionSource }[] = [];
+        if (pane.role !== 'references' && pane.role !== 'implementations' && pane.role !== 'callers') {
+          options.push({
+            label: 'Cursor',
+            description: 'Active cursor symbol (selects enclosing items across previous panes)',
+            source: 'cursor'
+          });
+        }
+        options.push(
+          {
+            label: 'All',
+            description: 'Select all items in this pane',
+            source: 'all'
+          },
+          {
+            label: 'None',
+            description: 'Manual selection only',
+            source: 'none'
+          }
         );
+        const selPick = await vscode.window.showQuickPick(options, {
+          placeHolder: 'Select Selection Source'
+        });
         if (selPick) {
           pane.selectionSource = selPick.source;
           this._onDidUpdatePanes.fire();
@@ -344,26 +358,28 @@ export class PanePipelineManager {
         break;
       }
       case 'sort': {
-        const sortPick = await vscode.window.showQuickPick(
-          [
-            {
-              label: 'Alphabetical',
-              description: 'Sort symbols alphabetically by name',
-              sort: 'alphabetical' as SortOption
-            },
-            {
-              label: 'File Order',
-              description: 'Sort symbols by appearance in source file',
-              sort: 'fileOrder' as SortOption
-            },
-            {
-              label: 'Grouped',
-              description: 'Group symbols by kind/category (e.g. classes, methods, fields)',
-              sort: 'grouped' as SortOption
-            }
-          ],
-          { placeHolder: 'Select Sort Order' }
-        );
+        const sortOptions: { label: string; description: string; sort: SortOption }[] = [
+          {
+            label: 'Alphabetical',
+            description: 'Sort symbols alphabetically by name',
+            sort: 'alphabetical'
+          },
+          {
+            label: 'File Order',
+            description: 'Sort symbols by appearance in source file',
+            sort: 'fileOrder'
+          }
+        ];
+        if (pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy') {
+          sortOptions.push({
+            label: 'Grouped',
+            description: 'Group symbols by kind/category',
+            sort: 'grouped'
+          });
+        }
+        const sortPick = await vscode.window.showQuickPick(sortOptions, {
+          placeHolder: 'Select Sort Order'
+        });
         if (sortPick) {
           pane.sort = sortPick.sort;
           this._onDidUpdatePanes.fire();
@@ -371,37 +387,79 @@ export class PanePipelineManager {
         }
         break;
       }
-      case 'filters': {
-        await this.configureFilters(pane);
-        break;
-      }
       case 'filePattern': {
-        const pattern = await vscode.window.showInputBox({
-          value: pane.filePattern || '',
-          prompt: 'Enter regular expression filter for files (e.g. .*\\.ts$ or test)',
-          placeHolder: 'e.g. .*\\.ts$'
-        });
-        if (pattern !== undefined) {
-          pane.filePattern = pattern.trim() || undefined;
-          this._onDidUpdatePanes.fire();
-          this.coordinator.refreshSlot(pane.id);
+        if (pane.role === 'files') {
+          const pattern = await vscode.window.showInputBox({
+            value: pane.filePattern || '',
+            prompt: 'Enter regular expression filter for files (e.g. .*\\.ts$ or test)',
+            placeHolder: 'e.g. .*\\.ts$'
+          });
+          if (pattern !== undefined) {
+            pane.filePattern = pattern.trim() || undefined;
+            this._onDidUpdatePanes.fire();
+            this.coordinator.refreshSlot(pane.id);
+          }
         }
         break;
       }
       case 'display': {
-        await this.configureDisplay(pane);
+        if ('display' in pane) {
+          const dispPick = await vscode.window.showQuickPick(
+            [
+              {
+                label: 'Hierarchy',
+                description: 'Tree hierarchy of subtypes and subclasses',
+                mode: 'hierarchy' as DisplayMode
+              },
+              {
+                label: 'Flat',
+                description: 'Alphabetical list without nesting',
+                mode: 'flat' as DisplayMode
+              }
+            ],
+            { placeHolder: 'Select Display Mode' }
+          );
+          if (dispPick) {
+            pane.display = dispPick.mode;
+            this._onDidUpdatePanes.fire();
+            await this.coordinator.sync();
+          }
+        }
         break;
       }
-      case 'addPrevious': {
-        await this.addPaneBefore(slotId);
+      case 'subclassTypes': {
+        if ('subclassTypes' in pane) {
+          const current = pane.subclassTypes || ['class', 'struct'];
+          const subclassOptions = [
+            { label: 'Class', key: 'class' as SymbolKindKey, picked: current.includes('class') },
+            { label: 'Interface', key: 'interface' as SymbolKindKey, picked: current.includes('interface') },
+            { label: 'Struct', key: 'struct' as SymbolKindKey, picked: current.includes('struct') },
+            { label: 'Enum', key: 'enum' as SymbolKindKey, picked: current.includes('enum') }
+          ];
+          const selected = await vscode.window.showQuickPick(subclassOptions, {
+            canPickMany: true,
+            placeHolder: 'Select what types to show as subclasses'
+          });
+          if (selected) {
+            pane.subclassTypes = selected.map((s) => s.key);
+            this._onDidUpdatePanes.fire();
+            await this.coordinator.sync();
+          }
+        }
         break;
       }
-      case 'addNext': {
-        await this.addPaneAfter(slotId);
+      case 'filters': {
+        if ('filters' in pane) {
+          await this.configureFilters(pane);
+        }
+        break;
+      }
+      case 'addEnd': {
+        await this.addPaneToEnd();
         break;
       }
       case 'remove': {
-        this.removePane(slotId);
+        await this.removePane(slotId);
         break;
       }
       case 'preset': {
@@ -411,56 +469,16 @@ export class PanePipelineManager {
     }
   }
 
-  private async configureDisplay(pane: PaneConfig): Promise<void> {
-    const dispPick = await vscode.window.showQuickPick(
-      [
-        {
-          label: 'Hierarchy',
-          description: 'Tree hierarchy of subclasses and subtypes',
-          mode: 'hierarchy' as DisplayMode
-        },
-        {
-          label: 'Flat',
-          description: 'Alphabetical list without nesting',
-          mode: 'flat' as DisplayMode
-        }
-      ],
-      { placeHolder: 'Select Display Mode' }
-    );
-    if (!dispPick) {
-      return;
-    }
-
-    pane.display = dispPick.mode;
-
-    if (pane.display === 'hierarchy') {
-      const subclassOptions: { label: string; key: SymbolKindKey; picked: boolean }[] = [
-        { label: 'Class', key: 'class', picked: (pane.subclassTypes || ['class', 'struct']).includes('class') },
-        { label: 'Interface', key: 'interface', picked: (pane.subclassTypes || ['class', 'struct']).includes('interface') },
-        { label: 'Struct', key: 'struct', picked: (pane.subclassTypes || ['class', 'struct']).includes('struct') },
-        { label: 'Enum', key: 'enum', picked: (pane.subclassTypes || ['class', 'struct']).includes('enum') }
-      ];
-
-      const selectedSubclasses = await vscode.window.showQuickPick(subclassOptions, {
-        canPickMany: true,
-        placeHolder: 'Select what types to show as subclasses'
-      });
-
-      if (selectedSubclasses) {
-        pane.subclassTypes = selectedSubclasses.map((s) => s.key);
-      }
-    }
-
-    this._onDidUpdatePanes.fire();
-    await this.coordinator.sync();
-  }
-
-  private async configureFilters(pane: PaneConfig): Promise<void> {
-    const filterOptions = ALL_SYMBOL_FILTER_OPTIONS.map((opt) => ({
-      label: opt.label,
-      key: opt.key,
-      picked: pane.filters[opt.key] !== false
-    }));
+  private async configureFilters(pane: PaneConfig & { filters: Record<string, boolean | undefined> }): Promise<void> {
+    const keys = pane.role === 'members' ? MEMBER_FILTER_KEYS : TYPE_FILTER_KEYS;
+    const filterOptions = keys.map((key) => {
+      const opt = ALL_SYMBOL_FILTER_OPTIONS.find((o) => o.key === key);
+      return {
+        label: opt ? opt.label : key,
+        key,
+        picked: pane.filters[key] !== false
+      };
+    });
 
     const selected = await vscode.window.showQuickPick(filterOptions, {
       canPickMany: true,
@@ -502,6 +520,11 @@ export class PanePipelineManager {
               label: 'Compact Outline',
               description: 'Active File Types -> Members',
               preset: 'outline'
+            },
+            {
+              label: 'File Browser',
+              description: 'Files (Global) -> Types -> Members',
+              preset: 'fileBrowser'
             }
           ],
           { placeHolder: 'Select Pane Pipeline Preset' }
@@ -512,119 +535,46 @@ export class PanePipelineManager {
       return;
     }
 
-    for (const p of this.panes) {
-      p.visible = false;
-    }
-
+    let newVisible: PaneConfig[];
     switch (selected) {
       case 'project':
-      default: {
-        const p1 = this.panes[0];
-        p1.title = 'Types';
-        p1.role = 'types';
-        p1.inputSource = 'global';
-        p1.selectionSource = 'cursor';
-        p1.display = 'hierarchy';
-        p1.subclassTypes = ['class', 'struct'];
-        p1.visible = true;
-
-        const p2 = this.panes[1];
-        p2.title = 'Members';
-        p2.role = 'members';
-        p2.inputSource = 'pane';
-        p2.selectionSource = 'none';
-        p2.display = 'flat';
-        p2.visible = true;
-
-        const p3 = this.panes[2];
-        p3.title = 'References';
-        p3.role = 'references';
-        p3.inputSource = 'pane';
-        p3.selectionSource = 'none';
-        p3.display = 'flat';
-        p3.visible = true;
+      default:
+        newVisible = [
+          createTypesPane('', { title: 'Types', inputSource: 'global', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' }),
+          createReferencesPane('', { title: 'References', inputSource: 'pane', selectionSource: 'none' })
+        ];
         break;
-      }
-
-      case 'implementations': {
-        const p1 = this.panes[0];
-        p1.title = 'Types';
-        p1.role = 'types';
-        p1.inputSource = 'global';
-        p1.selectionSource = 'cursor';
-        p1.display = 'hierarchy';
-        p1.subclassTypes = ['class', 'struct'];
-        p1.visible = true;
-
-        const p2 = this.panes[1];
-        p2.title = 'Members';
-        p2.role = 'members';
-        p2.inputSource = 'pane';
-        p2.selectionSource = 'none';
-        p2.display = 'flat';
-        p2.visible = true;
-
-        const p3 = this.panes[2];
-        p3.title = 'Implementations';
-        p3.role = 'implementations';
-        p3.inputSource = 'pane';
-        p3.selectionSource = 'none';
-        p3.display = 'flat';
-        p3.visible = true;
+      case 'implementations':
+        newVisible = [
+          createTypesPane('', { title: 'Types', inputSource: 'global', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' }),
+          createImplementationsPane('', { title: 'Implementations', inputSource: 'pane', selectionSource: 'none' })
+        ];
         break;
-      }
-
-      case 'callers': {
-        const p1 = this.panes[0];
-        p1.title = 'Types';
-        p1.role = 'types';
-        p1.inputSource = 'global';
-        p1.selectionSource = 'cursor';
-        p1.display = 'hierarchy';
-        p1.subclassTypes = ['class', 'struct'];
-        p1.visible = true;
-
-        const p2 = this.panes[1];
-        p2.title = 'Members';
-        p2.role = 'members';
-        p2.inputSource = 'pane';
-        p2.selectionSource = 'none';
-        p2.display = 'flat';
-        p2.visible = true;
-
-        const p3 = this.panes[2];
-        p3.title = 'Callers';
-        p3.role = 'callers';
-        p3.inputSource = 'pane';
-        p3.selectionSource = 'none';
-        p3.display = 'flat';
-        p3.visible = true;
+      case 'callers':
+        newVisible = [
+          createTypesPane('', { title: 'Types', inputSource: 'global', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' }),
+          createCallersPane('', { title: 'Callers', inputSource: 'pane', selectionSource: 'none' })
+        ];
         break;
-      }
-
-      case 'outline': {
-        const p1 = this.panes[0];
-        p1.title = 'Types';
-        p1.role = 'types';
-        p1.inputSource = 'file';
-        p1.selectionSource = 'cursor';
-        p1.display = 'hierarchy';
-        p1.subclassTypes = ['class', 'struct'];
-        p1.visible = true;
-
-        const p2 = this.panes[1];
-        p2.title = 'Members';
-        p2.role = 'members';
-        p2.inputSource = 'pane';
-        p2.selectionSource = 'none';
-        p2.display = 'flat';
-        p2.visible = true;
+      case 'outline':
+        newVisible = [
+          createTypesPane('', { title: 'Types', inputSource: 'file', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' })
+        ];
         break;
-      }
+      case 'fileBrowser':
+        newVisible = [
+          createFilesPane('', { title: 'Files', inputSource: 'global', selectionSource: 'cursor' }),
+          createTypesPane('', { title: 'Types', inputSource: 'pane', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', inputSource: 'pane', selectionSource: 'none' })
+        ];
+        break;
     }
 
-    this.reassignSlotIds();
-    await this.coordinator.sync();
+    await this.applyVisiblePanes(newVisible);
   }
 
   private async promptRolePicker(
@@ -724,8 +674,9 @@ export class PanePipelineManager {
     }
   }
 
-  private getFiltersSummary(pane: PaneConfig): string {
-    const active = ALL_SYMBOL_FILTER_OPTIONS.filter((opt) => pane.filters[opt.key] !== false);
-    return `${active.length}/${ALL_SYMBOL_FILTER_OPTIONS.length} active`;
+  private getFiltersSummary(pane: PaneConfig & { filters: Record<string, boolean | undefined> }): string {
+    const keys = pane.role === 'members' ? MEMBER_FILTER_KEYS : TYPE_FILTER_KEYS;
+    const active = keys.filter((k) => pane.filters[k] !== false);
+    return `${active.length}/${keys.length} active`;
   }
 }
