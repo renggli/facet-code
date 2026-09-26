@@ -141,8 +141,10 @@ suite('FacetCoordinator Test Suite', () => {
       title: 'Members',
       role: 'members',
       inputSource: 'previous',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: { ...createDefaultFilters(), constants: false },
       display: 'flat',
       visible: true
@@ -156,6 +158,65 @@ suite('FacetCoordinator Test Suite', () => {
     // defaultConfig (constant) is filtered out
     assert.strictEqual(children.length, 1);
     assert.strictEqual(children[0].name, 'placeOrder');
+
+    coordinator.dispose();
+  });
+
+  test('coordinator respects showIcons, showContext, and followSelection settings', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    const node: FacetSymbolNode = {
+      name: 'placeOrder',
+      detail: '(orderId: string): void',
+      kind: vscode.SymbolKind.Method,
+      uri: dummyUri,
+      range: dummyRange,
+      selectionRange: dummyRange,
+      category: MemberCategory.StaticMethods,
+      isStatic: true,
+      children: []
+    };
+
+    const fullConfig: PaneConfig = {
+      id: 'facet.pane.2',
+      title: 'Members',
+      role: 'members',
+      inputSource: 'previous',
+      followSelection: true,
+      followCursor: true,
+      showIcons: true,
+      showContext: true,
+      filters: createDefaultFilters(),
+      display: 'flat',
+      visible: true
+    };
+
+    const fullItem = coordinator.getSlotTreeItem(fullConfig, node);
+    assert.ok(fullItem.iconPath !== undefined);
+    assert.strictEqual(fullItem.description, 'static (orderId: string): void');
+    assert.ok(fullItem.command !== undefined);
+
+    const minimalConfig: PaneConfig = {
+      ...fullConfig,
+      followSelection: false,
+      showIcons: false,
+      showContext: false
+    };
+
+    const minimalItem = coordinator.getSlotTreeItem(minimalConfig, node);
+    assert.strictEqual(minimalItem.iconPath, undefined);
+    assert.strictEqual(minimalItem.description, undefined);
+    assert.strictEqual(minimalItem.command, undefined);
 
     coordinator.dispose();
   });
@@ -204,8 +265,10 @@ suite('FacetCoordinator Test Suite', () => {
       title: 'Project Types',
       role: 'types',
       inputSource: 'project',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'hierarchy',
       visible: true
@@ -232,3 +295,4 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.dispose();
   });
 });
+

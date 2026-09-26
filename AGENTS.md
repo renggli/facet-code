@@ -12,9 +12,11 @@
     - **Title:** Custom label for each pane.
     - **Type of Pane:** `Types`, `Members`, `References`, `Implementations`, `Callers (Senders)`, `Hierarchy`.
     - **Input Source:** `Project` (workspace-wide search, default for first pane), `Cursor` (editor caret symbol), `Previous Pane` (selection from upstream pane, default for subsequent panes), or `File` (active document).
-    - **Selection Behavior:**
-      - *Navigate on selection:* Yes / No (reveals target in editor on selection).
-      - *Select on code navigation (Follow Cursor):* Yes / No (syncs tree selection when moving caret in editor).
+    - **Checkmark Settings:**
+      - *Follow Selection:* Toggle immediate editor jump on item selection.
+      - *Follow Cursor:* Toggle automatic tree sync from editor caret.
+      - *Show Icons:* Toggle display of symbol/kind Codicons.
+      - *Show Context:* Toggle display of extra contextual information (e.g. method signatures, file locations).
     - **Filters:** Granular toggles for classes, interfaces, enums, structs, functions, methods, constructors, fields, properties/accessors, variables, and constants.
     - **Display Mode:** `Flat` (alphabetical list) vs. `Hierarchy` (subclasses, subtypes, nested members).
   - **Pipeline Settings:**
@@ -88,8 +90,10 @@
   - *Title:* Edit title via InputBox.
   - *Type of Pane:* Types, Members, References, Implementations, Callers, Hierarchy.
   - *Input Source:* Project, Cursor, Previous Pane, File.
-  - *Navigate on Selection:* Toggle immediate editor jump.
-  - *Select on Code Navigation (Follow Cursor):* Toggle automatic tree sync from editor caret.
+  - *Follow Selection:* Toggle immediate editor jump on selection (checkmark).
+  - *Follow Cursor:* Toggle automatic tree sync from editor caret (checkmark).
+  - *Show Icons:* Toggle symbol icons (checkmark).
+  - *Show Context:* Toggle contextual details like signatures and locations (checkmark).
   - *Filters:* Granular symbol kind toggles.
   - *Display:* Flat vs. Hierarchy.
   - *Add Previous Pane:* Insert pane before current slot.

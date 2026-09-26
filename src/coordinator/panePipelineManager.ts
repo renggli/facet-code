@@ -78,8 +78,10 @@ export class PanePipelineManager {
       title: rolePick.label,
       role: rolePick.role,
       inputSource: idx === 0 ? 'project' : 'previous',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'flat',
       visible: true
@@ -119,8 +121,10 @@ export class PanePipelineManager {
       title: rolePick.label,
       role: rolePick.role,
       inputSource: 'previous',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'flat',
       visible: true
@@ -185,14 +189,20 @@ export class PanePipelineManager {
         action: 'input'
       },
       {
-        label: '$(target) Navigate on Selection',
-        description: pane.navigateOnSelect ? 'Yes' : 'No',
-        action: 'navigateOnSelect'
+        label: `${pane.followSelection ? '$(check)' : '   '} Follow Selection`,
+        action: 'followSelection'
       },
       {
-        label: '$(sync) Select on Code Navigation (Follow Cursor)',
-        description: pane.followCursor ? 'Yes' : 'No',
+        label: `${pane.followCursor ? '$(check)' : '   '} Follow Cursor`,
         action: 'followCursor'
+      },
+      {
+        label: `${pane.showIcons ? '$(check)' : '   '} Show Icons`,
+        action: 'showIcons'
+      },
+      {
+        label: `${pane.showContext ? '$(check)' : '   '} Show Context`,
+        action: 'showContext'
       },
       {
         label: '$(filter) Filters...',
@@ -291,14 +301,27 @@ export class PanePipelineManager {
         }
         break;
       }
-      case 'navigateOnSelect': {
-        pane.navigateOnSelect = !pane.navigateOnSelect;
+      case 'followSelection': {
+        pane.followSelection = !pane.followSelection;
         this._onDidUpdatePanes.fire();
+        this.coordinator.refreshSlot(pane.id);
         break;
       }
       case 'followCursor': {
         pane.followCursor = !pane.followCursor;
         this._onDidUpdatePanes.fire();
+        break;
+      }
+      case 'showIcons': {
+        pane.showIcons = !pane.showIcons;
+        this._onDidUpdatePanes.fire();
+        this.coordinator.refreshSlot(pane.id);
+        break;
+      }
+      case 'showContext': {
+        pane.showContext = !pane.showContext;
+        this._onDidUpdatePanes.fire();
+        this.coordinator.refreshSlot(pane.id);
         break;
       }
       case 'filters': {

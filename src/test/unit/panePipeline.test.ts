@@ -139,8 +139,10 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
       title: 'Project Types',
       role: 'types',
       inputSource: 'project',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'flat',
       visible: true
@@ -189,6 +191,10 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.ok(addedAfter);
     assert.strictEqual(manager.getVisiblePanes().length, 4);
     assert.strictEqual(manager.getVisiblePanes()[1].role, 'callers');
+    assert.strictEqual(addedAfter.followSelection, true);
+    assert.strictEqual(addedAfter.followCursor, true);
+    assert.strictEqual(addedAfter.showIcons, true);
+    assert.strictEqual(addedAfter.showContext, true);
 
     // Add before pane 1
     (manager as any).promptRolePicker = async () => ({ label: 'Hierarchy', role: 'hierarchy' });
@@ -196,6 +202,10 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.ok(addedBefore);
     assert.strictEqual(manager.getVisiblePanes().length, 5);
     assert.strictEqual(manager.getVisiblePanes()[0].role, 'hierarchy');
+    assert.strictEqual(addedBefore.followSelection, true);
+    assert.strictEqual(addedBefore.followCursor, true);
+    assert.strictEqual(addedBefore.showIcons, true);
+    assert.strictEqual(addedBefore.showContext, true);
 
     coordinator.dispose();
   });

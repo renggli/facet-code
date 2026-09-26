@@ -166,7 +166,7 @@ export class FacetCoordinator implements vscode.Disposable {
     this.slotSelections.set(slotId, selection);
 
     const pane = this.pipelineManager?.getPane(slotId);
-    if (pane && pane.navigateOnSelect && selection.length > 0) {
+    if (pane && pane.followSelection && selection.length > 0) {
       const first = selection[0];
       if (first.uri && (first.selectionRange || first.range)) {
         await vscode.commands.executeCommand(
@@ -370,8 +370,14 @@ export class FacetCoordinator implements vscode.Disposable {
   public getSlotTreeItem(config: PaneConfig, element: any): vscode.TreeItem {
     if (element && 'uri' in element && 'range' in element && 'label' in element && !('kind' in element)) {
       const item = this.relationsProvider.getTreeItem(element);
-      if (!config.navigateOnSelect) {
+      if (!config.followSelection) {
         item.command = undefined;
+      }
+      if (!config.showContext) {
+        item.description = undefined;
+      }
+      if (!config.showIcons) {
+        item.iconPath = undefined;
       }
       return item;
     }
@@ -393,14 +399,17 @@ export class FacetCoordinator implements vscode.Disposable {
       hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None
     );
 
-    let desc = node.detail || '';
-    if (node.isStatic) {
-      desc = desc ? `static ${desc}` : 'static';
+    let desc = '';
+    if (config.showContext) {
+      desc = node.detail || '';
+      if (node.isStatic) {
+        desc = desc ? `static ${desc}` : 'static';
+      }
     }
-    item.description = desc;
-    item.iconPath = getSymbolIcon(node.kind);
+    item.description = desc || undefined;
+    item.iconPath = config.showIcons ? getSymbolIcon(node.kind) : undefined;
 
-    if (config.navigateOnSelect) {
+    if (config.followSelection) {
       item.command = {
         command: 'facet.revealRange',
         title: 'Reveal in Editor',

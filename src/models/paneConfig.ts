@@ -24,8 +24,10 @@ export interface PaneConfig {
   title: string;
   role: PaneRole;
   inputSource: PaneInputSource;
-  navigateOnSelect: boolean;
+  followSelection: boolean;
   followCursor: boolean;
+  showIcons: boolean;
+  showContext: boolean;
   filters: PaneFilters;
   display: DisplayMode;
   visible: boolean;
@@ -83,8 +85,10 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Project Types',
       role: 'types',
       inputSource: 'project',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'flat',
       visible: true
@@ -94,8 +98,10 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Members',
       role: 'members',
       inputSource: 'previous',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'flat',
       visible: true
@@ -105,8 +111,10 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'References',
       role: 'references',
       inputSource: 'previous',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'flat',
       visible: true
@@ -116,8 +124,10 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Implementations',
       role: 'implementations',
       inputSource: 'previous',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'flat',
       visible: false
@@ -127,8 +137,10 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Callers',
       role: 'callers',
       inputSource: 'previous',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'flat',
       visible: false
@@ -138,8 +150,10 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Hierarchy',
       role: 'hierarchy',
       inputSource: 'previous',
-      navigateOnSelect: true,
+      followSelection: true,
       followCursor: true,
+      showIcons: true,
+      showContext: true,
       filters: createDefaultFilters(),
       display: 'hierarchy',
       visible: false
