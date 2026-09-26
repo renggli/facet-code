@@ -233,7 +233,7 @@ export class PanePipelineManager {
       { label: 'Presets', kind: vscode.QuickPickItemKind.Separator },
       {
         label: '$(layers) Apply Preset...',
-        description: 'Smalltalk, Implementors, Senders, Outline',
+        description: 'Project Browser, Implementations, Callers, Outline',
         action: 'preset'
       }
     ];
@@ -411,19 +411,19 @@ export class PanePipelineManager {
         await vscode.window.showQuickPick(
           [
             {
-              label: 'Smalltalk System Browser',
+              label: 'Project Browser',
               description: 'Project Types (Global) -> Members -> References',
-              preset: 'smalltalk'
+              preset: 'project'
             },
             {
-              label: 'Implementors Browser',
+              label: 'Implementations Browser',
               description: 'Project Types (Global) -> Members -> Implementations',
-              preset: 'implementors'
+              preset: 'implementations'
             },
             {
-              label: 'Senders (Callers) Browser',
-              description: 'Project Types (Global) -> Members -> Callers (Senders)',
-              preset: 'senders'
+              label: 'Callers Browser',
+              description: 'Project Types (Global) -> Members -> Callers',
+              preset: 'callers'
             },
             {
               label: 'Compact Outline',
@@ -444,7 +444,7 @@ export class PanePipelineManager {
     }
 
     switch (selected) {
-      case 'smalltalk':
+      case 'project':
       default: {
         const p1 = this.panes[0];
         p1.title = 'Project Types';
@@ -469,7 +469,7 @@ export class PanePipelineManager {
         break;
       }
 
-      case 'implementors': {
+      case 'implementations': {
         const p1 = this.panes[0];
         p1.title = 'Project Types';
         p1.role = 'types';
@@ -493,7 +493,7 @@ export class PanePipelineManager {
         break;
       }
 
-      case 'senders': {
+      case 'callers': {
         const p1 = this.panes[0];
         p1.title = 'Project Types';
         p1.role = 'types';
@@ -509,7 +509,7 @@ export class PanePipelineManager {
         p2.visible = true;
 
         const p3 = this.panes[2];
-        p3.title = 'Callers (Senders)';
+        p3.title = 'Callers';
         p3.role = 'callers';
         p3.inputSource = 'previous';
         p3.display = 'flat';
@@ -565,7 +565,7 @@ export class PanePipelineManager {
           role: 'implementations' as PaneRole
         },
         {
-          label: 'Callers (Senders)',
+          label: 'Callers',
           description: 'Incoming calls to selected symbol',
           role: 'callers' as PaneRole
         },
@@ -590,7 +590,7 @@ export class PanePipelineManager {
       case 'implementations':
         return 'Implementations';
       case 'callers':
-        return 'Callers (Senders)';
+        return 'Callers';
       case 'hierarchy':
         return 'Hierarchy';
     }

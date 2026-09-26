@@ -10,7 +10,7 @@
   - **Single Contextual Menu per Pane (`facet.pane.configure` `$(gear)`):** Clean, uncluttered pane headers replacing bars of individual action icons.
   - **General Settings:**
     - **Title:** Custom label for each pane.
-    - **Type of Pane:** `Types`, `Members`, `References`, `Implementations`, `Callers (Senders)`, `Hierarchy`.
+    - **Type of Pane:** `Types`, `Members`, `References`, `Implementations`, `Callers`, `Hierarchy`.
     - **Input Source:** `Project` (workspace-wide search, default for first pane), `Cursor` (editor caret symbol), `Previous Pane` (selection from upstream pane, default for subsequent panes), or `File` (active document).
     - **Checkmark Settings:**
       - *Follow Selection:* Toggle immediate editor jump on item selection.
@@ -24,9 +24,9 @@
     - *Add Next Pane:* Insert a new pane immediately after this pane in the pipeline.
     - *Remove Pane:* Hide this pane from the pipeline (enforcing minimum 1 visible pane).
 - **Predefined Presets (`facet.pane.presets`):**
-  - **Smalltalk System Browser:** Global Project Types (`project`) -> Members (`previous`) -> References (`previous`).
-  - **Implementors Browser:** Global Project Types (`project`) -> Members (`previous`) -> Implementations (`previous`).
-  - **Senders (Callers) Browser:** Global Project Types (`project`) -> Members (`previous`) -> Callers (`previous`).
+  - **Project Browser:** Global Project Types (`project`) -> Members (`previous`) -> References (`previous`).
+  - **Implementations Browser:** Global Project Types (`project`) -> Members (`previous`) -> Implementations (`previous`).
+  - **Callers Browser:** Global Project Types (`project`) -> Members (`previous`) -> Callers (`previous`).
   - **Compact Outline:** Active File Types (`file`) -> Members (`previous`).
 - **High-Readability Relations Display:**
   - Code snippet preview as label (trimmed source code line).
@@ -99,7 +99,7 @@
   - *Add Previous Pane:* Insert pane before current slot.
   - *Add Next Pane:* Insert pane after current slot.
   - *Remove Pane:* Hide current pane.
-  - *Apply Preset:* QuickPick for Smalltalk, Implementors, Senders, Outline.
+  - *Apply Preset:* QuickPick for Project Browser, Implementations, Callers, Outline.
 - **`facet.revealRange`:** Navigates the active text editor to the target symbol range.
 
 ---
@@ -121,4 +121,4 @@
    - Click `⚙ Configure Pane` on any pane: test changing title, input source, filters, and display mode.
    - Click `Add Next Pane`: select `Callers` and confirm a new pane is inserted in sequence.
    - Click `Remove Pane`: confirm pane is hidden.
-   - Select `Smalltalk System Browser` preset: confirm Pane 1 shows global project types, Pane 2 shows members, and Pane 3 shows readable code snippets in references.
+   - Select `Project Browser` preset: confirm Pane 1 shows global project types, Pane 2 shows members, and Pane 3 shows readable code snippets in references.

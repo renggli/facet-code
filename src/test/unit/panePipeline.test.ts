@@ -90,7 +90,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('PanePipelineManager Smalltalk preset defaults to global project types', async () => {
+  test('PanePipelineManager Project Browser preset defaults to global project types', async () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
     const membersProvider = new MembersTreeProvider();
@@ -103,7 +103,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     );
 
     const manager = new PanePipelineManager(coordinator);
-    await manager.applyPreset('smalltalk');
+    await manager.applyPreset('project');
 
     const visible = manager.getVisiblePanes();
     assert.strictEqual(visible.length, 3);
