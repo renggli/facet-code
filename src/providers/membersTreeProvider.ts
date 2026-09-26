@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import {
   FacetSymbolNode,
   MemberCategory,
-  ClassSide,
   LayoutMode,
   filterMembers,
   unionMembers
@@ -14,7 +13,6 @@ export class MembersTreeProvider implements vscode.TreeDataProvider<FacetSymbolN
 
   private selectedTypes: readonly FacetSymbolNode[] = [];
   private activeCategory: MemberCategory = MemberCategory.All;
-  private classSide: ClassSide = 'both';
   private layoutMode: LayoutMode = 'list';
 
   refresh(): void {
@@ -31,18 +29,9 @@ export class MembersTreeProvider implements vscode.TreeDataProvider<FacetSymbolN
     this.refresh();
   }
 
-  setClassSide(side: ClassSide): void {
-    this.classSide = side;
-    this.refresh();
-  }
-
   setLayoutMode(layout: LayoutMode): void {
     this.layoutMode = layout;
     this.refresh();
-  }
-
-  getClassSide(): ClassSide {
-    return this.classSide;
   }
 
   getLayoutMode(): LayoutMode {
@@ -67,7 +56,7 @@ export class MembersTreeProvider implements vscode.TreeDataProvider<FacetSymbolN
 
   getFilteredMembers(): FacetSymbolNode[] {
     const rawUnion = unionMembers(this.selectedTypes);
-    const filtered = filterMembers(rawUnion, this.activeCategory, this.classSide);
+    const filtered = filterMembers(rawUnion, this.activeCategory);
 
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }

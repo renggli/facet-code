@@ -86,32 +86,25 @@ suite('Providers Test Suite', () => {
     assert.strictEqual(treeItem.description, '2 (active)');
   });
 
-  test('MembersTreeProvider aggregates and filters by side and category', () => {
+  test('MembersTreeProvider aggregates and filters by category', () => {
     const provider = new MembersTreeProvider();
     provider.setSelectedTypes([mockType]);
 
-    // Initial state: both sides, all categories
+    // Initial state: all categories
     let members = provider.getFilteredMembers();
     assert.strictEqual(members.length, 3);
 
-    // Switch to instance side
-    provider.setClassSide('instance');
-    members = provider.getFilteredMembers();
-    assert.strictEqual(members.length, 2);
-    assert.ok(members.every((m) => !m.isStatic));
-
-    // Switch to class side
-    provider.setClassSide('class');
-    members = provider.getFilteredMembers();
-    assert.strictEqual(members.length, 1);
-    assert.strictEqual(members[0].name, 'createInstance');
-
-    // Switch category filter
-    provider.setClassSide('both');
+    // Switch category filter to Fields
     provider.setActiveCategory(MemberCategory.Fields);
     members = provider.getFilteredMembers();
     assert.strictEqual(members.length, 1);
     assert.strictEqual(members[0].name, 'instanceField');
+
+    // Switch category filter to StaticMethods
+    provider.setActiveCategory(MemberCategory.StaticMethods);
+    members = provider.getFilteredMembers();
+    assert.strictEqual(members.length, 1);
+    assert.strictEqual(members[0].name, 'createInstance');
 
     // Category counts calculation
     const counts = provider.getCategoryCounts();

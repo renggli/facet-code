@@ -14,7 +14,6 @@
   - **Predefined Presets (`facet.pane.presets` `$(layers)`):** Smalltalk System Browser, Implementors Browser, Senders Browser, Compact Outline.
 - **Smalltalk-Style Controls:** Instant toggles for:
   - **File vs. Project Scope (`facet.toggleScope` 🌐):** Current active file vs. entire workspace symbol index with multi-tier file AST scanning and lazy member hydration.
-  - **Instance vs. Class Side (`facet.toggleSide` ⮂):** Instance methods/properties vs. static methods/constants.
   - **Flat vs. Inherited Hierarchy (`facet.toggleHierarchy`):** Directly declared vs. inherited members.
   - **Flat vs. Tree Layout (`facet.toggleLayout`):** Alphabetical selector list vs. structured member tree.
 - **Universal Multi-Selection (`canSelectMany: true`):** Selecting multiple types aggregates the union of their members; selecting multiple members computes combined references or callers.
@@ -55,7 +54,7 @@
 │  │  │    - Instance Methods (6)                                  │  │  │
 │  │  ├────────────────────────────────────────────────────────────┤  │  │
 │  │  │ Native Pane 3: Members (`facet.pane.3`)                    │  │  │
-│  │  │    [Side: Instance/Class ⮂] [Layout: List/Tree ☷]          │  │  │
+│  │  │    [Layout: List/Tree ☷]                                   │  │  │
 │  │  │    - #processPayment()                                     │  │  │
 │  │  │    - #validateOrder()                                      │  │  │
 │  │  ├────────────────────────────────────────────────────────────┤  │  │
@@ -80,11 +79,10 @@
 ### Native Pane Pipeline Controls
 - **`facet.pane.add` (`$(add)`):** Opens native QuickPick to choose a role (`Types`, `Categories`, `Members`, `Relations`) and activates the next native pane slot.
 - **`facet.pane.remove` (`$(trash)`):** Removes/hides a pane from the active pipeline.
-- **`facet.pane.configure` (`$(gear)`):** Native menu to change the pane's role, scope, filter side, layout, or rename it.
+- **`facet.pane.configure` (`$(gear)`):** Native menu to change the pane's role, scope, layout, or rename it.
 - **`facet.pane.moveUp` (`$(arrow-up)`) / `facet.pane.moveDown` (`$(arrow-down)`):** Reorders panes in the pipeline.
 - **`facet.pane.presets` (`$(layers)`):** QuickPick for predefined pipelines (`Smalltalk System Browser`, `Implementors`, `Senders`, `Compact Outline`).
 - **`facet.toggleScope` (`$(globe)`):** Toggles between active document AST and project-wide symbol index (configured via `facet.types.scope`).
-- **`facet.toggleSide` (`$(arrow-swap)`):** Toggles between `instance`, `class`, and `both`.
 - **`facet.toggleHierarchy` (`$(type-hierarchy)`):** Toggles between `flat` and `inherited`.
 - **`facet.toggleLayout` (`$(list-tree)`):** Toggles between flat sorted `list` and nested `tree`.
 - **`facet.relations.switchMode` (`$(settings)`):** QuickPick for `references`, `callers`, or `implementations`.
@@ -107,7 +105,7 @@
 2. Launch Extension Host (`Cmd+F5`).
 3. Verify native dynamic behavior:
    - Click `+ Add Pane` in the view title: choose `Relations` and confirm a new native pane appears.
-   - Click `⚙ Configure Pane`: change role or filter side and confirm instant update.
+   - Click `⚙ Configure Pane`: change role or layout and confirm instant update.
    - Click `Move Pane Up / Down`: confirm pane positions swap smoothly.
    - Click `Toggle Scope` (`🌐`): confirm switching to Project mode populates all classes across the workspace.
    - Select any class: confirm `Members` immediately hydrates with its methods.

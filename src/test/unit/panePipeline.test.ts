@@ -103,7 +103,6 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
       title: 'Types',
       role: 'types',
       scope: 'file',
-      side: 'instance',
       category: MemberCategory.All,
       layout: 'list',
       relationsMode: 'references',

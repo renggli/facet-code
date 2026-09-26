@@ -11,7 +11,6 @@ export enum MemberCategory {
   Special = 'special'
 }
 
-export type ClassSide = 'instance' | 'class' | 'both';
 export type HierarchyMode = 'flat' | 'inherited';
 export type LayoutMode = 'tree' | 'list';
 
@@ -39,16 +38,9 @@ export function isTypeKind(kind: vscode.SymbolKind): boolean {
 
 export function filterMembers(
   members: readonly FacetSymbolNode[],
-  category: MemberCategory = MemberCategory.All,
-  side: ClassSide = 'both'
+  category: MemberCategory = MemberCategory.All
 ): FacetSymbolNode[] {
   return members.filter((m) => {
-    if (side === 'instance' && m.isStatic) {
-      return false;
-    }
-    if (side === 'class' && !m.isStatic) {
-      return false;
-    }
     if (category !== MemberCategory.All && m.category !== category) {
       return false;
     }

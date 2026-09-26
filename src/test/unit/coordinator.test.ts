@@ -44,7 +44,7 @@ suite('FacetCoordinator Test Suite', () => {
     ]
   };
 
-  test('coordinator handles toggling side, hierarchy, and layout', () => {
+  test('coordinator handles toggling hierarchy and layout', () => {
     const resolver = new SymbolResolver();
     const typesProvider = new TypesTreeProvider();
     const categoriesProvider = new CategoriesTreeProvider();
@@ -58,20 +58,6 @@ suite('FacetCoordinator Test Suite', () => {
       membersProvider,
       relationsProvider
     );
-
-    // Initial side is instance
-    assert.strictEqual(coordinator.classSide, 'instance');
-    assert.strictEqual(membersProvider.getClassSide(), 'instance');
-
-    // Toggle side
-    assert.strictEqual(coordinator.toggleSide(), 'class');
-    assert.strictEqual(membersProvider.getClassSide(), 'class');
-
-    assert.strictEqual(coordinator.toggleSide(), 'both');
-    assert.strictEqual(membersProvider.getClassSide(), 'both');
-
-    assert.strictEqual(coordinator.toggleSide(), 'instance');
-    assert.strictEqual(membersProvider.getClassSide(), 'instance');
 
     // Toggle hierarchy
     assert.strictEqual(coordinator.hierarchyMode, 'flat');
@@ -136,14 +122,11 @@ suite('FacetCoordinator Test Suite', () => {
     );
 
     coordinator.selectTypes([mockClass]);
-    // In instance side mode, placeOrder should be selected
     const selectedMembers = relationsProvider.getSelectedMembers();
     assert.strictEqual(selectedMembers.length, 1);
-    assert.strictEqual(selectedMembers[0].name, 'placeOrder');
+    assert.strictEqual(selectedMembers[0].name, 'defaultConfig');
 
-    // Select category Constants -> in instance mode none, switch to both
-    coordinator.toggleSide(); // class
-    coordinator.toggleSide(); // both
+    // Select category Constants
     coordinator.selectCategory(MemberCategory.Constants);
     assert.strictEqual(categoriesProvider.getSelectedCategory(), MemberCategory.Constants);
     assert.strictEqual(membersProvider.getActiveCategory(), MemberCategory.Constants);

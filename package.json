@@ -115,11 +115,6 @@
 				"icon": "$(globe)"
 			},
 			{
-				"command": "facet.toggleSide",
-				"title": "Facet: Toggle Instance / Class Side",
-				"icon": "$(arrow-swap)"
-			},
-			{
 				"command": "facet.toggleHierarchy",
 				"title": "Facet: Toggle Flat / Inherited Hierarchy",
 				"icon": "$(type-hierarchy)"

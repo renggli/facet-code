@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { PaneConfig, PaneRole, createDefaultPanes } from '../models/paneConfig';
 import { FacetCoordinator } from './facetCoordinator';
 import { TypesScope } from '../providers/typesTreeProvider';
-import { ClassSide, MemberCategory, LayoutMode } from '../models/symbolNode';
+import { LayoutMode } from '../models/symbolNode';
 import { RelationsMode } from '../providers/relationsTreeProvider';
 
 export class PanePipelineManager {
@@ -100,7 +100,6 @@ export class PanePipelineManager {
     const tempRole = current.role;
     const tempTitle = current.title;
     const tempScope = current.scope;
-    const tempSide = current.side;
     const tempCategory = current.category;
     const tempLayout = current.layout;
     const tempRelMode = current.relationsMode;
@@ -108,7 +107,6 @@ export class PanePipelineManager {
     current.role = target.role;
     current.title = target.title;
     current.scope = target.scope;
-    current.side = target.side;
     current.category = target.category;
     current.layout = target.layout;
     current.relationsMode = target.relationsMode;
@@ -116,7 +114,6 @@ export class PanePipelineManager {
     target.role = tempRole;
     target.title = tempTitle;
     target.scope = tempScope;
-    target.side = tempSide;
     target.category = tempCategory;
     target.layout = tempLayout;
     target.relationsMode = tempRelMode;
@@ -150,16 +147,10 @@ export class PanePipelineManager {
         }
       );
     } else if (pane.role === 'members') {
-      items.push(
-        {
-          label: '$(arrow-swap) Toggle Side (Instance / Class / Both)',
-          description: `Current: ${pane.side}`
-        },
-        {
-          label: '$(list-tree) Toggle Layout (List / Tree)',
-          description: `Current: ${pane.layout}`
-        }
-      );
+      items.push({
+        label: '$(list-tree) Toggle Layout (List / Tree)',
+        description: `Current: ${pane.layout}`
+      });
     } else if (pane.role === 'relations') {
       items.push({
         label: '$(settings) Switch Mode (References / Callers / Implementations)',
@@ -201,15 +192,6 @@ export class PanePipelineManager {
       await this.coordinator.sync();
     } else if (picked.label.includes('Toggle Hierarchy')) {
       this.coordinator.toggleHierarchy();
-    } else if (picked.label.includes('Toggle Side')) {
-      const nextSide: Record<ClassSide, ClassSide> = {
-        instance: 'class',
-        class: 'both',
-        both: 'instance'
-      };
-      pane.side = nextSide[pane.side];
-      this.coordinator.classSide = pane.side;
-      this.coordinator.membersProvider.setClassSide(pane.side);
     } else if (picked.label.includes('Toggle Layout')) {
       pane.layout = pane.layout === 'list' ? 'tree' : 'list';
       this.coordinator.membersProvider.setLayoutMode(pane.layout);
@@ -243,7 +225,7 @@ export class PanePipelineManager {
       (
         await vscode.window.showQuickPick(
           [
-            { label: 'Smalltalk System Browser', description: 'Types -> Categories -> Members -> Relations', preset: 'smalltalk' },
+            { label: 'Standard Structure Browser', description: 'Types -> Categories -> Members -> Relations', preset: 'structure' },
             { label: 'Implementors Browser', description: 'Project Types -> Members -> Implementations', preset: 'implementors' },
             { label: 'Senders (Callers) Browser', description: 'Members -> Callers (Senders)', preset: 'senders' },
             { label: 'Compact Outline', description: 'Types -> Members', preset: 'outline' }
@@ -301,7 +283,7 @@ export class PanePipelineManager {
         break;
 
       default:
-        // smalltalk preset
+        // standard structure browser
         this.panes[0].visible = true;
         this.panes[0].role = 'types';
         this.panes[0].scope = 'file';
@@ -313,7 +295,6 @@ export class PanePipelineManager {
 
         this.panes[2].visible = true;
         this.panes[2].role = 'members';
-        this.panes[2].side = 'instance';
         this.panes[2].title = 'Members';
 
         this.panes[3].visible = true;

@@ -4,7 +4,7 @@ import { TypesTreeProvider, TypesScope } from '../providers/typesTreeProvider';
 import { CategoriesTreeProvider } from '../providers/categoriesTreeProvider';
 import { MembersTreeProvider } from '../providers/membersTreeProvider';
 import { RelationsTreeProvider, RelationsMode } from '../providers/relationsTreeProvider';
-import { FacetSymbolNode, MemberCategory, ClassSide, HierarchyMode, LayoutMode } from '../models/symbolNode';
+import { FacetSymbolNode, MemberCategory, HierarchyMode, LayoutMode } from '../models/symbolNode';
 
 export class FacetCoordinator implements vscode.Disposable {
   private cancellationSource?: vscode.CancellationTokenSource;
@@ -12,7 +12,6 @@ export class FacetCoordinator implements vscode.Disposable {
   private currentEditor?: vscode.TextEditor;
 
   public scope: TypesScope = 'file';
-  public classSide: ClassSide = 'instance';
   public hierarchyMode: HierarchyMode = 'flat';
   public layoutMode: LayoutMode = 'list';
 
@@ -24,7 +23,6 @@ export class FacetCoordinator implements vscode.Disposable {
     public readonly relationsProvider: RelationsTreeProvider
   ) {
     this.typesProvider.scope = this.scope;
-    this.membersProvider.setClassSide(this.classSide);
     this.membersProvider.setLayoutMode(this.layoutMode);
   }
 
@@ -138,17 +136,6 @@ export class FacetCoordinator implements vscode.Disposable {
     this.typesProvider.scope = this.scope;
     await this.sync();
     return this.scope;
-  }
-
-  public toggleSide(): ClassSide {
-    const nextSide: Record<ClassSide, ClassSide> = {
-      instance: 'class',
-      class: 'both',
-      both: 'instance'
-    };
-    this.classSide = nextSide[this.classSide];
-    this.membersProvider.setClassSide(this.classSide);
-    return this.classSide;
   }
 
   public toggleHierarchy(): HierarchyMode {

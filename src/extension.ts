@@ -163,17 +163,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
     }),
-    vscode.commands.registerCommand('facet.toggleSide', () => {
-      const nextSide = coordinator.toggleSide();
-      const pane3 = pipelineManager.getPane('facet.pane.3');
-      if (pane3 && pane3.role === 'members') {
-        pane3.title = `Members (${nextSide === 'both' ? 'All' : nextSide})`;
-        const view3 = slotViews.get('facet.pane.3');
-        if (view3) {
-          view3.title = pane3.title;
-        }
-      }
-    }),
     vscode.commands.registerCommand('facet.toggleHierarchy', () => {
       const mode = coordinator.toggleHierarchy();
       const pane1 = pipelineManager.getPane('facet.pane.1');

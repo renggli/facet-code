@@ -63,7 +63,7 @@ export class Calculator {
     assert.strictEqual(calcMethod.category, MemberCategory.InstanceMethods);
   });
 
-  test('filterMembers filters by side and category', () => {
+  test('filterMembers filters by category', () => {
     const members: FacetSymbolNode[] = [
       {
         name: 'instMethod',
@@ -87,15 +87,14 @@ export class Calculator {
       }
     ];
 
-    const instanceOnly = filterMembers(members, MemberCategory.All, 'instance');
-    assert.strictEqual(instanceOnly.length, 1);
-    assert.strictEqual(instanceOnly[0].name, 'instMethod');
+    const allMembers = filterMembers(members, MemberCategory.All);
+    assert.strictEqual(allMembers.length, 2);
 
-    const classOnly = filterMembers(members, MemberCategory.All, 'class');
-    assert.strictEqual(classOnly.length, 1);
-    assert.strictEqual(classOnly[0].name, 'staticMethod');
+    const methodsOnly = filterMembers(members, MemberCategory.InstanceMethods);
+    assert.strictEqual(methodsOnly.length, 1);
+    assert.strictEqual(methodsOnly[0].name, 'instMethod');
 
-    const catFiltered = filterMembers(members, MemberCategory.StaticMethods, 'both');
+    const catFiltered = filterMembers(members, MemberCategory.StaticMethods);
     assert.strictEqual(catFiltered.length, 1);
     assert.strictEqual(catFiltered[0].name, 'staticMethod');
   });

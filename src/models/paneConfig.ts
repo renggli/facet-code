@@ -1,4 +1,4 @@
-import { MemberCategory, ClassSide, LayoutMode } from './symbolNode';
+import { MemberCategory, LayoutMode } from './symbolNode';
 import { TypesScope } from '../providers/typesTreeProvider';
 import { RelationsMode } from '../providers/relationsTreeProvider';
 
@@ -9,7 +9,6 @@ export interface PaneConfig {
   title: string;
   role: PaneRole;
   scope: TypesScope;
-  side: ClassSide;
   category: MemberCategory;
   layout: LayoutMode;
   relationsMode: RelationsMode;
@@ -23,7 +22,6 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Types',
       role: 'types',
       scope: 'file',
-      side: 'instance',
       category: MemberCategory.All,
       layout: 'list',
       relationsMode: 'references',
@@ -34,7 +32,6 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Categories',
       role: 'categories',
       scope: 'file',
-      side: 'instance',
       category: MemberCategory.All,
       layout: 'list',
       relationsMode: 'references',
@@ -45,7 +42,6 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Members',
       role: 'members',
       scope: 'file',
-      side: 'instance',
       category: MemberCategory.All,
       layout: 'list',
       relationsMode: 'references',
@@ -56,7 +52,6 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Relations',
       role: 'relations',
       scope: 'file',
-      side: 'instance',
       category: MemberCategory.All,
       layout: 'list',
       relationsMode: 'references',
@@ -67,7 +62,6 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Pane 5',
       role: 'types',
       scope: 'project',
-      side: 'both',
       category: MemberCategory.All,
       layout: 'list',
       relationsMode: 'callers',
@@ -78,7 +72,6 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Pane 6',
       role: 'members',
       scope: 'file',
-      side: 'class',
       category: MemberCategory.All,
       layout: 'tree',
       relationsMode: 'implementations',
