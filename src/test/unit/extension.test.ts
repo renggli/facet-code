@@ -71,5 +71,20 @@ suite('Extension Lifecycle Test Suite', () => {
     await vscode.commands.executeCommand('facet.configure.files');
     await vscode.commands.executeCommand('facet.focus.types');
     await vscode.commands.executeCommand('facet.focus.members');
+
+    // Execute slot-specific action commands
+    await vscode.commands.executeCommand('facet.pane.1.display');
+    await vscode.commands.executeCommand('facet.pane.1.filter');
+    await vscode.commands.executeCommand('facet.pane.1.type');
+    await vscode.commands.executeCommand('facet.pane.1.input');
+    await vscode.commands.executeCommand('facet.pane.1.sort');
+
+    // Execute global palette commands
+    await vscode.commands.executeCommand('facet.addPane');
+    await vscode.commands.executeCommand('facet.removePane');
+    await vscode.commands.executeCommand('facet.applyPreset');
+    await vscode.commands.executeCommand('facet.savePreset');
+    await vscode.commands.executeCommand('facet.loadPreset');
+    await vscode.commands.executeCommand('facet.deletePreset');
   });
 });

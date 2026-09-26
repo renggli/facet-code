@@ -268,7 +268,9 @@ export const window = {
 	},
 	createTreeView: () => ({
 		title: "",
+		visible: true,
 		onDidChangeSelection: () => ({ dispose: () => {} }),
+		onDidChangeVisibility: () => ({ dispose: () => {} }),
 		reveal: async () => {},
 		dispose: () => {},
 	}),

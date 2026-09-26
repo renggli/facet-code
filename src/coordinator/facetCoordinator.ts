@@ -579,8 +579,7 @@ export class FacetCoordinator implements vscode.Disposable {
       }
     }
 
-    const pattern = ('globPattern' in config ? config.globPattern : undefined) ||
-      ('filePattern' in config ? config.filePattern : undefined);
+    const pattern = 'globPattern' in config ? config.globPattern : undefined;
 
     const display = 'display' in config ? config.display : 'flat';
 
@@ -775,9 +774,7 @@ export class FacetCoordinator implements vscode.Disposable {
           }
         }
         const displayMode = (config as FilesPaneConfig).display;
-        const isRecursive = (config as FilesPaneConfig).recursive !== undefined
-          ? Boolean((config as FilesPaneConfig).recursive)
-          : displayMode !== 'current';
+        const isRecursive = displayMode !== 'current';
         files = this.cachedWorkspaceFiles.filter((file) => {
           const normFile = file.fsPath.replace(/\\/g, '/').replace(/\/+$/, '');
           return dirPaths.some((dir) => {
@@ -807,8 +804,7 @@ export class FacetCoordinator implements vscode.Disposable {
       });
     }
 
-    const pattern = ('globPattern' in config ? config.globPattern : undefined) ||
-      ('filePattern' in config ? config.filePattern : undefined);
+    const pattern = 'globPattern' in config ? config.globPattern : undefined;
 
     if (pattern && pattern.trim()) {
       files = files.filter((u) => {

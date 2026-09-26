@@ -145,8 +145,6 @@ export interface FilesPaneConfig extends BasePaneConfig {
   sort: 'position' | 'name';
   display: 'current' | 'flat' | 'hierarchy';
   globPattern?: string;
-  filePattern?: string;
-  recursive?: boolean;
 }
 
 export interface DirectoriesPaneConfig extends BasePaneConfig {
@@ -156,7 +154,6 @@ export interface DirectoriesPaneConfig extends BasePaneConfig {
   sort: 'position' | 'name';
   display: 'current' | 'flat' | 'hierarchy';
   globPattern?: string;
-  filePattern?: string;
 }
 
 export interface TypesPaneConfig extends BasePaneConfig {

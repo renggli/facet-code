@@ -11,6 +11,20 @@ export function parseSlotOrderFromBuffer(
 	const text = typeof buffer === "string" ? buffer : buffer.toString("utf8");
 	const orderMap = new Map<string, number>();
 
+	// Pattern 4: Consecutive occurrences or array of facet.pane.X slots (e.g. "facet-container":[...], "views":[...])
+	const arrayRegex = /"(?:views|facet-container|defaultViews)"[^[]*\[([^\]]+)\]/g;
+	let lastArraySlots: string[] | undefined;
+	for (const m of text.matchAll(arrayRegex)) {
+		const slotMatches = Array.from(m[1].matchAll(/"(facet\.pane\.[1-6])"/g)).map((sm) => sm[1]);
+		const distinct = Array.from(new Set(slotMatches));
+		if (distinct.length >= 2) {
+			lastArraySlots = distinct;
+		}
+	}
+	if (lastArraySlots) {
+		return lastArraySlots;
+	}
+
 	// Pattern 1: "facet.pane.X":{..."order":N...}
 	const regex1 = /"(facet\.pane\.[1-6])"\s*:\s*\{[^{}]*?"order"\s*:\s*(\d+)/g;
 	for (const m of text.matchAll(regex1)) {
@@ -31,18 +45,6 @@ export function parseSlotOrderFromBuffer(
 		const regex3 = /"(facet\.pane\.[1-6])"[^}]{0,200}?"order"[:\s]+(\d+)/g;
 		for (const m of text.matchAll(regex3)) {
 			orderMap.set(m[1], parseInt(m[2], 10));
-		}
-	}
-
-	// Pattern 4: Consecutive occurrences or array of facet.pane.X slots
-	if (orderMap.size < 2) {
-		const arrayMatch = text.match(/"(?:views|facet-container|defaultViews)"[^[]*\[([^\]]+)\]/);
-		if (arrayMatch) {
-			const slotMatches = Array.from(arrayMatch[1].matchAll(/"(facet\.pane\.[1-6])"/g)).map((m) => m[1]);
-			const distinct = Array.from(new Set(slotMatches));
-			if (distinct.length >= 2) {
-				return distinct;
-			}
 		}
 	}
 

@@ -38,6 +38,14 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     ]
   };
 
+  setup(() => {
+    window.clearPromptQueues();
+  });
+
+  teardown(() => {
+    window.clearPromptQueues();
+  });
+
   test('PanePipelineManager initializes with default 4 visible panes (Project Browser preset)', () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
@@ -237,22 +245,21 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     await manager.configurePane('facet.pane.3');
     assert.strictEqual((manager.getPane('facet.pane.3') as any)?.display, 'flat');
 
-    // 9. Test Add Pane action from menu
-    window.pushQuickPick({ action: 'addEnd' });
-    window.pushQuickPick({ role: 'callers' });
-    await manager.configurePane('facet.pane.1');
+    // 9. Test Add Pane action via promptAddPane()
+    window.pushQuickPick({ role: 'callers', label: 'Callers' });
+    await manager.promptAddPane();
     assert.strictEqual(manager.getVisiblePanes().length, 5);
     assert.strictEqual(manager.getVisiblePanes()[4].role, 'callers');
 
-    // 10. Test Recursive traversal toggle for files pane
-    window.pushQuickPick({ action: 'recursive' });
-    window.pushQuickPick({ recursive: true });
+    // 10. Test Display mode toggle for files pane
+    window.pushQuickPick({ action: 'display' });
+    window.pushQuickPick({ mode: 'current' });
     await manager.configurePane('facet.pane.2');
-    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.recursive, true);
+    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.display, 'current');
 
-    // 11. Test Remove Pane action from menu
-    window.pushQuickPick({ action: 'remove' });
-    await manager.configurePane('facet.pane.5');
+    // 11. Test Remove Pane action via promptRemovePane()
+    window.pushQuickPick({ id: 'facet.pane.5' });
+    await manager.promptRemovePane();
     assert.strictEqual(manager.getVisiblePanes().length, 4);
 
     coordinator.dispose();
@@ -335,6 +342,17 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     window.pushQuickPick({ name: 'InteractivePreset', target: 'workspace' });
     await manager.applyPreset();
     assert.strictEqual(manager.getSavedPresets('workspace').InteractivePreset, undefined);
+
+    // Test: Hiding one pane then loading default preset restores all 4 panes
+    await manager.removePane(manager.getVisiblePanes()[0].id);
+    assert.strictEqual(manager.getVisiblePanes().length, 3);
+    await manager.applyPreset('Project Browser');
+    const restored = manager.getVisiblePanes();
+    assert.strictEqual(restored.length, 4);
+    assert.strictEqual(restored[0].role, 'directories');
+    assert.strictEqual(restored[1].role, 'files');
+    assert.strictEqual(restored[2].role, 'types');
+    assert.strictEqual(restored[3].role, 'members');
 
     coordinator.dispose();
   });
@@ -420,6 +438,23 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     ]);
     assert.strictEqual(unchanged, false);
 
+    // Now apply "Project Browser" preset: the visual sequence MUST remain:
+    // visual slot 0 (facet.pane.3): Directories
+    // visual slot 1 (facet.pane.1): Files
+    // visual slot 2 (facet.pane.2): Types
+    // visual slot 3 (facet.pane.4): Members
+    await manager.applyPreset('Project Browser');
+    const visibleAfterPreset = manager.getVisiblePanes();
+    assert.strictEqual(visibleAfterPreset.length, 4);
+    assert.strictEqual(visibleAfterPreset[0].id, 'facet.pane.3');
+    assert.strictEqual(visibleAfterPreset[0].role, 'directories');
+    assert.strictEqual(visibleAfterPreset[1].id, 'facet.pane.1');
+    assert.strictEqual(visibleAfterPreset[1].role, 'files');
+    assert.strictEqual(visibleAfterPreset[2].id, 'facet.pane.2');
+    assert.strictEqual(visibleAfterPreset[2].role, 'types');
+    assert.strictEqual(visibleAfterPreset[3].id, 'facet.pane.4');
+    assert.strictEqual(visibleAfterPreset[3].role, 'members');
+
     coordinator.dispose();
   });
 
@@ -495,6 +530,45 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
         // ignore cleanup errors
       }
     }
+  });
+
+  test('PanePipelineManager modular configuration methods operate correctly', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    // 1. configurePaneType
+    window.pushQuickPick({ role: 'types', label: 'Types' });
+    await manager.configurePaneType('facet.pane.1');
+    assert.strictEqual(manager.getPane('facet.pane.1')?.role, 'types');
+
+    // 2. configureInputSource
+    window.pushQuickPick({ source: 'activeEditor', label: 'Active Editor' });
+    await manager.configureInputSource('facet.pane.1');
+    assert.strictEqual(manager.getPane('facet.pane.1')?.inputSource, 'activeEditor');
+
+    // 3. configureSelectionSource
+    window.pushQuickPick({ source: 'all' });
+    await manager.configureSelectionSource('facet.pane.1');
+    assert.strictEqual(manager.getPane('facet.pane.1')?.selectionSource, 'all');
+
+    // 4. configureSort
+    window.pushQuickPick({ sort: 'name' });
+    await manager.configureSort('facet.pane.1');
+    assert.strictEqual(manager.getPane('facet.pane.1')?.sort, 'name');
+
+    // 5. configureFilter (files pane)
+    window.pushInputBox('**/*.test.ts');
+    await manager.configureFilter('facet.pane.2');
+    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.globPattern, '**/*.test.ts');
+
+    // 6. configureDisplayMode
+    window.pushQuickPick({ mode: 'current' });
+    await manager.configureDisplayMode('facet.pane.2');
+    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.display, 'current');
+
+    coordinator.dispose();
   });
 });
 

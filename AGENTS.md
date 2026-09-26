@@ -103,55 +103,31 @@
 
 ## 3. Structural Model & Native Actions
 
-### Native Contextual Pane Controls
+### Native Contextual Pane Controls & Header Actions
 
-- **`facet.pane.configure` (`$(gear)`):** Single contextual action on each pane header providing:
-  - *Title:* Edit title via InputBox.
-  - *Type:*
-    - Files
-    - Directories
-    - Types
-    - Members
-    - Definitions
-    - Declarations
-    - Implementations
-    - References
-    - Callers
-    - Hierarchy
-    - Problems
-    - Changes
-  - *Input Source:*
-    - Project (for files, directories, types, problems, changes)
-    - Open Editors (for files, directories, types, members, problems, changes)
-    - Active Editor (for files, directories, types, members, problems, changes)
-    - Previous Pane (for files, directories, types, members, definitions, declarations, implementations, references, callers, hierarchy, problems, changes)
-  - *Selection Source:*
-    - All (selects everything by default)
-    - None (selects nothing by default)
-    - Cursor (selects the item under the cursor)
-  - *Filter:*
-    - For files/directories this is a glob pattern on the full path
-    - For types/members/definitions/declarations/implementations/references/callers/hierarchy this is toggles across 26 symbol kinds
-  - *Sort by:*
-    - Position
-    - Name
-    - Category
-  - *Display:*
-    - Current vs Flat vs Hierarchy (for files, directories); Flat vs Hierarchy (for types, members, hierarchy)
-  - (horizontal separator)
-  - *Add Pane*: Append new pane to the end.
-  - *Remove Pane*: Removes the current pane.
-  - (horizontal separator)
-  - *Apply Preset*:
-    - Project Browser (default): directories (hierarchical) -> files -> types (hierarchical) -> members
-    - Implementors: types -> members -> implementors
-    - Callers: types -> members -> callers
-    - References: types -> members -> references
+- **Pane Header Actions (Native `view/title`):**
+  - **Inline Action Buttons (`group: "navigation"`):**
+    - `$(list-tree)` Display Mode: Switch between `current` (immediate children/inputs), `flat` (recursive flat list), and `hierarchy` (nested tree structure).
+    - `$(filter)` Filter: Configure glob pattern (for directories/files) or 26 symbol kind toggles (for types/members/relations).
+  - **Three-Dot Popup Menu (`...` / `group: "1_settings"`):**
+    - `Configure Pane...`: Full configuration quickpick (Title, Type, Input, Selection, Sort, Filter, Display Mode).
+    - `Change Type...`: Switch pane role (Files, Directories, Types, Members, Definitions, Declarations, Implementations, References, Callers, Hierarchy, Problems, Changes).
+    - `Input Source...`: Switch input source (`project`, `openEditors`, `activeEditor`, `previousPane`).
+    - `Sort by...`: Change ordering (`position`, `name`, `category`).
+- **Global Pipeline Operations (Command Palette `Ctrl+Shift+P` / `Cmd+Shift+P`):**
+  - `Facet: Add Pane` (`facet.addPane`): Append a new pane to the end of the pipeline sequence (up to 6 total slots).
+  - `Facet: Remove Pane...` (`facet.removePane`): Pick and remove a pane from the pipeline (enforcing minimum 1 visible pane).
+  - `Facet: Apply Preset...` (`facet.applyPreset`): Apply built-in presets (Project Browser, Implementors, Callers, References) or saved presets.
+  - `Facet: Save Preset...` (`facet.savePreset`): Save active pipeline layout to Workspace or Global settings.
+  - `Facet: Load Preset...` (`facet.loadPreset`): Load a saved preset from Workspace or Global settings.
+  - `Facet: Delete Preset...` (`facet.deletePreset`): Remove a saved preset from Workspace or Global settings.
 - **Dynamic Title Commands (Replacing Static Slot Numbers):**
   - *`Facet: Focus on $title`:* Dynamically surfaced in the Command Palette for each active pane in the pipeline (e.g., `Facet: Focus on Directories`, `Facet: Focus on Files`, `Facet: Focus on Types`, `Facet: Focus on Members`), immediately focusing that view.
   - *`Facet: Configure $title`:* Dynamically surfaced in the Command Palette for each active pane, opening its contextual configuration menu directly.
   - *`Facet: Focus on Pane...` & `Facet: Configure Pane...`:* QuickPick selector commands listing visible panes by their active titles.
   - Static commands like `Facet: Configure Pane $N` are suppressed from the Command Palette to avoid unhelpful slot-indexed entries.
+- **Resilient Pane Folding:**
+  - Collapsing a pane header folds the section natively in the sidebar without hiding or removing the slot from the pipeline.
 - **`facet.revealRange`:** Navigates the active text editor to the target symbol range.
 
 ---

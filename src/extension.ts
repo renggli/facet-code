@@ -121,6 +121,21 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand(`${slotId}.configure`, async () => {
         await pipelineManager.configurePane(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.display`, async () => {
+        await pipelineManager.configureDisplayMode(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.filter`, async () => {
+        await pipelineManager.configureFilter(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.type`, async () => {
+        await pipelineManager.configurePaneType(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.input`, async () => {
+        await pipelineManager.configureInputSource(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.sort`, async () => {
+        await pipelineManager.configureSort(slotId);
       })
     );
   }
@@ -176,6 +191,24 @@ export function activate(context: vscode.ExtensionContext) {
   updateDynamicPaneCommands();
 
   context.subscriptions.push(
+    vscode.commands.registerCommand('facet.addPane', async () => {
+      await pipelineManager.promptAddPane();
+    }),
+    vscode.commands.registerCommand('facet.removePane', async () => {
+      await pipelineManager.promptRemovePane();
+    }),
+    vscode.commands.registerCommand('facet.applyPreset', async () => {
+      await pipelineManager.applyPreset();
+    }),
+    vscode.commands.registerCommand('facet.savePreset', async () => {
+      await pipelineManager.saveCustomPresetPrompt();
+    }),
+    vscode.commands.registerCommand('facet.loadPreset', async () => {
+      await pipelineManager.loadCustomPresetPrompt();
+    }),
+    vscode.commands.registerCommand('facet.deletePreset', async () => {
+      await pipelineManager.deleteCustomPresetPrompt();
+    }),
     vscode.commands.registerCommand('facet.pane.focus', async (arg?: any) => {
       const slotId = await resolveSlotId(arg, 'Select pane to focus');
       if (slotId) {
