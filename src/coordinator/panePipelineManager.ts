@@ -18,6 +18,9 @@ import {
   createCallersPane,
   createFilesPane,
   createDirectoriesPane,
+  createProblemsPane,
+  createChangesPane,
+  createHierarchyPane,
   createDefaultPanes
 } from '../models/paneConfig';
 import { FacetCoordinator } from './facetCoordinator';
@@ -649,19 +652,29 @@ export class PanePipelineManager {
         preset: 'project'
       },
       {
-        label: '$(symbol-class) Implementors',
-        description: 'Types -> Members -> Implementations',
-        preset: 'implementors'
+        label: '$(edit) Active Editor',
+        description: 'Types (Active Editor) -> Members -> Callers',
+        preset: 'activeEditor'
       },
       {
-        label: '$(call-incoming) Callers',
-        description: 'Types -> Members -> Callers',
-        preset: 'callers'
+        label: '$(git-pull-request) Working Changes',
+        description: 'Changes (Git/Dirty) -> Types -> Members -> Problems',
+        preset: 'workingChanges'
       },
       {
-        label: '$(references) References',
-        description: 'Types -> Members -> References',
-        preset: 'references'
+        label: '$(error) Problem Triage',
+        description: 'Problems (Workspace) -> Types -> Members -> References',
+        preset: 'problemTriage'
+      },
+      {
+        label: '$(type-hierarchy-sub) Type Hierarchy',
+        description: 'Hierarchy (Roots/Subtypes) -> Members -> Implementations',
+        preset: 'typeHierarchy'
+      },
+      {
+        label: '$(files) Open Editors',
+        description: 'Open Files -> Types (Hierarchy) -> Members -> References',
+        preset: 'openEditors'
       },
       { label: 'Custom Presets', kind: vscode.QuickPickItemKind.Separator },
       {
@@ -704,13 +717,29 @@ export class PanePipelineManager {
   }
 
   private async loadPresetByName(presetName: string): Promise<void> {
-    const lower = presetName.toLowerCase();
-    if (lower === 'project browser' || lower === 'project') {
+    const norm = presetName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (norm === 'projectbrowser' || norm === 'project') {
       await this.loadBuiltinPreset('project');
       return;
     }
-    if (['implementors', 'callers', 'references'].includes(lower)) {
-      await this.loadBuiltinPreset(lower);
+    if (norm === 'activeeditor' || norm === 'activeeditorinspector' || norm === 'callers') {
+      await this.loadBuiltinPreset('activeEditor');
+      return;
+    }
+    if (norm === 'workingchanges' || norm === 'workingchangesreview' || norm === 'changes') {
+      await this.loadBuiltinPreset('workingChanges');
+      return;
+    }
+    if (norm === 'problemtriage' || norm === 'problems') {
+      await this.loadBuiltinPreset('problemTriage');
+      return;
+    }
+    if (norm === 'typehierarchy' || norm === 'hierarchy' || norm === 'implementors') {
+      await this.loadBuiltinPreset('typeHierarchy');
+      return;
+    }
+    if (norm === 'openeditors' || norm === 'references') {
+      await this.loadBuiltinPreset('openEditors');
       return;
     }
     // Check saved presets
@@ -732,24 +761,47 @@ export class PanePipelineManager {
           createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
-      case 'implementors':
-        newVisible = [
-          createTypesPane('', { title: 'Types', inputSource: 'project', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' }),
-          createImplementationsPane('', { title: 'Implementations', inputSource: 'previousPane', selectionSource: 'none' })
-        ];
-        break;
+      case 'activeEditor':
       case 'callers':
         newVisible = [
-          createTypesPane('', { title: 'Types', inputSource: 'project', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' }),
+          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'activeEditor', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'cursor' }),
           createCallersPane('', { title: 'Callers', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;
+      case 'workingChanges':
+      case 'changes':
+        newVisible = [
+          createChangesPane('', { title: 'Changes', inputSource: 'project', selectionSource: 'cursor' }),
+          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'previousPane', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'none' }),
+          createProblemsPane('', { title: 'Problems', inputSource: 'previousPane', selectionSource: 'none' })
+        ];
+        break;
+      case 'problemTriage':
+      case 'problems':
+        newVisible = [
+          createProblemsPane('', { title: 'Problems', inputSource: 'project', selectionSource: 'cursor' }),
+          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'previousPane', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'cursor' }),
+          createReferencesPane('', { title: 'References', inputSource: 'previousPane', selectionSource: 'none' })
+        ];
+        break;
+      case 'typeHierarchy':
+      case 'hierarchy':
+      case 'implementors':
+        newVisible = [
+          createHierarchyPane('', { title: 'Hierarchy', display: 'hierarchy', inputSource: 'project', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'cursor' }),
+          createImplementationsPane('', { title: 'Implementations', inputSource: 'previousPane', selectionSource: 'none' })
+        ];
+        break;
+      case 'openEditors':
       case 'references':
         newVisible = [
-          createTypesPane('', { title: 'Types', inputSource: 'project', selectionSource: 'cursor' }),
-          createMembersPane('', { title: 'Members', inputSource: 'previousPane', selectionSource: 'none' }),
+          createFilesPane('', { title: 'Open Files', display: 'flat', inputSource: 'openEditors', selectionSource: 'cursor' }),
+          createTypesPane('', { title: 'Types', display: 'hierarchy', inputSource: 'previousPane', selectionSource: 'cursor' }),
+          createMembersPane('', { title: 'Members', display: 'flat', inputSource: 'previousPane', selectionSource: 'none' }),
           createReferencesPane('', { title: 'References', inputSource: 'previousPane', selectionSource: 'none' })
         ];
         break;

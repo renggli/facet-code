@@ -271,29 +271,50 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
     const manager = new PanePipelineManager(coordinator);
 
-    // Apply Implementors preset
-    await manager.applyPreset('Implementors');
+    // Apply Active Editor preset
+    await manager.applyPreset('Active Editor');
     let visible = manager.getVisiblePanes();
     assert.strictEqual(visible.length, 3);
     assert.strictEqual(visible[0].role, 'types');
-    assert.strictEqual(visible[1].role, 'members');
-    assert.strictEqual(visible[2].role, 'implementations');
-
-    // Apply Callers preset
-    await manager.applyPreset('Callers');
-    visible = manager.getVisiblePanes();
-    assert.strictEqual(visible.length, 3);
-    assert.strictEqual(visible[0].role, 'types');
+    assert.strictEqual(visible[0].inputSource, 'activeEditor');
     assert.strictEqual(visible[1].role, 'members');
     assert.strictEqual(visible[2].role, 'callers');
 
-    // Apply References preset
-    await manager.applyPreset('References');
+    // Apply Working Changes preset
+    await manager.applyPreset('Working Changes');
+    visible = manager.getVisiblePanes();
+    assert.strictEqual(visible.length, 4);
+    assert.strictEqual(visible[0].role, 'changes');
+    assert.strictEqual(visible[1].role, 'types');
+    assert.strictEqual(visible[2].role, 'members');
+    assert.strictEqual(visible[3].role, 'problems');
+
+    // Apply Problem Triage preset
+    await manager.applyPreset('Problem Triage');
+    visible = manager.getVisiblePanes();
+    assert.strictEqual(visible.length, 4);
+    assert.strictEqual(visible[0].role, 'problems');
+    assert.strictEqual(visible[1].role, 'types');
+    assert.strictEqual(visible[2].role, 'members');
+    assert.strictEqual(visible[3].role, 'references');
+
+    // Apply Type Hierarchy preset
+    await manager.applyPreset('Type Hierarchy');
     visible = manager.getVisiblePanes();
     assert.strictEqual(visible.length, 3);
-    assert.strictEqual(visible[0].role, 'types');
+    assert.strictEqual(visible[0].role, 'hierarchy');
     assert.strictEqual(visible[1].role, 'members');
-    assert.strictEqual(visible[2].role, 'references');
+    assert.strictEqual(visible[2].role, 'implementations');
+
+    // Apply Open Editors preset
+    await manager.applyPreset('Open Editors');
+    visible = manager.getVisiblePanes();
+    assert.strictEqual(visible.length, 4);
+    assert.strictEqual(visible[0].role, 'files');
+    assert.strictEqual(visible[0].inputSource, 'openEditors');
+    assert.strictEqual(visible[1].role, 'types');
+    assert.strictEqual(visible[2].role, 'members');
+    assert.strictEqual(visible[3].role, 'references');
 
     // Apply Project Browser preset
     await manager.applyPreset('Project Browser');
@@ -317,7 +338,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.ok(allPresets.GlobalCustomPreset);
 
     // Apply custom saved preset
-    await manager.applyPreset('Callers');
+    await manager.applyPreset('Active Editor');
     assert.strictEqual(manager.getVisiblePanes().length, 3);
     await manager.applyPreset('MyCustomPreset');
     assert.strictEqual(manager.getVisiblePanes().length, 4);
@@ -567,6 +588,34 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     window.pushQuickPick({ mode: 'current' });
     await manager.configureDisplayMode('facet.pane.2');
     assert.strictEqual((manager.getPane('facet.pane.2') as any)?.display, 'current');
+
+    coordinator.dispose();
+  });
+
+  test('all 6 presets resolve slot tree items through coordinator without throwing', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    const presetNames = [
+      'Project Browser',
+      'Active Editor',
+      'Working Changes',
+      'Problem Triage',
+      'Type Hierarchy',
+      'Open Editors'
+    ];
+
+    for (const name of presetNames) {
+      await manager.applyPreset(name);
+      const visible = manager.getVisiblePanes();
+      assert.ok(visible.length >= 3, `Preset ${name} should have at least 3 visible panes`);
+      for (const pane of visible) {
+        const children = await coordinator.getSlotChildren(pane);
+        assert.ok(Array.isArray(children), `Children for ${pane.id} in preset ${name} must be an array`);
+      }
+    }
 
     coordinator.dispose();
   });

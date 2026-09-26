@@ -24,13 +24,15 @@
     - *Add Pane:* Append a new pane to the end of the pipeline sequence (up to 6 total slots).
     - *Remove Pane:* Hide this pane from the pipeline (enforcing minimum 1 visible pane), shifting subsequent slots without corrupting slot indexing or upstream references.
   - **Presets & Persistence**:
-    - Predefined presets out of the box (`Project Browser`, `Implementors`, `Callers`, `References`).
+    - Predefined presets out of the box (`Project Browser`, `Active Editor`, `Working Changes`, `Problem Triage`, `Type Hierarchy`, `Open Editors`).
     - Save, load, and delete custom presets to Workspace (`facet.presets.workspace`) or Global settings (`facet.presets.global`).
     - **Predefined Presets (`facet.pane.presets`):**
       - **Project Browser:** Directories (hierarchical) -> Files -> Types (hierarchical) -> Members.
-      - **Implementors:** Types (hierarchical) -> Members -> Implementations.
-      - **Callers:** Types -> Members -> Callers.
-      - **References:** Types -> Members -> References.
+      - **Active Editor:** Types (activeEditor, hierarchical) -> Members -> Callers.
+      - **Working Changes:** Changes (project) -> Types (hierarchical) -> Members -> Problems.
+      - **Problem Triage:** Problems (project) -> Types (hierarchical) -> Members -> References.
+      - **Type Hierarchy:** Hierarchy (project, hierarchical) -> Members -> Implementations.
+      - **Open Editors:** Open Files (openEditors) -> Types (hierarchical) -> Members -> References.
   - **Display Modes for Directories and Files**:
     - `current`: Non-recursive. Shows immediate direct children of previous directory or top-level project items.
     - `flat`: Recursive. Recursively traverses all descendants and flattens into a single list.

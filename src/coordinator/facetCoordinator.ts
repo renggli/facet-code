@@ -789,9 +789,28 @@ export class FacetCoordinator implements vscode.Disposable {
           });
         });
       } else {
-        files = prevSel
+        const rawFiles = prevSel
           .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
           .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
+        if (rawFiles.length === 0) {
+          const prevPane = this.getPreviousPane(config.id);
+          if (prevPane) {
+            const prevChildren = await this.getSlotChildren(prevPane);
+            rawFiles.push(
+              ...prevChildren
+                .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
+                .filter((u): u is vscode.Uri => u instanceof vscode.Uri)
+            );
+          }
+        }
+        const seen = new Set<string>();
+        files = rawFiles.filter((u) => {
+          if (seen.has(u.fsPath)) {
+            return false;
+          }
+          seen.add(u.fsPath);
+          return true;
+        });
       }
     }
 
@@ -953,8 +972,24 @@ export class FacetCoordinator implements vscode.Disposable {
           .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
           .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
 
-        if (fileUris.length > 0) {
-          for (const uri of fileUris) {
+        let targetUris = fileUris;
+        if (targetUris.length === 0) {
+          const prevPane = this.getPreviousPane(config.id);
+          if (prevPane) {
+            const prevChildren = await this.getSlotChildren(prevPane);
+            targetUris = prevChildren
+              .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
+              .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
+          }
+        }
+
+        if (targetUris.length > 0) {
+          const seenUris = new Set<string>();
+          for (const uri of targetUris) {
+            if (seenUris.has(uri.fsPath)) {
+              continue;
+            }
+            seenUris.add(uri.fsPath);
             try {
               const doc = await vscode.workspace.openTextDocument(uri);
               const symbols = await this.resolver.resolveDocumentSymbols(doc);
@@ -1156,6 +1191,15 @@ export class FacetCoordinator implements vscode.Disposable {
       candidateUris = prevSel
         .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
         .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
+      if (candidateUris.length === 0) {
+        const prevPane = this.getPreviousPane(config.id);
+        if (prevPane) {
+          const prevChildren = await this.getSlotChildren(prevPane);
+          candidateUris = prevChildren
+            .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
+            .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
+        }
+      }
     }
 
     const items: ProblemItem[] = [];
