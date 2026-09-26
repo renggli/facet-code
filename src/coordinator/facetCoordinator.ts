@@ -9,7 +9,9 @@ import {
   LayoutMode,
   isTypeKind,
   unionMembers,
-  getSymbolIcon
+  getSymbolIcon,
+  extractSuperTypes,
+  buildTypeHierarchy
 } from '../models/symbolNode';
 import { PaneConfig, matchesPaneFilters } from '../models/paneConfig';
 import { PanePipelineManager } from './panePipelineManager';
@@ -224,10 +226,13 @@ export class FacetCoordinator implements vscode.Disposable {
 
   private async getTypeChildren(config: PaneConfig, element?: any): Promise<any[]> {
     if (element) {
-      if (config.display === 'hierarchy' && element.children) {
-        return (element.children as FacetSymbolNode[]).filter(
+      if (config.display === 'hierarchy') {
+        const node = element as FacetSymbolNode;
+        const subTypes = node.subTypes || [];
+        const filtered = subTypes.filter(
           (c) => isTypeKind(c.kind) && matchesPaneFilters(c, config.filters)
         );
+        return filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
       }
       return [];
     }
@@ -249,13 +254,26 @@ export class FacetCoordinator implements vscode.Disposable {
       rawTypes = prev.filter((s) => isTypeKind(s.kind));
     }
 
-    const filtered = rawTypes.filter((t) => matchesPaneFilters(t, config.filters));
-
-    if (config.display === 'flat') {
-      return filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
+    // Hydrate superTypes if missing
+    for (const t of rawTypes) {
+      if (t.superTypes === undefined && t.uri) {
+        const openDoc = (vscode.workspace.textDocuments || []).find(
+          (d) => d.uri.toString() === t.uri.toString()
+        );
+        if (openDoc && t.range.start.line < openDoc.lineCount) {
+          t.superTypes = extractSuperTypes(openDoc.lineAt(t.range.start.line).text);
+        }
+      }
     }
 
-    return filtered;
+    const filtered = rawTypes.filter((t) => matchesPaneFilters(t, config.filters));
+
+    if (config.display === 'hierarchy') {
+      const roots = buildTypeHierarchy(filtered);
+      return roots.slice().sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
   }
 
   private async getMemberChildren(config: PaneConfig, element?: any): Promise<any[]> {
@@ -359,8 +377,16 @@ export class FacetCoordinator implements vscode.Disposable {
     }
 
     const node = element as FacetSymbolNode;
-    const hasChildren =
-      config.display === 'hierarchy' && node.children && node.children.length > 0;
+    const isTypeRole = config.role === 'types' || config.role === 'hierarchy';
+    let hasChildren = false;
+
+    if (config.display === 'hierarchy') {
+      if (isTypeRole) {
+        hasChildren = Boolean(node.subTypes && node.subTypes.length > 0);
+      } else {
+        hasChildren = Boolean(node.children && node.children.length > 0);
+      }
+    }
 
     const item = new vscode.TreeItem(
       node.name,

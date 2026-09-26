@@ -159,4 +159,76 @@ suite('FacetCoordinator Test Suite', () => {
 
     coordinator.dispose();
   });
+
+  test('coordinator resolves type hierarchy roots without duplicates and expands subtypes', async () => {
+    const resolver = new SymbolResolver();
+    const typesProvider = new TypesTreeProvider();
+    const membersProvider = new MembersTreeProvider();
+    const relationsProvider = new RelationsTreeProvider();
+
+    const coordinator = new FacetCoordinator(
+      resolver,
+      typesProvider,
+      membersProvider,
+      relationsProvider
+    );
+
+    const baseClass: FacetSymbolNode = {
+      name: 'BaseClass',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: dummyRange,
+      selectionRange: dummyRange,
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: []
+    };
+
+    const subClass: FacetSymbolNode = {
+      name: 'SubClass',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: dummyRange,
+      selectionRange: dummyRange,
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['BaseClass']
+    };
+
+    (coordinator as any).cachedWorkspaceTypes = [baseClass, subClass];
+
+    const typesPaneConfig: PaneConfig = {
+      id: 'facet.pane.1',
+      title: 'Project Types',
+      role: 'types',
+      inputSource: 'project',
+      navigateOnSelect: true,
+      followCursor: true,
+      filters: createDefaultFilters(),
+      display: 'hierarchy',
+      visible: true
+    };
+
+    // Root children: only BaseClass should be returned! SubClass is omitted from root
+    const rootChildren = await coordinator.getSlotChildren(typesPaneConfig);
+    assert.strictEqual(rootChildren.length, 1);
+    assert.strictEqual(rootChildren[0].name, 'BaseClass');
+
+    // BaseClass tree item has Collapsed collapsibleState because it has subtypes
+    const baseItem = coordinator.getSlotTreeItem(typesPaneConfig, rootChildren[0]);
+    assert.strictEqual(baseItem.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
+
+    // Expanding BaseClass returns SubClass
+    const subChildren = await coordinator.getSlotChildren(typesPaneConfig, rootChildren[0]);
+    assert.strictEqual(subChildren.length, 1);
+    assert.strictEqual(subChildren[0].name, 'SubClass');
+
+    // SubClass tree item has None collapsibleState because it has no further subtypes
+    const subItem = coordinator.getSlotTreeItem(typesPaneConfig, subChildren[0]);
+    assert.strictEqual(subItem.collapsibleState, vscode.TreeItemCollapsibleState.None);
+
+    coordinator.dispose();
+  });
 });

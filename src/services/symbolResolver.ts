@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FacetSymbolNode, MemberCategory, isTypeKind } from '../models/symbolNode';
+import { FacetSymbolNode, MemberCategory, isTypeKind, extractSuperTypes } from '../models/symbolNode';
 
 export class SymbolResolver {
   private cache = new Map<string, { version: number; symbols: FacetSymbolNode[] }>();
@@ -30,8 +30,14 @@ export class SymbolResolver {
 
     if (rawSymbols && rawSymbols.length > 0) {
       if ('children' in rawSymbols[0]) {
+        let lines: string[] | undefined;
+        try {
+          lines = document.getText().split('\n');
+        } catch {
+          // ignore
+        }
         nodes = (rawSymbols as vscode.DocumentSymbol[]).map((s) =>
-          this.fromDocumentSymbol(s, document.uri)
+          this.fromDocumentSymbol(s, document.uri, undefined, lines)
         );
       } else {
         nodes = this.fromSymbolInformations(
@@ -166,9 +172,15 @@ export class SymbolResolver {
   public fromDocumentSymbol(
     sym: vscode.DocumentSymbol,
     uri: vscode.Uri,
-    parent?: FacetSymbolNode
+    parent?: FacetSymbolNode,
+    lines?: string[]
   ): FacetSymbolNode {
     const { category, isStatic } = this.categorize(sym.kind, sym.detail);
+
+    let superTypes: string[] | undefined;
+    if (isTypeKind(sym.kind) && lines && sym.range.start.line < lines.length) {
+      superTypes = extractSuperTypes(lines[sym.range.start.line]);
+    }
 
     const node: FacetSymbolNode = {
       name: sym.name,
@@ -180,11 +192,12 @@ export class SymbolResolver {
       category,
       isStatic,
       children: [],
-      parent
+      parent,
+      superTypes
     };
 
     if (sym.children && sym.children.length > 0) {
-      node.children = sym.children.map((c) => this.fromDocumentSymbol(c, uri, node));
+      node.children = sym.children.map((c) => this.fromDocumentSymbol(c, uri, node, lines));
     }
 
     return node;
@@ -266,7 +279,8 @@ export class SymbolResolver {
           selectionRange: range,
           category: MemberCategory.All,
           isStatic: false,
-          children: []
+          children: [],
+          superTypes: extractSuperTypes(line)
         };
         nodes.push(currentTypeNode);
         continue;

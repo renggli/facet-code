@@ -206,4 +206,95 @@ export class Calculator {
     assert.strictEqual(matchesPaneFilters(methodNode, { methods: true }), true);
     assert.strictEqual(matchesPaneFilters(methodNode, { methods: false }), false);
   });
+
+  test('extractSuperTypes correctly parses extends and implements across language headers', () => {
+    const { extractSuperTypes } = require('../../models/symbolNode');
+
+    assert.deepStrictEqual(
+      extractSuperTypes('export class Dog extends Animal implements IPet, ICanRun {'),
+      ['Animal', 'IPet', 'ICanRun']
+    );
+    assert.deepStrictEqual(
+      extractSuperTypes('interface Cat extends Animal, Domesticated {'),
+      ['Animal', 'Domesticated']
+    );
+    assert.deepStrictEqual(
+      extractSuperTypes('class Dog(Animal, CanRun):'),
+      ['Animal', 'CanRun']
+    );
+    assert.deepStrictEqual(
+      extractSuperTypes('public class Dog : Animal, IPet'),
+      ['Animal', 'IPet']
+    );
+  });
+
+  test('buildTypeHierarchy nests subtypes and excludes them from roots', () => {
+    const { buildTypeHierarchy } = require('../../models/symbolNode');
+
+    const animal: FacetSymbolNode = {
+      name: 'Animal',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: new vscode.Range(0, 0, 0, 0),
+      selectionRange: new vscode.Range(0, 0, 0, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: []
+    };
+
+    const dog: FacetSymbolNode = {
+      name: 'Dog',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: new vscode.Range(1, 0, 1, 0),
+      selectionRange: new vscode.Range(1, 0, 1, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['Animal']
+    };
+
+    const goldenRetriever: FacetSymbolNode = {
+      name: 'GoldenRetriever',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: new vscode.Range(2, 0, 2, 0),
+      selectionRange: new vscode.Range(2, 0, 2, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['Dog']
+    };
+
+    const standalone: FacetSymbolNode = {
+      name: 'StandaloneClass',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: new vscode.Range(3, 0, 3, 0),
+      selectionRange: new vscode.Range(3, 0, 3, 0),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: []
+    };
+
+    const roots = buildTypeHierarchy([animal, dog, goldenRetriever, standalone]);
+
+    // Only Animal and StandaloneClass are roots! Dog and GoldenRetriever must NOT be duplicated at root level
+    assert.strictEqual(roots.length, 2);
+    const rootNames = roots.map((r: FacetSymbolNode) => r.name);
+    assert.ok(rootNames.includes('Animal'));
+    assert.ok(rootNames.includes('StandaloneClass'));
+    assert.ok(!rootNames.includes('Dog'));
+    assert.ok(!rootNames.includes('GoldenRetriever'));
+
+    // Animal has Dog as subType
+    assert.strictEqual(animal.subTypes?.length, 1);
+    assert.strictEqual(animal.subTypes[0].name, 'Dog');
+
+    // Dog has GoldenRetriever as subType
+    assert.strictEqual(dog.subTypes?.length, 1);
+    assert.strictEqual(dog.subTypes[0].name, 'GoldenRetriever');
+  });
 });

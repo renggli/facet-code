@@ -13,7 +13,9 @@ export interface RelationItem {
 }
 
 async function getLineSnippet(uri: vscode.Uri, lineIndex: number, fallback: string): Promise<string> {
-  const openDoc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString());
+  const openDoc = (vscode.workspace.textDocuments || []).find(
+    (d) => d.uri.toString() === uri.toString()
+  );
   if (openDoc && lineIndex >= 0 && lineIndex < openDoc.lineCount) {
     const text = openDoc.lineAt(lineIndex).text.trim();
     if (text) {

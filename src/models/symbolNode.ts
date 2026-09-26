@@ -25,6 +25,8 @@ export interface FacetSymbolNode {
   isStatic: boolean;
   children: FacetSymbolNode[];
   parent?: FacetSymbolNode;
+  superTypes?: string[];
+  subTypes?: FacetSymbolNode[];
 }
 
 export function isTypeKind(kind: vscode.SymbolKind): boolean {
@@ -91,4 +93,78 @@ export function getSymbolIcon(kind: vscode.SymbolKind): vscode.ThemeIcon {
     default:
       return new vscode.ThemeIcon('symbol-misc');
   }
+}
+
+export function extractSuperTypes(header: string): string[] {
+  const superTypes: string[] = [];
+
+  // TypeScript / JS / Dart / Java: extends ... / implements ...
+  const extendsMatch = /\bextends\s+([A-Za-z0-9_$.<>\s,]+?)(?=\s+implements\s+|\s+with\s+|\s*\{|\s*$)/.exec(header);
+  if (extendsMatch) {
+    const parts = extendsMatch[1]
+      .split(',')
+      .map((s) => s.trim().replace(/<.*>/g, '').split('.').pop()!)
+      .filter(Boolean);
+    superTypes.push(...parts);
+  }
+
+  const implementsMatch = /\b(?:implements|with)\s+([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(header);
+  if (implementsMatch) {
+    const parts = implementsMatch[1]
+      .split(',')
+      .map((s) => s.trim().replace(/<.*>/g, '').split('.').pop()!)
+      .filter(Boolean);
+    superTypes.push(...parts);
+  }
+
+  // C# / C++: class Dog : Animal, ICanRun
+  const colonMatch = /:\s*(?:public\s+|private\s+|protected\s+)?([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(header);
+  if (colonMatch && !extendsMatch && !implementsMatch) {
+    const parts = colonMatch[1]
+      .split(',')
+      .map((s) => s.trim().replace(/<.*>/g, '').replace(/^(?:public|private|protected)\s+/, '').split('.').pop()!)
+      .filter(Boolean);
+    superTypes.push(...parts);
+  }
+
+  // Python: class Dog(Animal, CanRun):
+  const pythonMatch = /\(([A-Za-z0-9_$,\s]+)\)\s*:/.exec(header);
+  if (pythonMatch) {
+    const parts = pythonMatch[1]
+      .split(',')
+      .map((s) => s.trim().split('.').pop()!)
+      .filter((s) => Boolean(s) && s !== 'object');
+    superTypes.push(...parts);
+  }
+
+  return [...new Set(superTypes)];
+}
+
+export function buildTypeHierarchy(types: readonly FacetSymbolNode[]): FacetSymbolNode[] {
+  const typeMap = new Map<string, FacetSymbolNode>();
+  for (const t of types) {
+    typeMap.set(t.name, t);
+    t.subTypes = [];
+  }
+
+  const childNames = new Set<string>();
+
+  for (const t of types) {
+    if (t.superTypes && t.superTypes.length > 0) {
+      for (const superName of t.superTypes) {
+        const parent = typeMap.get(superName);
+        if (parent) {
+          if (!parent.subTypes) {
+            parent.subTypes = [];
+          }
+          if (!parent.subTypes.some((sub) => sub.name === t.name)) {
+            parent.subTypes.push(t);
+          }
+          childNames.add(t.name);
+        }
+      }
+    }
+  }
+
+  return types.filter((t) => !childNames.has(t.name));
 }
