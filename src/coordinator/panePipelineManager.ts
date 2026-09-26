@@ -257,9 +257,17 @@ export class PanePipelineManager {
       pane.role === 'members' ||
       pane.role === 'hierarchy'
     ) {
+      let dispDesc = 'Flat';
+      if ('display' in pane) {
+        if (pane.display === 'hierarchy') {
+          dispDesc = 'Hierarchy';
+        } else if (pane.display === 'current') {
+          dispDesc = 'Current (Inputs/Top-level)';
+        }
+      }
       items.push({
         label: '$(list-tree) Display Mode...',
-        description: ('display' in pane && pane.display === 'hierarchy') ? 'Hierarchy' : 'Flat',
+        description: dispDesc,
         action: 'display'
       });
       if ('subclassTypes' in pane && pane.display === 'hierarchy') {
@@ -455,21 +463,29 @@ export class PanePipelineManager {
       }
       case 'display': {
         if ('display' in pane) {
-          const dispPick = await vscode.window.showQuickPick(
-            [
-              {
-                label: 'Hierarchy',
-                description: 'Tree hierarchy structure',
-                mode: 'hierarchy' as DisplayMode
-              },
-              {
-                label: 'Flat',
-                description: 'Alphabetical or flat list without nesting',
-                mode: 'flat' as DisplayMode
-              }
-            ],
-            { placeHolder: 'Select Display Mode' }
+          const displayOptions: { label: string; description: string; mode: DisplayMode }[] = [];
+          if (pane.role === 'files' || pane.role === 'directories') {
+            displayOptions.push({
+              label: 'Current',
+              description: 'Shows inputs / top-level project items (non-recursive)',
+              mode: 'current' as DisplayMode
+            });
+          }
+          displayOptions.push(
+            {
+              label: 'Flat',
+              description: 'Recursively traverses and flattens',
+              mode: 'flat' as DisplayMode
+            },
+            {
+              label: 'Hierarchy',
+              description: 'Tree hierarchy structure',
+              mode: 'hierarchy' as DisplayMode
+            }
           );
+          const dispPick = await vscode.window.showQuickPick(displayOptions, {
+            placeHolder: 'Select Display Mode'
+          });
           if (dispPick) {
             pane.display = dispPick.mode;
             this._onDidUpdatePanes.fire();
@@ -573,42 +589,93 @@ export class PanePipelineManager {
   }
 
   public async applyPreset(presetName?: string): Promise<void> {
-    const selected =
-      presetName?.toLowerCase() ||
-      (
-        await vscode.window.showQuickPick(
-          [
-            {
-              label: 'Project Browser',
-              description: 'Directories (Hierarchy) -> Files -> Types (Hierarchy) -> Members',
-              preset: 'project'
-            },
-            {
-              label: 'Implementors',
-              description: 'Types -> Members -> Implementations',
-              preset: 'implementors'
-            },
-            {
-              label: 'Callers',
-              description: 'Types -> Members -> Callers',
-              preset: 'callers'
-            },
-            {
-              label: 'References',
-              description: 'Types -> Members -> References',
-              preset: 'references'
-            }
-          ],
-          { placeHolder: 'Select Pane Pipeline Preset' }
-        )
-      )?.preset;
-
-    if (!selected) {
+    if (presetName) {
+      await this.loadPresetByName(presetName);
       return;
     }
 
+    const items: (vscode.QuickPickItem & { action?: string; preset?: string })[] = [
+      { label: 'Built-in Presets', kind: vscode.QuickPickItemKind.Separator },
+      {
+        label: '$(layout) Project Browser',
+        description: 'Directories (Hierarchy) -> Files -> Types (Hierarchy) -> Members',
+        preset: 'project'
+      },
+      {
+        label: '$(symbol-class) Implementors',
+        description: 'Types -> Members -> Implementations',
+        preset: 'implementors'
+      },
+      {
+        label: '$(call-incoming) Callers',
+        description: 'Types -> Members -> Callers',
+        preset: 'callers'
+      },
+      {
+        label: '$(references) References',
+        description: 'Types -> Members -> References',
+        preset: 'references'
+      },
+      { label: 'Custom Presets', kind: vscode.QuickPickItemKind.Separator },
+      {
+        label: '$(save) Save Current Preset...',
+        description: 'Save current active pipeline to Workspace or Global settings',
+        action: 'save'
+      },
+      {
+        label: '$(folder-opened) Load Saved Preset...',
+        description: 'Load a preset saved in Workspace or Global settings',
+        action: 'load'
+      },
+      {
+        label: '$(trash) Delete Saved Preset...',
+        description: 'Remove a preset from Workspace or Global settings',
+        action: 'delete'
+      }
+    ];
+
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select Pane Pipeline Preset or Manage Presets'
+    });
+
+    if (!picked) {
+      return;
+    }
+
+    if (picked.preset) {
+      await this.loadBuiltinPreset(picked.preset);
+      return;
+    }
+
+    if (picked.action === 'save') {
+      await this.saveCustomPresetPrompt();
+    } else if (picked.action === 'load') {
+      await this.loadCustomPresetPrompt();
+    } else if (picked.action === 'delete') {
+      await this.deleteCustomPresetPrompt();
+    }
+  }
+
+  private async loadPresetByName(presetName: string): Promise<void> {
+    const lower = presetName.toLowerCase();
+    if (lower === 'project browser' || lower === 'project') {
+      await this.loadBuiltinPreset('project');
+      return;
+    }
+    if (['implementors', 'callers', 'references'].includes(lower)) {
+      await this.loadBuiltinPreset(lower);
+      return;
+    }
+    // Check saved presets
+    const saved = this.getSavedPresets();
+    if (saved[presetName]) {
+      await this.applyVisiblePanes(saved[presetName]);
+    }
+  }
+
+  private async loadBuiltinPreset(preset: string): Promise<void> {
     let newVisible: PaneConfig[];
-    switch (selected) {
+    switch (preset) {
       case 'project':
       default:
         newVisible = [
@@ -642,6 +709,135 @@ export class PanePipelineManager {
     }
 
     await this.applyVisiblePanes(newVisible);
+  }
+
+  public getSavedPresets(scope?: 'workspace' | 'global'): Record<string, PaneConfig[]> {
+    const config = vscode.workspace.getConfiguration('facet');
+    const presets: Record<string, PaneConfig[]> = {};
+    if (!scope || scope === 'global') {
+      const globalPresets = config.get<Record<string, PaneConfig[]>>('presets.global') || {};
+      Object.assign(presets, globalPresets);
+    }
+    if (!scope || scope === 'workspace') {
+      const wsPresets = config.get<Record<string, PaneConfig[]>>('presets.workspace') || {};
+      Object.assign(presets, wsPresets);
+    }
+    return presets;
+  }
+
+  public async savePreset(name: string, target: 'workspace' | 'global'): Promise<void> {
+    const config = vscode.workspace.getConfiguration('facet');
+    const key = target === 'workspace' ? 'presets.workspace' : 'presets.global';
+    const existing = config.get<Record<string, PaneConfig[]>>(key) || {};
+    const visiblePanes = this.getVisiblePanes().map((p) => ({ ...p }));
+    const updated = { ...existing, [name]: visiblePanes };
+    const targetScope = target === 'workspace' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+    await config.update(key, updated, targetScope);
+  }
+
+  public async deletePreset(name: string, target: 'workspace' | 'global'): Promise<void> {
+    const config = vscode.workspace.getConfiguration('facet');
+    const key = target === 'workspace' ? 'presets.workspace' : 'presets.global';
+    const existing = config.get<Record<string, PaneConfig[]>>(key) || {};
+    const updated = { ...existing };
+    delete updated[name];
+    const targetScope = target === 'workspace' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+    await config.update(key, updated, targetScope);
+  }
+
+  private async saveCustomPresetPrompt(): Promise<void> {
+    const name = await vscode.window.showInputBox({
+      prompt: 'Enter a name for the new preset',
+      placeHolder: 'e.g. My Workflow'
+    });
+    if (!name || !name.trim()) {
+      return;
+    }
+    const scopePick = await vscode.window.showQuickPick(
+      [
+        { label: 'Workspace', description: 'Available only in this workspace', target: 'workspace' as const },
+        { label: 'Global (User Settings)', description: 'Available across all workspaces', target: 'global' as const }
+      ],
+      { placeHolder: 'Select where to save the preset' }
+    );
+    if (!scopePick) {
+      return;
+    }
+    await this.savePreset(name.trim(), scopePick.target);
+    vscode.window.showInformationMessage(`Preset "${name.trim()}" saved to ${scopePick.label}.`);
+  }
+
+  private async loadCustomPresetPrompt(): Promise<void> {
+    const config = vscode.workspace.getConfiguration('facet');
+    const wsPresets = config.get<Record<string, PaneConfig[]>>('presets.workspace') || {};
+    const globalPresets = config.get<Record<string, PaneConfig[]>>('presets.global') || {};
+
+    const items: (vscode.QuickPickItem & { preset: PaneConfig[] })[] = [];
+    for (const [name, panes] of Object.entries(wsPresets)) {
+      items.push({
+        label: name,
+        description: 'Workspace preset',
+        preset: panes
+      });
+    }
+    for (const [name, panes] of Object.entries(globalPresets)) {
+      if (!items.some((i) => i.label === name)) {
+        items.push({
+          label: name,
+          description: 'Global preset',
+          preset: panes
+        });
+      }
+    }
+
+    if (items.length === 0) {
+      vscode.window.showInformationMessage('No saved presets found in workspace or global settings.');
+      return;
+    }
+
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select a saved preset to load'
+    });
+    if (picked) {
+      await this.applyVisiblePanes(picked.preset);
+    }
+  }
+
+  private async deleteCustomPresetPrompt(): Promise<void> {
+    const config = vscode.workspace.getConfiguration('facet');
+    const wsPresets = config.get<Record<string, PaneConfig[]>>('presets.workspace') || {};
+    const globalPresets = config.get<Record<string, PaneConfig[]>>('presets.global') || {};
+
+    const items: (vscode.QuickPickItem & { name: string; target: 'workspace' | 'global' })[] = [];
+    for (const name of Object.keys(wsPresets)) {
+      items.push({
+        label: name,
+        description: 'Workspace',
+        name,
+        target: 'workspace'
+      });
+    }
+    for (const name of Object.keys(globalPresets)) {
+      items.push({
+        label: name,
+        description: 'Global',
+        name,
+        target: 'global'
+      });
+    }
+
+    if (items.length === 0) {
+      vscode.window.showInformationMessage('No saved presets to delete.');
+      return;
+    }
+
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select preset to delete'
+    });
+    if (picked) {
+      await this.deletePreset(picked.name, picked.target);
+      vscode.window.showInformationMessage(`Deleted preset "${picked.name}".`);
+    }
   }
 
   private async promptRolePicker(

@@ -88,6 +88,17 @@ suite('FacetCoordinator Test Suite', () => {
     const flatDirs = await coordinator.getSlotChildren(dirConfigFlat);
     assert.ok(flatDirs.length >= 2);
 
+    const dirConfigCurrent = createDirectoriesPane('facet.pane.1', {
+      display: 'current',
+      inputSource: 'project'
+    });
+    const currentDirs = await coordinator.getSlotChildren(dirConfigCurrent);
+    // Top-level only: 'src' and 'test'
+    assert.strictEqual(currentDirs.length, 2);
+    const currentNames = currentDirs.map((d: any) => d.name);
+    assert.ok(currentNames.includes('src'));
+    assert.ok(currentNames.includes('test'));
+
     (vscode.workspace as any).findFiles = origFindFiles;
     coordinator.dispose();
   });
@@ -491,26 +502,26 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.setSlotSelection('facet.pane.1', [dirNode]);
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'directories' });
 
-    // Test non-recursive mode (default)
-    const nonRecursiveConfig = createFilesPane('facet.pane.2', {
+    // Test current display mode (immediate direct children)
+    const currentConfig = createFilesPane('facet.pane.2', {
       inputSource: 'previousPane',
-      recursive: false
+      display: 'current'
     });
 
-    const directFiles = await coordinator.getSlotChildren(nonRecursiveConfig);
+    const directFiles = await coordinator.getSlotChildren(currentConfig);
     assert.strictEqual(directFiles.length, 2);
     const directPaths = directFiles.map((u: vscode.Uri) => u.path);
     assert.ok(directPaths.includes('/workspace/src/app.ts'));
     assert.ok(directPaths.includes('/workspace/src/utils.ts'));
     assert.ok(!directPaths.includes('/workspace/src/components/button.tsx'));
 
-    // Test recursive mode
-    const recursiveConfig = createFilesPane('facet.pane.2', {
+    // Test flat display mode (recursively traverses and flattens)
+    const flatConfig = createFilesPane('facet.pane.2', {
       inputSource: 'previousPane',
-      recursive: true
+      display: 'flat'
     });
 
-    const allDescendantFiles = await coordinator.getSlotChildren(recursiveConfig);
+    const allDescendantFiles = await coordinator.getSlotChildren(flatConfig);
     assert.strictEqual(allDescendantFiles.length, 4);
     const recursivePaths = allDescendantFiles.map((u: vscode.Uri) => u.path);
     assert.ok(recursivePaths.includes('/workspace/src/app.ts'));

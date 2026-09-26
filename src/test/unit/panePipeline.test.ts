@@ -297,6 +297,45 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(visible[2].role, 'types');
     assert.strictEqual(visible[3].role, 'members');
 
+    // Save current preset to workspace and global
+    await manager.savePreset('MyCustomPreset', 'workspace');
+    await manager.savePreset('GlobalCustomPreset', 'global');
+
+    const wsPresets = manager.getSavedPresets('workspace');
+    assert.ok(wsPresets.MyCustomPreset);
+    assert.strictEqual(wsPresets.MyCustomPreset.length, 4);
+
+    const allPresets = manager.getSavedPresets();
+    assert.ok(allPresets.MyCustomPreset);
+    assert.ok(allPresets.GlobalCustomPreset);
+
+    // Apply custom saved preset
+    await manager.applyPreset('Callers');
+    assert.strictEqual(manager.getVisiblePanes().length, 3);
+    await manager.applyPreset('MyCustomPreset');
+    assert.strictEqual(manager.getVisiblePanes().length, 4);
+
+    // Delete custom preset
+    await manager.deletePreset('MyCustomPreset', 'workspace');
+    const afterDelete = manager.getSavedPresets('workspace');
+    assert.strictEqual(afterDelete.MyCustomPreset, undefined);
+
+    // Interactive applyPreset save & load flow
+    window.pushQuickPick({ action: 'save' });
+    window.pushInputBox('InteractivePreset');
+    window.pushQuickPick({ target: 'workspace', label: 'Workspace' });
+    await manager.applyPreset();
+    assert.ok(manager.getSavedPresets('workspace').InteractivePreset);
+
+    window.pushQuickPick({ action: 'load' });
+    window.pushQuickPick({ preset: wsPresets.MyCustomPreset, label: 'InteractivePreset' });
+    await manager.applyPreset();
+
+    window.pushQuickPick({ action: 'delete' });
+    window.pushQuickPick({ name: 'InteractivePreset', target: 'workspace' });
+    await manager.applyPreset();
+    assert.strictEqual(manager.getSavedPresets('workspace').InteractivePreset, undefined);
+
     coordinator.dispose();
   });
 

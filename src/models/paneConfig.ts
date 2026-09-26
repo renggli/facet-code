@@ -18,7 +18,7 @@ export type PaneRole =
 export type PaneInputSource = 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
 export type SelectionSource = 'none' | 'all' | 'cursor';
 export type SortOption = 'position' | 'name' | 'category';
-export type DisplayMode = 'flat' | 'hierarchy';
+export type DisplayMode = 'current' | 'flat' | 'hierarchy';
 
 export type SymbolKindKey =
   | 'array'
@@ -143,7 +143,7 @@ export interface FilesPaneConfig extends BasePaneConfig {
   inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
-  display: 'flat' | 'hierarchy';
+  display: 'current' | 'flat' | 'hierarchy';
   globPattern?: string;
   filePattern?: string;
   recursive?: boolean;
@@ -154,7 +154,7 @@ export interface DirectoriesPaneConfig extends BasePaneConfig {
   inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
-  display: 'flat' | 'hierarchy';
+  display: 'current' | 'flat' | 'hierarchy';
   globPattern?: string;
   filePattern?: string;
 }
@@ -284,7 +284,6 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
     selectionSource: 'none',
     sort: 'name',
     display: 'flat',
-    recursive: false,
     visible: true,
     ...overrides
   };

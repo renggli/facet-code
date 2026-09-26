@@ -178,6 +178,12 @@ export class RelativePattern {
 	) {}
 }
 
+const mockConfigStore = new Map<string, any>();
+
+export function clearMockConfig(): void {
+	mockConfigStore.clear();
+}
+
 export const workspace = {
 	textDocuments: [] as any[],
 	asRelativePath(uriOrPath: any): string {
@@ -208,6 +214,18 @@ export const workspace = {
 	}),
 	fs: {
 		readFile: async () => Buffer.from("", "utf8"),
+	},
+	getConfiguration: (section?: string) => {
+		return {
+			get: (key: string, defaultValue?: any) => {
+				const full = section ? `${section}.${key}` : key;
+				return mockConfigStore.has(full) ? mockConfigStore.get(full) : defaultValue;
+			},
+			update: async (key: string, value: any, _target?: any) => {
+				const full = section ? `${section}.${key}` : key;
+				mockConfigStore.set(full, value);
+			}
+		};
 	},
 };
 
@@ -268,6 +286,12 @@ export enum DiagnosticSeverity {
 	Hint = 3,
 }
 
+export enum ConfigurationTarget {
+	Global = 1,
+	Workspace = 2,
+	WorkspaceFolder = 3,
+}
+
 export const languages = {
 	getDiagnostics: (_uri?: any): any[] => [],
 };
@@ -313,6 +337,7 @@ export const mockVscode = {
 	Uri,
 	SymbolKind,
 	DiagnosticSeverity,
+	ConfigurationTarget,
 	QuickPickItemKind,
 	ExtensionMode,
 	TreeItemCollapsibleState,

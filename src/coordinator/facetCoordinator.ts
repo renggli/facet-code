@@ -547,28 +547,7 @@ export class FacetCoordinator implements vscode.Disposable {
       }
     }
 
-    const pattern = ('globPattern' in config ? config.globPattern : undefined) ||
-      ('filePattern' in config ? config.filePattern : undefined);
-
-    const display = 'display' in config ? config.display : 'flat';
-    if (display === 'flat') {
-      const flatNodes: DirectoryNode[] = Array.from(baseDirMap.values())
-        .filter((d) => matchesGlob(d.relPath, pattern) || matchesGlob(d.name, pattern))
-        .map((d) => ({
-          type: 'directory',
-          uri: d.uri,
-          name: d.name,
-          relativePath: d.relPath
-        }));
-
-      flatNodes.sort((a, b) =>
-        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
-      );
-      return flatNodes;
-    }
-
-    // Hierarchy mode
-    // 1. Synthesize all ancestor path segments from baseDirMap
+    // Synthesize all ancestor path segments from baseDirMap
     const allDirsMap = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
 
     for (const base of baseDirMap.values()) {
@@ -599,6 +578,73 @@ export class FacetCoordinator implements vscode.Disposable {
         }
       }
     }
+
+    const pattern = ('globPattern' in config ? config.globPattern : undefined) ||
+      ('filePattern' in config ? config.filePattern : undefined);
+
+    const display = 'display' in config ? config.display : 'flat';
+
+    if (display === 'current') {
+      let currentDirs: { uri: vscode.Uri; relPath: string; name: string }[] = [];
+      if (config.inputSource === 'previousPane') {
+        const prevSelDirs = prevSel.filter((item) => item?.type === 'directory');
+        if (prevSelDirs.length > 0) {
+          const matchedSubDirs = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
+          for (const dNode of prevSelDirs) {
+            const parentRel = (dNode.relativePath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+            for (const item of allDirsMap.values()) {
+              if (item.relPath !== parentRel) {
+                const prefix = parentRel ? `${parentRel}/` : '';
+                if (item.relPath.startsWith(prefix)) {
+                  const subRel = item.relPath.slice(prefix.length);
+                  if (!subRel.includes('/')) {
+                    matchedSubDirs.set(item.relPath, item);
+                  }
+                }
+              }
+            }
+          }
+          currentDirs = Array.from(matchedSubDirs.values());
+        } else {
+          currentDirs = Array.from(allDirsMap.values());
+        }
+      } else {
+        // Project or openEditors: top-level project items (no '/' in relPath)
+        currentDirs = Array.from(allDirsMap.values()).filter((d) => !d.relPath.includes('/'));
+      }
+
+      const currentNodes: DirectoryNode[] = currentDirs
+        .filter((d) => matchesGlob(d.relPath, pattern) || matchesGlob(d.name, pattern))
+        .map((d) => ({
+          type: 'directory',
+          uri: d.uri,
+          name: d.name,
+          relativePath: d.relPath
+        }));
+
+      currentNodes.sort((a, b) =>
+        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
+      );
+      return currentNodes;
+    }
+
+    if (display === 'flat') {
+      const flatNodes: DirectoryNode[] = Array.from(baseDirMap.values())
+        .filter((d) => matchesGlob(d.relPath, pattern) || matchesGlob(d.name, pattern))
+        .map((d) => ({
+          type: 'directory',
+          uri: d.uri,
+          name: d.name,
+          relativePath: d.relPath
+        }));
+
+      flatNodes.sort((a, b) =>
+        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath)
+      );
+      return flatNodes;
+    }
+
+    // Hierarchy mode
 
     // 2. Build DirectoryNode map
     const nodeMap = new Map<string, DirectoryNode>();
@@ -728,7 +774,10 @@ export class FacetCoordinator implements vscode.Disposable {
             this.cachedWorkspaceFiles = [];
           }
         }
-        const isRecursive = (config as FilesPaneConfig).recursive ?? false;
+        const displayMode = (config as FilesPaneConfig).display;
+        const isRecursive = (config as FilesPaneConfig).recursive !== undefined
+          ? Boolean((config as FilesPaneConfig).recursive)
+          : displayMode !== 'current';
         files = this.cachedWorkspaceFiles.filter((file) => {
           const normFile = file.fsPath.replace(/\\/g, '/').replace(/\/+$/, '');
           return dirPaths.some((dir) => {
@@ -747,6 +796,15 @@ export class FacetCoordinator implements vscode.Disposable {
           .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
           .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
       }
+    }
+
+    // Top-level filter if display is 'current' with project or openEditors input
+    const display = (config as FilesPaneConfig).display;
+    if (display === 'current' && config.inputSource !== 'previousPane') {
+      files = files.filter((u) => {
+        const rel = (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(u) : u.fsPath).replace(/\\/g, '/');
+        return !rel.includes('/');
+      });
     }
 
     const pattern = ('globPattern' in config ? config.globPattern : undefined) ||

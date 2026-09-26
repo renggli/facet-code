@@ -23,14 +23,18 @@
   - **Pipeline Settings (Adding & Removing with Drag-and-Drop Resilience):**
     - *Add Pane:* Append a new pane to the end of the pipeline sequence (up to 6 total slots).
     - *Remove Pane:* Hide this pane from the pipeline (enforcing minimum 1 visible pane), shifting subsequent slots without corrupting slot indexing or upstream references.
-  - **Presets**:
-    - Load the standard predefined preset.
-    - Allows to save / load presets to workspace, global settings.
+  - **Presets & Persistence**:
+    - Predefined presets out of the box (`Project Browser`, `Implementors`, `Callers`, `References`).
+    - Save, load, and delete custom presets to Workspace (`facet.presets.workspace`) or Global settings (`facet.presets.global`).
     - **Predefined Presets (`facet.pane.presets`):**
       - **Project Browser:** Directories (hierarchical) -> Files -> Types (hierarchical) -> Members.
       - **Implementors:** Types (hierarchical) -> Members -> Implementations.
       - **Callers:** Types -> Members -> Callers.
       - **References:** Types -> Members -> References.
+  - **Display Modes for Directories and Files**:
+    - `current`: Non-recursive. Shows immediate direct children of previous directory or top-level project items.
+    - `flat`: Recursive. Recursively traverses all descendants and flattens into a single list.
+    - `hierarchy`: Tree. Full nested hierarchical tree structure with collapsible child nodes.
 - **High-Readability Relations Display:**
   - Code snippet preview as label (trimmed source code line).
   - Relative workspace path and 1-based line number (`src/service.ts:42`) as description.
@@ -133,7 +137,7 @@
     - Name
     - Category
   - *Display:*
-    - Flat vs Hierarchy (for files, directories, types, members, hierarchy)
+    - Current vs Flat vs Hierarchy (for files, directories); Flat vs Hierarchy (for types, members, hierarchy)
   - (horizontal separator)
   - *Add Pane*: Append new pane to the end.
   - *Remove Pane*: Removes the current pane.
