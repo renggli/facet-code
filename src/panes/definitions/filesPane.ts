@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { type FilesPaneConfig, matchesGlob } from '../../models/paneConfig';
+import { getPathBasename, getRelativePath } from '../../shared/pathUtils';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
 export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vscode.Uri> {
@@ -71,7 +72,7 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
     } else if (config.inputSource === 'openEditors') {
       files = context.coordinator.getOpenEditorUris();
     } else if (config.inputSource === 'activeEditor') {
-      const activeUri = context.activeEditor?.document.uri || vscode.window.activeTextEditor?.document.uri;
+      const activeUri = context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri;
       if (activeUri) {
         files = [activeUri];
       }
@@ -82,8 +83,14 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
           : context.coordinator.getPreviousPaneSelection(config.id);
 
       const dirPaths = prevItems
-        .filter((item: any) => item?.type === 'directory' || (item instanceof vscode.Uri && !item.path.includes('.')))
-        .map((item: any) => (item?.uri ? item.uri.fsPath : item.fsPath));
+        .filter((item): item is { uri?: vscode.Uri; fsPath?: string; type?: string } => {
+          if (!item || typeof item !== 'object') {
+            return false;
+          }
+          const candidate = item as { type?: string; path?: string };
+          return candidate.type === 'directory' || (item instanceof vscode.Uri && !item.path.includes('.'));
+        })
+        .map((item) => (item.uri ? item.uri.fsPath : (item as vscode.Uri).fsPath));
 
       if (dirPaths.length > 0) {
         let workspaceFiles = context.coordinator.getCachedWorkspaceFiles();
@@ -112,22 +119,22 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
           context.upstreamOutput.uris && context.upstreamOutput.uris.length > 0
             ? context.upstreamOutput.uris
             : prevItems
-                .map((item: any) => (item instanceof vscode.Uri ? item : item?.uri))
-                .filter((u: any): u is vscode.Uri => u instanceof vscode.Uri);
+                .map((item) => (item instanceof vscode.Uri ? item : (item as { uri?: vscode.Uri })?.uri))
+                .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
 
         if (rawFiles.length === 0) {
           const prevPane = context.coordinator.getPreviousPane(config.id);
           if (prevPane) {
             const prevChildren = await context.coordinator.getSlotChildren(prevPane);
             rawFiles = prevChildren
-              .map((item: any) => (item instanceof vscode.Uri ? item : item?.uri))
-              .filter((u: any): u is vscode.Uri => u instanceof vscode.Uri);
+              .map((item) => (item instanceof vscode.Uri ? item : (item as { uri?: vscode.Uri })?.uri))
+              .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
           }
         }
 
         const seen = new Set<string>();
         files = rawFiles.filter((u) => {
-          if (!u || !u.fsPath || seen.has(u.fsPath)) {
+          if (!u?.fsPath || seen.has(u.fsPath)) {
             return false;
           }
           seen.add(u.fsPath);
@@ -137,19 +144,19 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
     }
 
     const pattern = config.globPattern;
-    if (pattern && pattern.trim()) {
+    if (pattern?.trim()) {
       files = files.filter((u) => {
-        const relPath = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(u) : u.fsPath;
+        const relPath = getRelativePath(u);
         return matchesGlob(relPath, pattern);
       });
     }
 
     files.sort((a, b) => {
-      const pathA = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(a) : a.fsPath;
-      const pathB = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(b) : b.fsPath;
+      const pathA = getRelativePath(a);
+      const pathB = getRelativePath(b);
       if (config.sort === 'name') {
-        const nameA = a.path.split('/').pop() || '';
-        const nameB = b.path.split('/').pop() || '';
+        const nameA = getPathBasename(a);
+        const nameB = getPathBasename(b);
         const diff = nameA.localeCompare(nameB);
         if (diff !== 0) {
           return diff;
@@ -162,13 +169,8 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
   }
 
   public getTreeItem(item: vscode.Uri): vscode.TreeItem {
-    const fileName = item.path?.split('/').pop() || item.fsPath || 'file';
-    let relPath = '';
-    try {
-      relPath = (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(item) : item.fsPath) || '';
-    } catch {
-      relPath = item.fsPath || item.path || '';
-    }
+    const fileName = getPathBasename(item);
+    const relPath = getRelativePath(item);
     const treeItem = new vscode.TreeItem(fileName, vscode.TreeItemCollapsibleState.None);
     if (relPath) {
       const lastSlash = relPath.lastIndexOf('/');
@@ -191,14 +193,14 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
   }
 
   public async configureFilter(config: FilesPaneConfig): Promise<boolean> {
-    const currentVal = config.globPattern || '';
+    const currentVal = config.globPattern ?? '';
     const pattern = await vscode.window.showInputBox({
       value: currentVal,
       prompt: 'Enter glob pattern on full path (e.g. src/**/*.ts, !*test*)',
       placeHolder: 'e.g. src/**/*.ts',
     });
     if (pattern !== undefined) {
-      config.globPattern = pattern.trim() || undefined;
+      config.globPattern = pattern.trim() ? pattern.trim() : undefined;
       return true;
     }
     return false;

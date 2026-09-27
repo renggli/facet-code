@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { PaneConfig, SortOption } from '../../models/paneConfig';
+import { getRelativePath } from '../../shared/pathUtils';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
 export interface ProblemItem {
@@ -62,13 +63,13 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
         candidateUris = [context.activeEditor.document.uri];
       }
     } else if (config.inputSource === 'previousPane') {
-      const prevItems = context.upstreamOutput.items || [];
+      const prevItems = context.upstreamOutput.items ?? [];
       candidateUris =
         context.upstreamOutput.uris && context.upstreamOutput.uris.length > 0
           ? context.upstreamOutput.uris
           : prevItems
-              .map((item: any) => (item instanceof vscode.Uri ? item : item?.uri))
-              .filter((u: any): u is vscode.Uri => u instanceof vscode.Uri);
+              .map((item) => (item instanceof vscode.Uri ? item : (item as { uri?: vscode.Uri })?.uri))
+              .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
     }
 
     const items: ProblemItem[] = [];
@@ -82,7 +83,7 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
   }
 
   public createProblemItem(uri: vscode.Uri, d: vscode.Diagnostic): ProblemItem {
-    const relPath = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(uri) : uri.fsPath;
+    const relPath = getRelativePath(uri);
     const lineNum = d.range.start.line + 1;
     let icon = new vscode.ThemeIcon('info');
     if (d.severity === vscode.DiagnosticSeverity.Error) {
@@ -104,28 +105,6 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
     };
   }
 
-  private sortProblems(items: ProblemItem[], sort: SortOption): ProblemItem[] {
-    return items.sort((a, b) => {
-      if (sort === 'category') {
-        const sevDiff = a.severity - b.severity;
-        if (sevDiff !== 0) {
-          return sevDiff;
-        }
-      }
-      if (sort === 'name') {
-        const msgDiff = a.message.localeCompare(b.message);
-        if (msgDiff !== 0) {
-          return msgDiff;
-        }
-      }
-      const uriDiff = a.uri.fsPath.localeCompare(b.uri.fsPath);
-      if (uriDiff !== 0) {
-        return uriDiff;
-      }
-      return a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character;
-    });
-  }
-
   public getTreeItem(item: ProblemItem): vscode.TreeItem {
     const treeItem = new vscode.TreeItem(item.label, vscode.TreeItemCollapsibleState.None);
     treeItem.description = item.description;
@@ -144,5 +123,33 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
       items: Array.from(items),
       uris: items.map((p) => p.uri),
     };
+  }
+
+  // --- Private Helpers at Bottom ---
+
+  private sortProblems(items: ProblemItem[], sort: SortOption): ProblemItem[] {
+    return items.sort((a, b) => {
+      if (sort === 'category') {
+        const sevDiff = a.severity - b.severity;
+        if (sevDiff !== 0) {
+          return sevDiff;
+        }
+      }
+      if (sort === 'name') {
+        const msgDiff = a.message.localeCompare(b.message);
+        if (msgDiff !== 0) {
+          return msgDiff;
+        }
+      }
+      const uriDiff = a.uri.fsPath.localeCompare(b.uri.fsPath);
+      if (uriDiff !== 0) {
+        return uriDiff;
+      }
+      const lineDiff = a.range.start.line - b.range.start.line;
+      if (lineDiff !== 0) {
+        return lineDiff;
+      }
+      return a.range.start.character - b.range.start.character;
+    });
   }
 }

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import {
   createDefaultPanes,
+  hasTreeProperty,
   type PaneConfig,
   type PaneInputSource,
   type PaneRole,
@@ -57,12 +58,12 @@ export class PanePipelineManager {
     ];
     const visibleRoles = new Set(this.getVisiblePanes().map((p) => p.role));
 
-    const contextPromises: Thenable<any>[] = [];
+    const contextPromises: Thenable<unknown>[] = [];
     for (const pane of this.panes) {
       contextPromises.push(vscode.commands.executeCommand('setContext', `${pane.id}.visible`, pane.visible));
       const def = this.registry.tryGet(pane.role);
       const hasTree = Boolean(def?.capabilities.hasTreeToggle);
-      const isTree = hasTree ? Boolean((pane as any).tree) : false;
+      const isTree = hasTree && hasTreeProperty(pane) ? Boolean(pane.tree) : false;
       const hasFilter = Boolean(def?.capabilities.hasFilter);
 
       contextPromises.push(
@@ -125,7 +126,7 @@ export class PanePipelineManager {
       p.visible = true;
 
       if (i === 0 && p.inputSource === 'previousPane') {
-        p.inputSource = 'project' as any;
+        p.inputSource = 'project';
       }
       updatedPanes.push(p);
     }
@@ -252,7 +253,7 @@ export class PanePipelineManager {
     this.panes = orderedPanes;
     const visible = this.getVisiblePanes();
     if (visible.length > 0 && visible[0].inputSource === 'previousPane') {
-      visible[0].inputSource = 'project' as any;
+      visible[0].inputSource = 'project';
     }
 
     await this.syncContextKeys();
@@ -314,8 +315,8 @@ export class PanePipelineManager {
       });
     }
 
-    if (caps.hasTreeToggle) {
-      const isTree = Boolean((pane as any).tree);
+    if (caps.hasTreeToggle && hasTreeProperty(pane)) {
+      const isTree = Boolean(pane.tree);
       items.push({
         label: '$(list-tree) Tree Display...',
         description: isTree ? 'Yes (Tree)' : 'No (Flat List)',
@@ -434,7 +435,7 @@ export class PanePipelineManager {
       placeHolder: 'Select Input Source',
     });
     if (inputPick) {
-      pane.inputSource = inputPick.source as any;
+      pane.inputSource = inputPick.source;
       this._onDidUpdatePanes.fire();
       await this.coordinator.sync();
     }
@@ -458,8 +459,8 @@ export class PanePipelineManager {
     };
 
     const options = def.capabilities.supportedSelections.map((src) => ({
-      label: labels[src] || src,
-      description: descriptions[src] || src,
+      label: labels[src] ?? src,
+      description: descriptions[src] ?? src,
       source: src,
     }));
 
@@ -487,14 +488,14 @@ export class PanePipelineManager {
     };
     const sortOptions = caps.supportedSorts.map((sort) => ({
       label: sort.charAt(0).toUpperCase() + sort.slice(1),
-      description: sortDescriptions[sort] || sort,
+      description: sortDescriptions[sort] ?? sort,
       sort,
     }));
     const sortPick = await vscode.window.showQuickPick(sortOptions, {
       placeHolder: 'Select Sort Order',
     });
     if (sortPick) {
-      pane.sort = sortPick.sort as any;
+      pane.sort = sortPick.sort;
       this._onDidUpdatePanes.fire();
       this.coordinator.refreshSlot(pane.id);
     }
@@ -523,10 +524,10 @@ export class PanePipelineManager {
 
   public async toggleTreeDisplay(slotId: string): Promise<void> {
     const pane = this.getPane(slotId);
-    if (!pane || !('tree' in pane)) {
+    if (!pane || !hasTreeProperty(pane)) {
       return;
     }
-    (pane as any).tree = !(pane as any).tree;
+    pane.tree = !pane.tree;
     await this.syncContextKeys();
     this._onDidUpdatePanes.fire();
     await this.coordinator.sync();
@@ -534,10 +535,10 @@ export class PanePipelineManager {
 
   public async configureTreeDisplay(slotId: string): Promise<void> {
     const pane = this.getPane(slotId);
-    if (!pane || !('tree' in pane)) {
+    if (!pane || !hasTreeProperty(pane)) {
       return;
     }
-    const current = Boolean((pane as any).tree);
+    const current = Boolean(pane.tree);
     const options = [
       {
         label: '$(list-tree) Tree Hierarchy',
@@ -556,7 +557,7 @@ export class PanePipelineManager {
       placeHolder: 'Select Tree or Flat List Display',
     });
     if (picked) {
-      (pane as any).tree = picked.tree;
+      pane.tree = picked.tree;
       await this.syncContextKeys();
       this._onDidUpdatePanes.fire();
       await this.coordinator.sync();

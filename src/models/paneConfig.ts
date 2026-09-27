@@ -105,20 +105,19 @@ export const SYMBOL_KIND_TO_KEY: Record<number, SymbolKindKey> = {
   [vscode.SymbolKind.TypeParameter]: 'typeParameter',
 };
 
-export type PaneFilters = {
-  [K in SymbolKindKey]?: boolean;
-};
+export type PaneFilters = { [key: string]: boolean | undefined };
 
 export interface BasePaneConfig {
   id: string; // e.g. 'facet.pane.1'
   title: string;
   visible: boolean;
+  inputSource: PaneInputSource;
+  selectionSource: SelectionSource;
+  sort: SortOption;
 }
 
 export interface FilesPaneConfig extends BasePaneConfig {
   role: 'files';
-  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
-  selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
   tree: boolean;
   globPattern?: string;
@@ -126,8 +125,6 @@ export interface FilesPaneConfig extends BasePaneConfig {
 
 export interface DirectoriesPaneConfig extends BasePaneConfig {
   role: 'directories';
-  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
-  selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
   tree: boolean;
   globPattern?: string;
@@ -174,22 +171,16 @@ export interface CallersPaneConfig extends BasePaneConfig {
 
 export interface ProblemsPaneConfig extends BasePaneConfig {
   role: 'problems';
-  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
-  selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name' | 'category';
 }
 
 export interface ChangesPaneConfig extends BasePaneConfig {
   role: 'changes';
-  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
-  selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
 }
 
 export interface HierarchyPaneConfig extends BasePaneConfig {
   role: 'hierarchy';
-  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
-  selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name' | 'category';
   tree: boolean;
   subclassTypes?: SymbolKindKey[];
@@ -198,8 +189,6 @@ export interface HierarchyPaneConfig extends BasePaneConfig {
 
 export interface SymbolsPaneConfig extends BasePaneConfig {
   role: 'symbols';
-  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
-  selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name' | 'category';
   tree: boolean;
   filters: PaneFilters;
@@ -218,9 +207,15 @@ export type PaneConfig =
   | CallersPaneConfig
   | HierarchyPaneConfig;
 
+export type PaneConfigWithTree = FilesPaneConfig | DirectoriesPaneConfig | SymbolsPaneConfig | HierarchyPaneConfig;
+
+export function hasTreeProperty(pane: PaneConfig): pane is PaneConfigWithTree {
+  return 'tree' in pane;
+}
+
 export function createDefaultFilters(keys?: SymbolKindKey[]): PaneFilters {
   const filters: Partial<Record<SymbolKindKey, boolean>> = {};
-  const targetKeys = keys || ALL_SYMBOL_FILTER_OPTIONS.map((o) => o.key);
+  const targetKeys = keys ?? ALL_SYMBOL_FILTER_OPTIONS.map((o) => o.key);
   for (const k of targetKeys) {
     filters[k] = true;
   }
@@ -452,7 +447,7 @@ export function matchesGlob(path: string, pattern?: string): boolean {
       const lastSlash = trimmed.lastIndexOf('/');
       const body = trimmed.slice(1, lastSlash);
       const flags = trimmed.slice(lastSlash + 1);
-      const re = new RegExp(body, flags || 'i');
+      const re = new RegExp(body, flags ? flags : 'i');
       return re.test(normalizedPath);
     } catch {
       // Fall through to glob matching

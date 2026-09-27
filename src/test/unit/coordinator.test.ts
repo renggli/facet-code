@@ -1,6 +1,12 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { type DirectoryNode, FacetCoordinator, type ProblemItem } from '../../coordinator/facetCoordinator';
+import {
+  type DirectoryNode,
+  FacetCoordinator,
+  type ProblemItem,
+  type RelationItem,
+} from '../../coordinator/facetCoordinator';
+import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import {
   createCallersPane,
   createChangesPane,
@@ -114,24 +120,24 @@ suite('FacetCoordinator Test Suite', () => {
       globPattern: 'auth',
     });
 
-    const authRoots = await coordinator.getSlotChildren(dirConfigAuth);
+    const authRoots = await coordinator.getSlotChildren<DirectoryNode>(dirConfigAuth);
     // Only 'src' should be a root. 'services' and 'auth' are nested elsewhere and must not appear in roots
     assert.strictEqual(authRoots.length, 1);
     assert.strictEqual(authRoots[0].name, 'src');
     assert.strictEqual(authRoots[0].relativePath, 'src');
 
     // Expand 'src': contains 'services', 'models' is pruned
-    const srcChildren = await coordinator.getSlotChildren(dirConfigAuth, authRoots[0]);
+    const srcChildren = await coordinator.getSlotChildren<DirectoryNode>(dirConfigAuth, authRoots[0]);
     assert.strictEqual(srcChildren.length, 1);
     assert.strictEqual(srcChildren[0].name, 'services');
 
     // Expand 'services': contains 'auth', 'billing' is pruned
-    const servicesChildren = await coordinator.getSlotChildren(dirConfigAuth, srcChildren[0]);
+    const servicesChildren = await coordinator.getSlotChildren<DirectoryNode>(dirConfigAuth, srcChildren[0]);
     assert.strictEqual(servicesChildren.length, 1);
     assert.strictEqual(servicesChildren[0].name, 'auth');
 
     // 'auth' has no subdirectories (leaf)
-    const authChildren = await coordinator.getSlotChildren(dirConfigAuth, servicesChildren[0]);
+    const authChildren = await coordinator.getSlotChildren<DirectoryNode>(dirConfigAuth, servicesChildren[0]);
     assert.strictEqual(authChildren.length, 0);
 
     // Parent navigation works
@@ -145,7 +151,7 @@ suite('FacetCoordinator Test Suite', () => {
       inputSource: 'project',
       globPattern: 'nonexistent',
     });
-    const noneRoots = await coordinator.getSlotChildren(dirConfigNone);
+    const noneRoots = await coordinator.getSlotChildren<DirectoryNode>(dirConfigNone);
     assert.strictEqual(noneRoots.length, 0);
 
     // 3. No filter: roots should only be 'src' and 'test'; none of the nested directories appear in roots
@@ -153,9 +159,9 @@ suite('FacetCoordinator Test Suite', () => {
       tree: true,
       inputSource: 'project',
     });
-    const allRoots = await coordinator.getSlotChildren(dirConfigAll);
+    const allRoots = await coordinator.getSlotChildren<DirectoryNode>(dirConfigAll);
     assert.strictEqual(allRoots.length, 2);
-    const rootRelPaths = allRoots.map((r: any) => r.relativePath);
+    const rootRelPaths = allRoots.map((r: DirectoryNode) => r.relativePath);
     assert.ok(rootRelPaths.includes('src'));
     assert.ok(rootRelPaths.includes('test'));
     assert.ok(!rootRelPaths.includes('src/services'));
@@ -199,7 +205,7 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'category',
     });
 
-    const problems = await coordinator.getSlotChildren(probConfig);
+    const problems = await coordinator.getSlotChildren<ProblemItem>(probConfig);
     assert.strictEqual(problems.length, 2);
     // Error before warning
     assert.strictEqual(problems[0].severity, vscode.DiagnosticSeverity.Error);
@@ -231,7 +237,7 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.setSlotSelection('facet.pane.1', [mockClass]);
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'symbols' });
 
-    const children = await coordinator.getSlotChildren(membersPaneConfig);
+    const children = await coordinator.getSlotChildren<FacetSymbolNode>(membersPaneConfig);
     // defaultConfig (constant) is filtered out
     assert.strictEqual(children.length, 1);
     assert.strictEqual(children[0].name, 'placeOrder');
@@ -317,7 +323,7 @@ suite('FacetCoordinator Test Suite', () => {
     });
 
     // Root children: only BaseClass should be returned! SubClass is omitted from root
-    const rootChildren = await coordinator.getSlotChildren(typesPaneConfig);
+    const rootChildren = await coordinator.getSlotChildren<FacetSymbolNode>(typesPaneConfig);
     assert.strictEqual(rootChildren.length, 1);
     assert.strictEqual(rootChildren[0].name, 'BaseClass');
 
@@ -326,7 +332,7 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(baseItem.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
 
     // Expanding BaseClass returns SubClass
-    const subChildren = await coordinator.getSlotChildren(typesPaneConfig, rootChildren[0]);
+    const subChildren = await coordinator.getSlotChildren<FacetSymbolNode>(typesPaneConfig, rootChildren[0]);
     assert.strictEqual(subChildren.length, 1);
     assert.strictEqual(subChildren[0].name, 'SubClass');
 
@@ -441,7 +447,7 @@ suite('FacetCoordinator Test Suite', () => {
       tree: true,
     });
 
-    const matched = await coordinator.getSlotChildren(filesPaneConfig);
+    const matched = await coordinator.getSlotChildren<vscode.Uri>(filesPaneConfig);
     assert.strictEqual(matched.length, 3);
     const paths = matched.map((u: vscode.Uri) => u.path);
     assert.ok(paths.includes('/workspace/src/app.ts'));
@@ -474,7 +480,7 @@ suite('FacetCoordinator Test Suite', () => {
     ];
     (vscode.workspace as any).findFiles = async () => testFiles;
 
-    const dirNode = {
+    const dirNode: DirectoryNode = {
       type: 'directory',
       uri: vscode.Uri.file('/workspace/src'),
       name: 'src',
@@ -490,7 +496,7 @@ suite('FacetCoordinator Test Suite', () => {
       tree: false,
     });
 
-    const directFiles = await coordinator.getSlotChildren(currentConfig);
+    const directFiles = await coordinator.getSlotChildren<vscode.Uri>(currentConfig);
     assert.strictEqual(directFiles.length, 2);
     const directPaths = directFiles.map((u: vscode.Uri) => u.path);
     assert.ok(directPaths.includes('/workspace/src/app.ts'));
@@ -503,7 +509,7 @@ suite('FacetCoordinator Test Suite', () => {
       tree: true,
     });
 
-    const allDescendantFiles = await coordinator.getSlotChildren(recursiveConfig);
+    const allDescendantFiles = await coordinator.getSlotChildren<vscode.Uri>(recursiveConfig);
     assert.strictEqual(allDescendantFiles.length, 4);
     const recursivePaths = allDescendantFiles.map((u: vscode.Uri) => u.path);
     assert.ok(recursivePaths.includes('/workspace/src/app.ts'));
@@ -555,7 +561,7 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.setSlotSelection('facet.pane.1', [file1Uri, file2Uri]);
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'files' });
 
-    const types = await coordinator.getSlotChildren(symbolsPaneConfig);
+    const types = await coordinator.getSlotChildren<FacetSymbolNode>(symbolsPaneConfig);
     assert.strictEqual(types.length, 2);
     const names = types.map((t: FacetSymbolNode) => t.name);
     assert.ok(names.includes('ClassOne'));
@@ -570,7 +576,6 @@ suite('FacetCoordinator Test Suite', () => {
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
 
-    const { PanePipelineManager } = require('../../coordinator/panePipelineManager');
     const manager = new PanePipelineManager(coordinator);
 
     const revealed: { slotId: string; node: any }[] = [];
@@ -671,7 +676,7 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
     });
 
-    const children = await coordinator.getSlotChildren(changesConfig);
+    const children = await coordinator.getSlotChildren<vscode.Uri>(changesConfig);
     assert.strictEqual(children.length, 2);
     const paths = children.map((u: vscode.Uri) => u.path);
     assert.ok(paths.includes('/workspace/src/dirty.ts'));
@@ -718,23 +723,23 @@ suite('FacetCoordinator Test Suite', () => {
       },
     ];
 
-    const defs = await coordinator.getSlotChildren(createDefinitionsPane('facet.pane.5'));
+    const defs = await coordinator.getSlotChildren<RelationItem>(createDefinitionsPane('facet.pane.5'));
     assert.strictEqual(defs.length, 1);
     assert.strictEqual(defs[0].label, 'preview for definitions');
 
-    const decls = await coordinator.getSlotChildren(createDeclarationsPane('facet.pane.5'));
+    const decls = await coordinator.getSlotChildren<RelationItem>(createDeclarationsPane('facet.pane.5'));
     assert.strictEqual(decls.length, 1);
     assert.strictEqual(decls[0].label, 'preview for declarations');
 
-    const impls = await coordinator.getSlotChildren(createImplementationsPane('facet.pane.5'));
+    const impls = await coordinator.getSlotChildren<RelationItem>(createImplementationsPane('facet.pane.5'));
     assert.strictEqual(impls.length, 1);
     assert.strictEqual(impls[0].label, 'preview for implementations');
 
-    const refs = await coordinator.getSlotChildren(createReferencesPane('facet.pane.5'));
+    const refs = await coordinator.getSlotChildren<RelationItem>(createReferencesPane('facet.pane.5'));
     assert.strictEqual(refs.length, 1);
     assert.strictEqual(refs[0].label, 'preview for references');
 
-    const callers = await coordinator.getSlotChildren(createCallersPane('facet.pane.5'));
+    const callers = await coordinator.getSlotChildren<RelationItem>(createCallersPane('facet.pane.5'));
     assert.strictEqual(callers.length, 1);
     assert.strictEqual(callers[0].label, 'preview for callers');
 
@@ -762,26 +767,26 @@ suite('FacetCoordinator Test Suite', () => {
     };
 
     // 1. Files with openEditors
-    const filesOpen = await coordinator.getSlotChildren(
+    const filesOpen = await coordinator.getSlotChildren<vscode.Uri>(
       createFilesPane('facet.pane.2', { inputSource: 'openEditors' }),
     );
     assert.strictEqual(filesOpen.length, 2);
 
     // 2. Files with activeEditor
-    const filesActive = await coordinator.getSlotChildren(
+    const filesActive = await coordinator.getSlotChildren<vscode.Uri>(
       createFilesPane('facet.pane.2', { inputSource: 'activeEditor' }),
     );
     assert.strictEqual(filesActive.length, 1);
     assert.strictEqual(filesActive[0].path, fileA.path);
 
     // 3. Directories with openEditors
-    const dirOpen = await coordinator.getSlotChildren(
+    const dirOpen = await coordinator.getSlotChildren<DirectoryNode>(
       createDirectoriesPane('facet.pane.1', { inputSource: 'openEditors', tree: false }),
     );
     assert.ok(dirOpen.length >= 2);
 
     // 4. Directories with activeEditor
-    const dirActive = await coordinator.getSlotChildren(
+    const dirActive = await coordinator.getSlotChildren<DirectoryNode>(
       createDirectoriesPane('facet.pane.1', { inputSource: 'activeEditor', tree: false }),
     );
     assert.strictEqual(dirActive.length, 1);
@@ -840,7 +845,7 @@ suite('FacetCoordinator Test Suite', () => {
 
     // Test getSlotParent
     const symbolsPane = createSymbolsPane('facet.pane.3');
-    const parentOfMember = coordinator.getSlotParent(symbolsPane, memberNode);
+    const parentOfMember = coordinator.getSlotParent<FacetSymbolNode>(symbolsPane, memberNode);
     assert.strictEqual(parentOfMember?.name, 'ParentClass');
 
     const dirsPane = createDirectoriesPane('facet.pane.1');
@@ -954,7 +959,7 @@ suite('FacetCoordinator Test Suite', () => {
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.2', role: 'files' });
 
     // Root children should be top-level types (OuterType only)
-    const rootTypesTree = await coordinator.getSlotChildren(symbolsPaneFilesTree);
+    const rootTypesTree = await coordinator.getSlotChildren<FacetSymbolNode>(symbolsPaneFilesTree);
     assert.strictEqual(rootTypesTree.length, 1);
     assert.strictEqual(rootTypesTree[0].name, 'OuterType');
 
@@ -963,7 +968,7 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(treeItem.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
 
     // Expanding OuterType in tree returns its members (doWork and innerType)
-    const outerChildren = await coordinator.getSlotChildren(symbolsPaneFilesTree, rootTypesTree[0]);
+    const outerChildren = await coordinator.getSlotChildren<FacetSymbolNode>(symbolsPaneFilesTree, rootTypesTree[0]);
     assert.strictEqual(outerChildren.length, 2);
     const childNames = outerChildren.map((c) => c.name);
     assert.ok(childNames.includes('doWork'));
@@ -975,7 +980,7 @@ suite('FacetCoordinator Test Suite', () => {
       tree: false,
     });
 
-    const rootTypesFlat = await coordinator.getSlotChildren(symbolsPaneFilesFlat);
+    const rootTypesFlat = await coordinator.getSlotChildren<FacetSymbolNode>(symbolsPaneFilesFlat);
     assert.strictEqual(rootTypesFlat.length, 1);
     assert.strictEqual(rootTypesFlat[0].name, 'OuterType');
 
@@ -984,7 +989,7 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(flatItem.collapsibleState, vscode.TreeItemCollapsibleState.None);
 
     // Tree is false: passing element returns empty array
-    const flatChildren = await coordinator.getSlotChildren(symbolsPaneFilesFlat, rootTypesFlat[0]);
+    const flatChildren = await coordinator.getSlotChildren<FacetSymbolNode>(symbolsPaneFilesFlat, rootTypesFlat[0]);
     assert.strictEqual(flatChildren.length, 0);
 
     // --- Scenario 3: Input is another type (e.g. from previous pane) ---
@@ -998,7 +1003,7 @@ suite('FacetCoordinator Test Suite', () => {
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.3', role: 'symbols' });
 
     // Since input is a type, it enumerates the type's members!
-    const members = await coordinator.getSlotChildren(symbolsPaneFromType);
+    const members = await coordinator.getSlotChildren<FacetSymbolNode>(symbolsPaneFromType);
     assert.strictEqual(members.length, 2);
     const memberNames = members.map((m) => m.name);
     assert.ok(memberNames.includes('doWork'));
@@ -1013,7 +1018,6 @@ suite('FacetCoordinator Test Suite', () => {
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
 
-    const { PanePipelineManager } = require('../../coordinator/panePipelineManager');
     const manager = new PanePipelineManager(coordinator);
 
     const fileUri = vscode.Uri.file('/workspace/src/test.ts');
@@ -1056,7 +1060,7 @@ suite('FacetCoordinator Test Suite', () => {
 
     // 1. Passive caret move: must NOT overwrite multi-selection!
     await coordinator.handleSelectionChange(mockEditor as any);
-    const preservedSelection = coordinator.getSlotSelection(typesPane.id);
+    const preservedSelection = coordinator.getSlotSelection<FacetSymbolNode>(typesPane.id);
     assert.strictEqual(preservedSelection.length, 2);
     assert.strictEqual(preservedSelection[0].name, 'CalculatorA');
     assert.strictEqual(preservedSelection[1].name, 'CalculatorB');
@@ -1064,7 +1068,7 @@ suite('FacetCoordinator Test Suite', () => {
     // 2. Forced sync: MUST overwrite multi-selection with cursor element!
     const targetSlot = await coordinator.handleSelectionChange(mockEditor as any, { force: true });
     assert.ok(targetSlot);
-    const forcedSelection = coordinator.getSlotSelection(typesPane.id);
+    const forcedSelection = coordinator.getSlotSelection<FacetSymbolNode>(typesPane.id);
     assert.strictEqual(forcedSelection.length, 1);
     assert.strictEqual(forcedSelection[0].name, 'Calculator');
 
@@ -1076,7 +1080,6 @@ suite('FacetCoordinator Test Suite', () => {
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
 
-    const { PanePipelineManager } = require('../../coordinator/panePipelineManager');
     const manager = new PanePipelineManager(coordinator);
 
     const fileUri = vscode.Uri.file('/workspace/src/test.ts');

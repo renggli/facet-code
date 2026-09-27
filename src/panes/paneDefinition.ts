@@ -6,7 +6,7 @@ import type { FacetSymbolNode } from '../models/symbolNode';
 export interface PaneOutput {
   uris?: vscode.Uri[];
   symbols?: FacetSymbolNode[];
-  items?: any[];
+  items?: unknown[];
 }
 
 export interface PaneExecutionContext<TConfig extends PaneConfig = PaneConfig> {
@@ -26,7 +26,7 @@ export interface PaneCapabilities {
   readonly hasFilter: boolean;
 }
 
-export interface PaneDefinition<TConfig extends PaneConfig = PaneConfig, TItem = any> {
+export interface PaneDefinition<TConfig extends PaneConfig = PaneConfig, TItem = unknown> {
   readonly role: PaneRole;
   readonly title: string;
   readonly icon: string;

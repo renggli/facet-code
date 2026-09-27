@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import type { FacetCoordinator } from '../coordinator/facetCoordinator';
+import type { FacetCoordinator, FacetSlotItem } from '../coordinator/facetCoordinator';
 import type { PaneConfig } from '../models/paneConfig';
 
-export class SlotTreeProvider implements vscode.TreeDataProvider<any> {
-  private _onDidChangeTreeData = new vscode.EventEmitter<any | undefined>();
+export class SlotTreeProvider implements vscode.TreeDataProvider<FacetSlotItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<FacetSlotItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
   private explicitConfig?: PaneConfig;
   public readonly slotId: string;
@@ -21,14 +21,14 @@ export class SlotTreeProvider implements vscode.TreeDataProvider<any> {
   }
 
   public get config(): PaneConfig | undefined {
-    return this.explicitConfig || this.coordinator.getPipelineManager()?.getPane(this.slotId);
+    return this.explicitConfig ?? this.coordinator.getPipelineManager()?.getPane(this.slotId);
   }
 
   refresh(): void {
     this._onDidChangeTreeData.fire(undefined);
   }
 
-  getTreeItem(element: any): vscode.TreeItem {
+  getTreeItem(element: FacetSlotItem): vscode.TreeItem {
     const cfg = this.config;
     if (!cfg) {
       return new vscode.TreeItem('');
@@ -36,7 +36,7 @@ export class SlotTreeProvider implements vscode.TreeDataProvider<any> {
     return this.coordinator.getSlotTreeItem(cfg, element);
   }
 
-  getChildren(element?: any): Promise<any[]> {
+  getChildren(element?: FacetSlotItem): Promise<FacetSlotItem[]> {
     const cfg = this.config;
     if (!cfg) {
       return Promise.resolve([]);
@@ -44,7 +44,7 @@ export class SlotTreeProvider implements vscode.TreeDataProvider<any> {
     return this.coordinator.getSlotChildren(cfg, element);
   }
 
-  getParent(element: any): any | undefined {
+  getParent(element: FacetSlotItem): FacetSlotItem | undefined {
     const cfg = this.config;
     if (!cfg) {
       return undefined;

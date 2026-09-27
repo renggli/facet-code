@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { type DirectoriesPaneConfig, matchesGlob } from '../../models/paneConfig';
+import { getPathBasename, getRelativePath } from '../../shared/pathUtils';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
 export interface DirectoryNode {
@@ -43,7 +44,7 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
     element?: DirectoryNode,
   ): Promise<DirectoryNode[]> {
     if (element && element.type === 'directory') {
-      return element.children || [];
+      return element.children ?? [];
     }
 
     const config = context.config;
@@ -63,30 +64,36 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
     } else if (config.inputSource === 'openEditors') {
       candidateUris = context.coordinator.getOpenEditorUris();
     } else if (config.inputSource === 'activeEditor') {
-      const activeUri = context.activeEditor?.document.uri || vscode.window.activeTextEditor?.document.uri;
+      const activeUri = context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri;
       if (activeUri) {
         candidateUris = [activeUri];
       }
     } else if (config.inputSource === 'previousPane') {
-      candidateUris = context.upstreamOutput.uris || [];
+      candidateUris = context.upstreamOutput.uris ?? [];
     }
 
     const baseDirMap = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
 
     const prevSel =
       config.inputSource === 'previousPane'
-        ? context.upstreamOutput.items || context.coordinator.getPreviousPaneSelection(config.id)
+        ? (context.upstreamOutput.items ?? context.coordinator.getPreviousPaneSelection(config.id))
         : [];
-    const prevDirNodes = prevSel.filter((item: any) => item?.type === 'directory') as DirectoryNode[];
+    const prevDirNodes = prevSel.filter((item): item is DirectoryNode => {
+      if (!item || typeof item !== 'object') {
+        return false;
+      }
+      return (item as Partial<DirectoryNode>).type === 'directory';
+    });
 
     for (const dNode of prevDirNodes) {
       if (dNode.relativePath) {
         const normRel = dNode.relativePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
         if (normRel && normRel !== '.') {
+          const fallbackName = getPathBasename(normRel);
           baseDirMap.set(normRel, {
             uri: dNode.uri,
             relPath: normRel,
-            name: dNode.name || normRel.split('/').pop() || normRel,
+            name: dNode.name ? dNode.name : fallbackName,
           });
         }
       }
@@ -100,13 +107,13 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
         const dirUri = vscode.Uri.file(dirPath);
         let relPath = '';
         try {
-          relPath = (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(dirUri) : dirUri.fsPath) || '';
+          relPath = getRelativePath(dirUri);
         } catch {
           relPath = dirPath;
         }
         relPath = relPath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
         if (relPath && relPath !== '.') {
-          const name = relPath.split('/').pop() || relPath;
+          const name = getPathBasename(relPath);
           if (!baseDirMap.has(relPath)) {
             baseDirMap.set(relPath, { uri: dirUri, relPath, name });
           }
@@ -150,7 +157,12 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
     if (!isTree) {
       let flatNodes = Array.from(baseDirMap.values());
       if (config.inputSource === 'previousPane') {
-        const prevSelDirs = prevSel.filter((item: any) => item?.type === 'directory') as DirectoryNode[];
+        const prevSelDirs = prevSel.filter((item): item is DirectoryNode => {
+          if (!item || typeof item !== 'object') {
+            return false;
+          }
+          return (item as Partial<DirectoryNode>).type === 'directory';
+        });
         if (prevSelDirs.length > 0) {
           flatNodes = flatNodes.filter((entry) =>
             prevSelDirs.some((pDir) => {
@@ -165,7 +177,11 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
 
       flatNodes.sort((a, b) => {
         if (config.sort === 'name') {
-          return a.name.localeCompare(b.name) || a.relPath.localeCompare(b.relPath);
+          const diff = a.name.localeCompare(b.name);
+          if (diff !== 0) {
+            return diff;
+          }
+          return a.relPath.localeCompare(b.relPath);
         }
         return a.relPath.localeCompare(b.relPath);
       });
@@ -198,7 +214,7 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
         const parentNode = nodeMap.get(parentRel);
         if (parentNode) {
           node.parent = parentNode;
-          parentNode.children = parentNode.children || [];
+          parentNode.children = parentNode.children ?? [];
           if (!parentNode.children.some((c) => c.relativePath === node.relativePath)) {
             parentNode.children.push(node);
           }
@@ -208,7 +224,7 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
     }
 
     const matchesDirectoryFilter = (node: DirectoryNode): boolean => {
-      if (!pattern || !pattern.trim()) {
+      if (!pattern?.trim()) {
         return true;
       }
       return (
@@ -289,14 +305,14 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
   }
 
   public async configureFilter(config: DirectoriesPaneConfig): Promise<boolean> {
-    const currentVal = config.globPattern || '';
+    const currentVal = config.globPattern ?? '';
     const pattern = await vscode.window.showInputBox({
       value: currentVal,
       prompt: 'Enter glob pattern on full path (e.g. src/**/*.ts, !*test*)',
       placeHolder: 'e.g. src/**/*.ts',
     });
     if (pattern !== undefined) {
-      config.globPattern = pattern.trim() || undefined;
+      config.globPattern = pattern.trim() ? pattern.trim() : undefined;
       return true;
     }
     return false;

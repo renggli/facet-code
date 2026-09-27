@@ -84,7 +84,7 @@ export function getSymbolIcon(kind: vscode.SymbolKind): vscode.ThemeIcon {
 export function extractTypeHeader(lines: string[], startLine: number): string {
   const collected: string[] = [];
   let actualStart = startLine;
-  if (!/\b(class|interface|struct|enum)\b/.test(lines[startLine] || '')) {
+  if (!/\b(class|interface|struct|enum)\b/.test(lines[startLine] ?? '')) {
     for (let j = Math.max(0, startLine - 3); j <= Math.min(startLine + 3, lines.length - 1); j++) {
       if (/\b(class|interface|struct|enum)\b/.test(lines[j])) {
         actualStart = j;
@@ -181,7 +181,7 @@ export function buildTypeHierarchy(
 ): FacetSymbolNode[] {
   const typeMap = new Map<string, FacetSymbolNode[]>();
   for (const t of types) {
-    const list = typeMap.get(t.name) || [];
+    const list = typeMap.get(t.name) ?? [];
     list.push(t);
     typeMap.set(t.name, list);
     t.subTypes = [];
@@ -230,7 +230,7 @@ export function buildTypeHierarchy(
               t.parent = parent;
               parent.subTypes.push(t);
             }
-            childKeys.add(`${t.name}::${t.uri?.toString() || ''}`);
+            childKeys.add(`${t.name}::${t.uri?.toString() ?? ''}`);
             childNames.add(t.name);
           }
         }
@@ -252,7 +252,7 @@ export function buildTypeHierarchy(
   const rootSeen = new Set<string>();
   const uniqueRoots: FacetSymbolNode[] = [];
   for (const t of types) {
-    const key = `${t.name}::${t.uri?.toString() || ''}`;
+    const key = `${t.name}::${t.uri?.toString() ?? ''}`;
     // Strictly exclude any type nested elsewhere in the hierarchy
     if (childKeys.has(key) || childNames.has(t.name) || t.parent !== undefined) {
       continue;
@@ -262,7 +262,7 @@ export function buildTypeHierarchy(
       // Merge subTypes into existing root node
       const existing = uniqueRoots.find((r) => r.name === t.name);
       if (existing && t.subTypes && t.subTypes.length > 0) {
-        existing.subTypes = existing.subTypes || [];
+        existing.subTypes = existing.subTypes ?? [];
         for (const sub of t.subTypes) {
           if (!existing.subTypes.some((s) => s.name === sub.name)) {
             existing.subTypes.push(sub);

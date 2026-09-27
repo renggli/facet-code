@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FacetCoordinator } from './coordinator/facetCoordinator';
+import { FacetCoordinator, type FacetSlotItem } from './coordinator/facetCoordinator';
 import { PanePipelineManager } from './coordinator/panePipelineManager';
 import { WorkbenchLayoutWatcher } from './coordinator/workbenchLayoutWatcher';
 import { RelationsTreeProvider } from './providers/relationsTreeProvider';
@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
   const pipelineManager = new PanePipelineManager(coordinator);
 
   // 1. Register 6 Dynamic Native Pane Slots
-  const slotViews = new Map<string, vscode.TreeView<any>>();
+  const slotViews = new Map<string, vscode.TreeView<FacetSlotItem>>();
   const slotProviders = new Map<string, SlotTreeProvider>();
 
   const updateTitlesAndRefresh = () => {
@@ -37,7 +37,7 @@ export function activate(context: vscode.ExtensionContext) {
     const slotProvider = new SlotTreeProvider(slotId, coordinator);
     slotProviders.set(slotId, slotProvider);
 
-    const treeView = vscode.window.createTreeView(slotId, {
+    const treeView = vscode.window.createTreeView<FacetSlotItem>(slotId, {
       treeDataProvider: slotProvider,
       canSelectMany: true,
       showCollapseAll: true,
@@ -59,23 +59,24 @@ export function activate(context: vscode.ExtensionContext) {
 
   // 2. Wire Coordinator & Pipeline Events
   context.subscriptions.push(
-    coordinator.onDidRefreshSlot((id) => {
-      slotProviders.get(id)?.refresh();
+    coordinator.onDidRefreshSlot((slotId) => {
+      slotProviders.get(slotId)?.refresh();
     }),
     coordinator.onDidRefreshAll(() => {
-      for (const sp of slotProviders.values()) {
-        sp.refresh();
-      }
+      updateTitlesAndRefresh();
     }),
     coordinator.onRevealInView(({ slotId, node }) => {
-      void slotViews.get(slotId)?.reveal(node, { select: true, focus: false });
+      const view = slotViews.get(slotId);
+      if (view && view.visible) {
+        void view.reveal(node, { select: true, focus: false, expand: true });
+      }
     }),
     pipelineManager.onDidUpdatePanes(() => {
       updateTitlesAndRefresh();
     }),
   );
 
-  // 3. Track Editor Lifecycle with Debounce
+  // 3. Register Global VS Code Event Handlers
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       coordinator.handleEditorChange(editor);
@@ -83,10 +84,14 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.onDidChangeTextEditorSelection((e) => {
       coordinator.scheduleSelectionChange(e.textEditor);
     }),
+    vscode.workspace.onDidSaveTextDocument((doc) => {
+      if (vscode.window.activeTextEditor?.document.uri.toString() === doc.uri.toString()) {
+        coordinator.handleEditorChange(vscode.window.activeTextEditor);
+      }
+    }),
   );
 
-  // Helper to focus on a pane slot
-  const focusPane = async (slotId: string) => {
+  const focusPane = async (slotId: string): Promise<void> => {
     try {
       await vscode.commands.executeCommand(`${slotId}.focus`);
     } catch {
@@ -95,12 +100,12 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   // Helper to extract slot ID from context or prompt
-  const resolveSlotId = async (arg?: any, placeHolder = 'Select pane'): Promise<string | undefined> => {
+  const resolveSlotId = async (arg?: unknown, placeHolder = 'Select pane'): Promise<string | undefined> => {
     if (typeof arg === 'string' && arg.startsWith('facet.pane.')) {
       return arg;
     }
-    if (arg && typeof arg.viewId === 'string') {
-      return arg.viewId;
+    if (arg && typeof arg === 'object' && 'viewId' in arg && typeof (arg as { viewId: unknown }).viewId === 'string') {
+      return (arg as { viewId: string }).viewId;
     }
 
     const visiblePanes = pipelineManager.getVisiblePanes();
@@ -159,12 +164,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     for (let idx = 0; idx < visiblePanes.length; idx++) {
       const pane = visiblePanes[idx];
-      const baseSlug =
-        (pane.title || pane.role)
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-|-$/g, '') || `pane-${idx + 1}`;
-      const count = (slugCounts.get(baseSlug) || 0) + 1;
+      const rawSlug = (pane.title ? pane.title : pane.role)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      const baseSlug = rawSlug ? rawSlug : `pane-${idx + 1}`;
+      const count = (slugCounts.get(baseSlug) ?? 0) + 1;
       slugCounts.set(baseSlug, count);
 
       const slotId = pane.id;
@@ -219,13 +224,13 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('facet.deletePreset', async () => {
       await pipelineManager.deleteCustomPresetPrompt();
     }),
-    vscode.commands.registerCommand('facet.pane.focus', async (arg?: any) => {
+    vscode.commands.registerCommand('facet.pane.focus', async (arg?: unknown) => {
       const slotId = await resolveSlotId(arg, 'Select pane to focus');
       if (slotId) {
         await focusPane(slotId);
       }
     }),
-    vscode.commands.registerCommand('facet.pane.configure', async (arg?: any) => {
+    vscode.commands.registerCommand('facet.pane.configure', async (arg?: unknown) => {
       const slotId = await resolveSlotId(arg, 'Select pane to configure');
       if (slotId) {
         await pipelineManager.configurePane(slotId);
@@ -242,7 +247,7 @@ export function activate(context: vscode.ExtensionContext) {
       const targetSlot =
         lastActiveSlotId && visible.some((p) => p.id === lastActiveSlotId)
           ? lastActiveSlotId
-          : visible[0]?.id || 'facet.pane.1';
+          : (visible[0]?.id ?? 'facet.pane.1');
       await focusPane(targetSlot);
     }),
     vscode.commands.registerCommand('facet.syncCursorAndFocus', async () => {

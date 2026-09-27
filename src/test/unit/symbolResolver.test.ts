@@ -1,6 +1,14 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { type FacetSymbolNode, MemberCategory, unionMembers } from '../../models/symbolNode';
+import { matchesPaneFilters } from '../../models/paneConfig';
+import {
+  buildTypeHierarchy,
+  extractSuperTypes,
+  extractTypeHeader,
+  type FacetSymbolNode,
+  MemberCategory,
+  unionMembers,
+} from '../../models/symbolNode';
 import { SymbolResolver } from '../../services/symbolResolver';
 import { commands } from './mockVscode';
 
@@ -143,7 +151,6 @@ export class Calculator {
   });
 
   test('matchesPaneFilters selectively filters types and members', () => {
-    const { matchesPaneFilters } = require('../../models/paneConfig');
     const classNode: FacetSymbolNode = {
       name: 'TestClass',
       kind: vscode.SymbolKind.Class,
@@ -173,8 +180,6 @@ export class Calculator {
   });
 
   test('extractSuperTypes correctly parses extends without mixing implements for classes', () => {
-    const { extractSuperTypes, extractTypeHeader } = require('../../models/symbolNode');
-
     // Class with extends and implements: only extends (Animal) is parsed!
     assert.deepStrictEqual(extractSuperTypes('export class Dog extends Animal implements IPet, ICanRun {', false), [
       'Animal',
@@ -200,8 +205,6 @@ export class Calculator {
   });
 
   test('buildTypeHierarchy nests subtypes, excludes them from roots, and never mixes interfaces', () => {
-    const { buildTypeHierarchy } = require('../../models/symbolNode');
-
     const animal: FacetSymbolNode = {
       name: 'Animal',
       kind: vscode.SymbolKind.Class,
@@ -398,8 +401,6 @@ export class Calculator {
   });
 
   test('buildTypeHierarchy respects allowedSubclassKinds filter', () => {
-    const { buildTypeHierarchy } = require('../../models/symbolNode');
-
     const baseClass: FacetSymbolNode = {
       name: 'Base',
       kind: vscode.SymbolKind.Class,
@@ -426,7 +427,7 @@ export class Calculator {
 
     // When only Class is allowed as subclass, SubStruct is not linked as subtype
     buildTypeHierarchy([baseClass, subStruct], [vscode.SymbolKind.Class]);
-    assert.strictEqual(baseClass.subTypes?.length || 0, 0);
+    assert.strictEqual(baseClass.subTypes?.length ?? 0, 0);
 
     // When Struct is allowed, SubStruct is linked
     buildTypeHierarchy([baseClass, subStruct], [vscode.SymbolKind.Class, vscode.SymbolKind.Struct]);
@@ -435,8 +436,6 @@ export class Calculator {
   });
 
   test('buildTypeHierarchy filters based on leaves and removes duplicates nested elsewhere', () => {
-    const { buildTypeHierarchy } = require('../../models/symbolNode');
-
     const uri1 = vscode.Uri.file('/workspace/src/base.ts');
     const uri2 = vscode.Uri.file('/workspace/src/middle.ts');
     const uri3 = vscode.Uri.file('/workspace/src/leaf.ts');

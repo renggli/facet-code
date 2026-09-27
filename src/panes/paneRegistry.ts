@@ -1,4 +1,18 @@
-import type { PaneRole } from '../models/paneConfig';
+import type {
+  CallersPaneConfig,
+  ChangesPaneConfig,
+  DeclarationsPaneConfig,
+  DefinitionsPaneConfig,
+  DirectoriesPaneConfig,
+  FilesPaneConfig,
+  HierarchyPaneConfig,
+  ImplementationsPaneConfig,
+  PaneConfig,
+  PaneRole,
+  ProblemsPaneConfig,
+  ReferencesPaneConfig,
+  SymbolsPaneConfig,
+} from '../models/paneConfig';
 import { ChangesPaneDefinition } from './definitions/changesPane';
 import { DirectoriesPaneDefinition } from './definitions/directoriesPane';
 import { FilesPaneDefinition } from './definitions/filesPane';
@@ -14,14 +28,30 @@ import {
 import { SymbolsPaneDefinition } from './definitions/symbolsPane';
 import type { PaneDefinition } from './paneDefinition';
 
-export class PaneRegistry {
-  private readonly definitions = new Map<PaneRole, PaneDefinition<any, any>>();
+export interface PaneRoleConfigMap {
+  files: FilesPaneConfig;
+  directories: DirectoriesPaneConfig;
+  symbols: SymbolsPaneConfig;
+  definitions: DefinitionsPaneConfig;
+  declarations: DeclarationsPaneConfig;
+  implementations: ImplementationsPaneConfig;
+  references: ReferencesPaneConfig;
+  problems: ProblemsPaneConfig;
+  changes: ChangesPaneConfig;
+  callers: CallersPaneConfig;
+  hierarchy: HierarchyPaneConfig;
+}
 
-  public register(definition: PaneDefinition<any, any>): void {
-    this.definitions.set(definition.role, definition);
+export class PaneRegistry {
+  private readonly definitions = new Map<PaneRole, PaneDefinition<PaneConfig, unknown>>();
+
+  public register<TConfig extends PaneConfig, TItem>(definition: PaneDefinition<TConfig, TItem>): void {
+    this.definitions.set(definition.role, definition as unknown as PaneDefinition<PaneConfig, unknown>);
   }
 
-  public get(role: PaneRole): PaneDefinition<any, any> {
+  public get<R extends PaneRole>(role: R): PaneDefinition<PaneRoleConfigMap[R], unknown>;
+  public get<TConfig extends PaneConfig = PaneConfig, TItem = unknown>(role: PaneRole): PaneDefinition<TConfig, TItem>;
+  public get(role: PaneRole): PaneDefinition<PaneConfig, unknown> {
     const def = this.definitions.get(role);
     if (!def) {
       throw new Error(`No pane definition registered for role: "${role}"`);
@@ -29,11 +59,15 @@ export class PaneRegistry {
     return def;
   }
 
-  public tryGet(role: PaneRole): PaneDefinition<any, any> | undefined {
+  public tryGet<R extends PaneRole>(role: R): PaneDefinition<PaneRoleConfigMap[R], unknown> | undefined;
+  public tryGet<TConfig extends PaneConfig = PaneConfig, TItem = unknown>(
+    role: PaneRole,
+  ): PaneDefinition<TConfig, TItem> | undefined;
+  public tryGet(role: PaneRole): PaneDefinition<PaneConfig, unknown> | undefined {
     return this.definitions.get(role);
   }
 
-  public getAll(): PaneDefinition<any, any>[] {
+  public getAll(): PaneDefinition<PaneConfig, unknown>[] {
     return Array.from(this.definitions.values());
   }
 

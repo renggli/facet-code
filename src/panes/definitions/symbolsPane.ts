@@ -63,7 +63,7 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
             const doc = await vscode.workspace.openTextDocument(node.uri);
             const symbols = await context.coordinator.resolver.resolveDocumentSymbols(doc);
             const match = symbols.find((s) => s.name === node.name && isTypeKind(s.kind));
-            if (match && match.children) {
+            if (match?.children) {
               node.children = match.children;
               for (const child of node.children) {
                 child.parent = node;
@@ -73,7 +73,7 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
             // ignore
           }
         }
-        let children = node.children || [];
+        let children = node.children ?? [];
         children = children.filter((c) => matchesPaneFilters(c, filters));
         return sortSymbolNodes(children, config.sort);
       }
@@ -98,7 +98,13 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
             ? context.upstreamOutput.items
             : context.coordinator.getPreviousPaneSelection(config.id);
 
-      const symbolTypes = prevSel.filter((s: any) => s && isTypeKind(s.kind)) as FacetSymbolNode[];
+      const symbolTypes = prevSel.filter((s): s is FacetSymbolNode => {
+        if (!s || typeof s !== 'object') {
+          return false;
+        }
+        const candidate = s as Partial<FacetSymbolNode>;
+        return candidate.kind !== undefined && isTypeKind(candidate.kind);
+      });
 
       if (symbolTypes.length > 0) {
         targetTypes = symbolTypes;
@@ -108,8 +114,8 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
           context.upstreamOutput.uris && context.upstreamOutput.uris.length > 0
             ? context.upstreamOutput.uris
             : prevSel
-                .map((item: any) => (item instanceof vscode.Uri ? item : item?.uri))
-                .filter((u: any): u is vscode.Uri => u instanceof vscode.Uri);
+                .map((item) => (item instanceof vscode.Uri ? item : (item as { uri?: vscode.Uri })?.uri))
+                .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
 
         if (fileUris.length > 0) {
           isTypeInput = false;
@@ -118,14 +124,20 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
           const prevPane = context.coordinator.getPreviousPane(config.id);
           if (prevPane) {
             const prevChildren = await context.coordinator.getSlotChildren(prevPane);
-            const prevTypes = prevChildren.filter((s: any) => s && isTypeKind(s.kind)) as FacetSymbolNode[];
+            const prevTypes = prevChildren.filter((s): s is FacetSymbolNode => {
+              if (!s || typeof s !== 'object') {
+                return false;
+              }
+              const candidate = s as Partial<FacetSymbolNode>;
+              return candidate.kind !== undefined && isTypeKind(candidate.kind);
+            });
             if (prevTypes.length > 0) {
               targetTypes = [prevTypes[0]];
               isTypeInput = true;
             } else {
               const prevUris = prevChildren
-                .map((item: any) => (item instanceof vscode.Uri ? item : item?.uri))
-                .filter((u: any): u is vscode.Uri => u instanceof vscode.Uri);
+                .map((item) => (item instanceof vscode.Uri ? item : (item as { uri?: vscode.Uri })?.uri))
+                .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
               if (prevUris.length > 0) {
                 targetTypes = await this.resolveTypesFromFiles(prevUris, context);
                 isTypeInput = false;
@@ -135,7 +147,7 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
         }
       }
     } else if (config.inputSource === 'activeEditor') {
-      const activeUri = context.activeEditor?.document.uri || vscode.window.activeTextEditor?.document.uri;
+      const activeUri = context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri;
       if (activeUri) {
         targetTypes = await this.resolveTypesFromFiles([activeUri], context);
       }
@@ -161,7 +173,7 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
             const doc = await vscode.workspace.openTextDocument(t.uri);
             const symbols = await context.coordinator.resolver.resolveDocumentSymbols(doc);
             const match = symbols.find((s) => s.name === t.name && isTypeKind(s.kind));
-            if (match && match.children) {
+            if (match?.children) {
               t.children = match.children;
               for (const child of t.children) {
                 child.parent = t;
@@ -181,30 +193,6 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
     await context.coordinator.hydrateMissingSuperTypes(targetTypes);
     const filtered = targetTypes.filter((t) => matchesPaneFilters(t, filters));
     return sortSymbolNodes(filtered, config.sort);
-  }
-
-  private async resolveTypesFromFiles(
-    fileUris: vscode.Uri[],
-    context: PaneExecutionContext<SymbolsPaneConfig>,
-  ): Promise<FacetSymbolNode[]> {
-    const rawTypes: FacetSymbolNode[] = [];
-    const seenUris = new Set<string>();
-
-    for (const uri of fileUris) {
-      if (seenUris.has(uri.fsPath)) {
-        continue;
-      }
-      seenUris.add(uri.fsPath);
-      try {
-        const doc = await vscode.workspace.openTextDocument(uri);
-        const symbols = await context.coordinator.resolver.resolveDocumentSymbols(doc);
-        const types = symbols.filter((s) => isTypeKind(s.kind));
-        rawTypes.push(...types);
-      } catch {
-        // ignore unopenable files
-      }
-    }
-    return rawTypes;
   }
 
   public getTreeItem(node: FacetSymbolNode, context: PaneExecutionContext<SymbolsPaneConfig>): vscode.TreeItem {
@@ -230,17 +218,17 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
       hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
     );
 
-    let desc = node.detail || '';
+    let desc = node.detail ?? '';
     if (node.isStatic) {
       desc = desc ? `static ${desc}` : 'static';
     }
-    item.description = desc || undefined;
+    item.description = desc ? desc : undefined;
     item.iconPath = getSymbolIcon(node.kind);
 
     item.command = {
       command: 'facet.revealRange',
       title: 'Reveal in Editor',
-      arguments: [node.uri, node.selectionRange || node.range],
+      arguments: [node.uri, node.selectionRange ?? node.range],
     };
 
     return item;
@@ -281,5 +269,31 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
       return true;
     }
     return false;
+  }
+
+  // --- Private Helpers at Bottom ---
+
+  private async resolveTypesFromFiles(
+    fileUris: vscode.Uri[],
+    context: PaneExecutionContext<SymbolsPaneConfig>,
+  ): Promise<FacetSymbolNode[]> {
+    const rawTypes: FacetSymbolNode[] = [];
+    const seenUris = new Set<string>();
+
+    for (const uri of fileUris) {
+      if (seenUris.has(uri.fsPath)) {
+        continue;
+      }
+      seenUris.add(uri.fsPath);
+      try {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const symbols = await context.coordinator.resolver.resolveDocumentSymbols(doc);
+        const types = symbols.filter((s) => isTypeKind(s.kind));
+        rawTypes.push(...types);
+      } catch {
+        // ignore unopenable files
+      }
+    }
+    return rawTypes;
   }
 }

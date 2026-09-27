@@ -377,8 +377,9 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const unknownProvider = new SlotTreeProvider('facet.pane.unknown', coordinator);
     assert.strictEqual(unknownProvider.config, undefined);
     assert.strictEqual(await unknownProvider.getChildren().then((c: any[]) => c.length), 0);
-    assert.strictEqual(unknownProvider.getParent({}), undefined);
-    assert.strictEqual(unknownProvider.getTreeItem({}).label, '');
+    const dummyItem = vscode.Uri.file('/tmp/test');
+    assert.strictEqual(unknownProvider.getParent(dummyItem), undefined);
+    assert.strictEqual(unknownProvider.getTreeItem(dummyItem).label, '');
 
     // Provider with explicit config
     const explicitConfig = manager.getPanes()[0];

@@ -76,17 +76,17 @@ suite('PaneConfig & Filter Helpers Test Suite', () => {
   suite('matchesPaneFilters', () => {
     test('returns true when filters are absent or key is true', () => {
       assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Class }, undefined), true);
-      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Class }, {} as any), true);
-      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Class }, { class: true } as any), true);
+      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Class }, {}), true);
+      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Class }, { class: true }), true);
     });
 
     test('returns false when symbol kind is disabled in filters', () => {
-      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Method }, { method: false } as any), false);
-      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Class }, { class: false } as any), false);
+      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Method }, { method: false }), false);
+      assert.strictEqual(matchesPaneFilters({ kind: vscode.SymbolKind.Class }, { class: false }), false);
     });
 
     test('returns true when node has no kind property', () => {
-      assert.strictEqual(matchesPaneFilters({}, { class: false } as any), true);
+      assert.strictEqual(matchesPaneFilters({}, { class: false }), true);
     });
   });
 

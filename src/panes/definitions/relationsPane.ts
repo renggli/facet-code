@@ -4,6 +4,7 @@ import {
   createDefaultFilters,
   matchesPaneFilters,
   type PaneConfig,
+  type PaneFilters,
   type PaneRole,
 } from '../../models/paneConfig';
 import type { FacetSymbolNode } from '../../models/symbolNode';
@@ -11,6 +12,10 @@ import type { RelationItem } from '../../providers/relationsTreeProvider';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
 export type RelationMode = 'references' | 'callers' | 'implementations' | 'definitions' | 'declarations';
+
+export type FilterableRelationConfig = PaneConfig & {
+  filters?: PaneFilters;
+};
 
 export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneConfig, RelationItem> {
   public abstract readonly role: PaneRole;
@@ -54,14 +59,20 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
           ? context.upstreamOutput.items
           : context.coordinator.getPreviousPaneSelection(config.id);
 
-    targets = prevSel.filter((s: any) => s && s.name && s.uri) as FacetSymbolNode[];
+    targets = prevSel.filter((s): s is FacetSymbolNode => {
+      if (!s || typeof s !== 'object') {
+        return false;
+      }
+      const maybeNode = s as Partial<FacetSymbolNode>;
+      return Boolean(maybeNode.name && maybeNode.uri);
+    });
 
     if (targets.length === 0) {
       const prevPane = context.coordinator.getPreviousPane(config.id);
       if (prevPane) {
         const prevItems = await context.coordinator.getSlotChildren(prevPane);
-        if (prevItems.length > 0 && prevItems[0].uri) {
-          targets = [prevItems[0]];
+        if (prevItems.length > 0 && (prevItems[0] as Partial<FacetSymbolNode>).uri) {
+          targets = [prevItems[0] as FacetSymbolNode];
         }
       }
     }
@@ -71,7 +82,8 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
     }
 
     const raw = await context.coordinator.relationsProvider.fetchRelationsForNodes(targets, this.mode);
-    const filters = 'filters' in config ? (config as any).filters : undefined;
+    const filterable = config as FilterableRelationConfig;
+    const filters = filterable.filters;
     const filtered = raw.filter((item) => matchesPaneFilters(item, filters));
 
     return filtered.sort((a, b) => {
@@ -82,7 +94,11 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
       if (uriDiff !== 0) {
         return uriDiff;
       }
-      return a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character;
+      const lineDiff = a.range.start.line - b.range.start.line;
+      if (lineDiff !== 0) {
+        return lineDiff;
+      }
+      return a.range.start.character - b.range.start.character;
     });
   }
 
@@ -98,14 +114,15 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
   }
 
   public async configureFilter(config: PaneConfig): Promise<boolean> {
-    const cfg = config as any;
+    const cfg = config as FilterableRelationConfig;
     if (!cfg.filters) {
       cfg.filters = {};
     }
+    const currentFilters = cfg.filters;
     const filterOptions = ALL_SYMBOL_FILTER_OPTIONS.map((opt) => ({
       label: opt.label,
       key: opt.key,
-      picked: cfg.filters[opt.key] !== false,
+      picked: currentFilters[opt.key] !== false,
     }));
 
     const selected = await vscode.window.showQuickPick(filterOptions, {
@@ -116,7 +133,7 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
     if (selected) {
       const selectedKeys = new Set(selected.map((s) => s.key));
       for (const opt of filterOptions) {
-        cfg.filters[opt.key] = selectedKeys.has(opt.key);
+        currentFilters[opt.key] = selectedKeys.has(opt.key);
       }
       return true;
     }

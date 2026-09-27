@@ -55,7 +55,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
 
     if (element) {
       if (isTree) {
-        const subTypes = element.subTypes || [];
+        const subTypes = element.subTypes ?? [];
         const filtered = subTypes.filter((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters));
         return sortSymbolNodes(filtered, config.sort);
       }
@@ -86,8 +86,14 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
         }
       }
     } else if (config.inputSource === 'previousPane') {
-      const prev = context.upstreamOutput.symbols || context.upstreamOutput.items || [];
-      const symbolTypes = prev.filter((s: any) => s && isTypeKind(s.kind)) as FacetSymbolNode[];
+      const prev = context.upstreamOutput.symbols ?? context.upstreamOutput.items ?? [];
+      const symbolTypes = prev.filter((s): s is FacetSymbolNode => {
+        if (!s || typeof s !== 'object') {
+          return false;
+        }
+        const candidate = s as Partial<FacetSymbolNode>;
+        return candidate.kind !== undefined && isTypeKind(candidate.kind);
+      });
       if (symbolTypes.length > 0) {
         rawTypes = symbolTypes;
       } else {
@@ -95,8 +101,8 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
           context.upstreamOutput.uris && context.upstreamOutput.uris.length > 0
             ? context.upstreamOutput.uris
             : prev
-                .map((item: any) => (item instanceof vscode.Uri ? item : item?.uri))
-                .filter((u: any): u is vscode.Uri => u instanceof vscode.Uri);
+                .map((item) => (item instanceof vscode.Uri ? item : (item as { uri?: vscode.Uri })?.uri))
+                .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
 
         if (fileUris.length > 0) {
           const seenUris = new Set<string>();
@@ -129,7 +135,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
           struct: vscode.SymbolKind.Struct,
           enum: vscode.SymbolKind.Enum,
         };
-        allowedKinds = subclassTypes.map((k) => keyMap[k]).filter((k) => k !== undefined);
+        allowedKinds = subclassTypes.map((k) => keyMap[k]).filter((k): k is vscode.SymbolKind => k !== undefined);
       }
       const roots = buildTypeHierarchy(rawTypes, allowedKinds, filters);
       return sortSymbolNodes(roots, config.sort);
@@ -143,25 +149,24 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
     const isTree = Boolean(context.config.tree);
     const filters = context.config.filters;
     const hasChildren =
-      isTree &&
-      Boolean(node.subTypes && node.subTypes.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters)));
+      isTree && Boolean(node.subTypes?.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters)));
 
     const item = new vscode.TreeItem(
       node.name,
       hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
     );
 
-    let desc = node.detail || '';
+    let desc = node.detail ?? '';
     if (node.isStatic) {
       desc = desc ? `static ${desc}` : 'static';
     }
-    item.description = desc || undefined;
+    item.description = desc ? desc : undefined;
     item.iconPath = getSymbolIcon(node.kind);
 
     item.command = {
       command: 'facet.revealRange',
       title: 'Reveal in Editor',
-      arguments: [node.uri, node.selectionRange || node.range],
+      arguments: [node.uri, node.selectionRange ?? node.range],
     };
 
     return item;
@@ -192,7 +197,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
     }
 
     if (picked.action === 'subclasses') {
-      const current = config.subclassTypes || ['class', 'struct'];
+      const current = config.subclassTypes ?? ['class', 'struct'];
       const subclassOptions = [
         { label: 'Class', key: 'class' as SymbolKindKey, picked: current.includes('class') },
         { label: 'Interface', key: 'interface' as SymbolKindKey, picked: current.includes('interface') },

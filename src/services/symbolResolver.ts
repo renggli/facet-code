@@ -223,14 +223,14 @@ export class SymbolResolver {
       if (!s.containerName) {
         roots.push(node);
       } else {
-        const list = containerMap.get(s.containerName) || [];
+        const list = containerMap.get(s.containerName) ?? [];
         list.push(node);
         containerMap.set(s.containerName, list);
       }
     }
 
     for (const root of roots) {
-      const children = containerMap.get(root.name) || [];
+      const children = containerMap.get(root.name) ?? [];
       for (const child of children) {
         child.parent = root;
       }
@@ -288,7 +288,7 @@ export class SymbolResolver {
 
       if (currentTypeNode) {
         const trimmed = line.trim();
-        if (trimmed.startsWith('}') && line.search(/\S/) <= (currentTypeNode.range.start.character || 0)) {
+        if (trimmed.startsWith('}') && line.search(/\S/) <= (currentTypeNode.range.start.character ?? 0)) {
           currentTypeNode = null;
           continue;
         }

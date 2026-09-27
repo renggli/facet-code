@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: mocking code */
-const Module = require('node:module');
+import Module from 'node:module';
 
 export class Position {
   constructor(
@@ -199,6 +199,7 @@ export const workspace = {
     onDidDelete: () => ({ dispose: () => {} }),
     dispose: () => {},
   }),
+  onDidSaveTextDocument: () => ({ dispose: () => {} }),
   fs: {
     readFile: async () => Buffer.from('', 'utf8'),
   },

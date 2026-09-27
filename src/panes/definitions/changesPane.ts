@@ -1,6 +1,26 @@
 import * as vscode from 'vscode';
 import type { PaneConfig } from '../../models/paneConfig';
+import { getPathBasename, getRelativePath } from '../../shared/pathUtils';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
+
+interface GitChange {
+  uri?: vscode.Uri;
+}
+
+interface GitRepository {
+  state?: {
+    workingTreeChanges?: GitChange[];
+    indexChanges?: GitChange[];
+  };
+}
+
+interface GitApi {
+  repositories?: GitRepository[];
+}
+
+interface GitExtensionExports {
+  getAPI?(version: number): GitApi;
+}
 
 export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.Uri> {
   public readonly role = 'changes';
@@ -30,9 +50,8 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
 
   public async getChildren(context: PaneExecutionContext<PaneConfig>, _element?: vscode.Uri): Promise<vscode.Uri[]> {
     const config = context.config;
-    const dirtyDocs = (vscode.workspace.textDocuments || [])
-      .filter((d) => d.isDirty && d.uri.scheme === 'file')
-      .map((d) => d.uri);
+    const textDocs = vscode.workspace.textDocuments ?? [];
+    const dirtyDocs = textDocs.filter((d) => d.isDirty && d.uri.scheme === 'file').map((d) => d.uri);
 
     const changedUris = new Map<string, vscode.Uri>();
     for (const u of dirtyDocs) {
@@ -40,12 +59,12 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
     }
 
     try {
-      const gitExt = vscode.extensions.getExtension('vscode.git');
+      const gitExt = vscode.extensions.getExtension<GitExtensionExports>('vscode.git');
       if (gitExt) {
-        const git = (gitExt.exports as any)?.getAPI ? (gitExt.exports as any).getAPI(1) : undefined;
-        if (git && git.repositories) {
+        const git = gitExt.exports?.getAPI ? gitExt.exports.getAPI(1) : undefined;
+        if (git?.repositories) {
           for (const repo of git.repositories) {
-            const changes = [...(repo.state?.workingTreeChanges || []), ...(repo.state?.indexChanges || [])];
+            const changes = [...(repo.state?.workingTreeChanges ?? []), ...(repo.state?.indexChanges ?? [])];
             for (const ch of changes) {
               if (ch.uri) {
                 changedUris.set(ch.uri.fsPath, ch.uri);
@@ -67,21 +86,34 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
       const openUris = new Set(context.coordinator.getOpenEditorUris().map((u) => u.fsPath));
       files = files.filter((u) => openUris.has(u.fsPath));
     } else if (config.inputSource === 'previousPane') {
-      const prevItems = context.upstreamOutput.items || [];
-      const prevPaths = new Set(
-        (
-          context.upstreamOutput.uris ||
-          prevItems.map((i: any) => (i instanceof vscode.Uri ? i.fsPath : i?.uri?.fsPath))
-        ).filter(Boolean),
-      );
+      const prevItems = context.upstreamOutput.items ?? [];
+      const upstreamPaths = (context.upstreamOutput.uris ?? []).map((u) => u.fsPath);
+      const itemPaths = prevItems
+        .map((i) => {
+          if (i instanceof vscode.Uri) {
+            return i.fsPath;
+          }
+          if (i && typeof i === 'object' && 'uri' in i) {
+            const candidate = (i as { uri?: vscode.Uri }).uri;
+            return candidate instanceof vscode.Uri ? candidate.fsPath : undefined;
+          }
+          return undefined;
+        })
+        .filter((p): p is string => Boolean(p));
+
+      const prevPaths = new Set<string>([...upstreamPaths, ...itemPaths]);
       files = files.filter((u) => prevPaths.has(u.fsPath));
     }
 
     files.sort((a, b) => {
       if (config.sort === 'name') {
-        const nameA = a.path.split('/').pop() || '';
-        const nameB = b.path.split('/').pop() || '';
-        return nameA.localeCompare(nameB) || a.fsPath.localeCompare(b.fsPath);
+        const nameA = getPathBasename(a);
+        const nameB = getPathBasename(b);
+        const nameDiff = nameA.localeCompare(nameB);
+        if (nameDiff !== 0) {
+          return nameDiff;
+        }
+        return a.fsPath.localeCompare(b.fsPath);
       }
       return a.fsPath.localeCompare(b.fsPath);
     });
@@ -90,13 +122,8 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
   }
 
   public getTreeItem(item: vscode.Uri): vscode.TreeItem {
-    const fileName = item.path?.split('/').pop() || item.fsPath || 'file';
-    let relPath = '';
-    try {
-      relPath = (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(item) : item.fsPath) || '';
-    } catch {
-      relPath = item.fsPath || item.path || '';
-    }
+    const fileName = getPathBasename(item);
+    const relPath = getRelativePath(item);
     const treeItem = new vscode.TreeItem(fileName, vscode.TreeItemCollapsibleState.None);
     if (relPath) {
       const lastSlash = relPath.lastIndexOf('/');
