@@ -65,28 +65,37 @@
 │  │   - Tier 3: Regex/Text │         │ - Selection union manager     │  │
 │  │   - Workspace Scanner  │         │ - PanePipelineManager         │  │
 │  └────────────────────────┘         └──────────────┬────────────────┘  │
-│                                                    │ State & Projections│
+│                                                    │ Delegates to      │
+│                                                    ▼                   │
+│                                     ┌───────────────────────────────┐  │
+│                                     │ PaneRegistry                  │  │
+│                                     │ - Modular PaneDefinition per  │  │
+│                                     │   role in src/panes/          │  │
+│                                     │ - Declarative capabilities    │  │
+│                                     │ - Strongly typed I/O contract │  │
+│                                     └──────────────┬────────────────┘  │
+│                                                    │ State & Projections
 │                                                    ▼                   │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │ 100% Native Facet Navigation Deck (`facet-container`)            │  │
 │  │                                                                  │  │
 │  │  ┌────────────────────────────────────────────────────────────┐  │  │
-│  │  │ Native Pane 1: Directories (`facet.pane.1`)           [⚙]   │  │  │
+│  │  │ Native Pane 1: Directories (`facet.pane.1`)  [☲][⑂][⚙][...]│  │  │
 │  │  │    [Input: Project] [Display: Hierarchy] [Selection: Cursor│  │  │
 │  │  │    - 📁 src                                                 │  │  │
 │  │  │      - 📁 services                                          │  │  │
 │  │  ├────────────────────────────────────────────────────────────┤  │  │
-│  │  │ Native Pane 2: Files (`facet.pane.2`)                 [⚙]   │  │  │
+│  │  │ Native Pane 2: Files (`facet.pane.2`)        [☲][⑂][⚙][...]│  │  │
 │  │  │    [Input: Previous Pane] [Selection: Cursor]              │  │  │
 │  │  │    - 📄 order.ts                                            │  │  │
 │  │  │    - 📄 payment.ts                                          │  │  │
 │  │  ├────────────────────────────────────────────────────────────┤  │  │
-│  │  │ Native Pane 3: Symbols (`facet.pane.3`)               [⚙]   │  │  │
+│  │  │ Native Pane 3: Symbols (`facet.pane.3`)      [☲][⑂][⚙][...]│  │  │
 │  │  │    [Input: Previous Pane] [Tree: Yes] [Selection: Cursor]  │  │  │
 │  │  │    - Class OrderService                                    │  │  │
 │  │  │    - Class PaymentProcessor                                │  │  │
 │  │  ├────────────────────────────────────────────────────────────┤  │  │
-│  │  │ Native Pane 4: Members (`facet.pane.4`)               [⚙]   │  │  │
+│  │  │ Native Pane 4: Members (`facet.pane.4`)      [☲][⑂][⚙][...]│  │  │
 │  │  │    [Role: symbols] [Input: Previous Pane] [Tree: No]       │  │  │
 │  │  │    - #processPayment()                                     │  │  │
 │  │  │    - #validateOrder()                                      │  │  │
@@ -105,15 +114,31 @@
 
 ## 3. Structural Model & Native Actions
 
+### Modular Pane System (`src/panes/`)
+
+Each pane type is an isolated, single-responsibility `PaneDefinition<TConfig, TNode>` registered in `PaneRegistry`:
+- **`src/panes/paneDefinition.ts`**: Core contracts, `PaneCapabilities`, `PaneExecutionContext`, and `PaneOutput`.
+- **`src/panes/definitions/`**:
+  - `directoriesPane.ts`: Role `directories`.
+  - `filesPane.ts`: Role `files`.
+  - `symbolsPane.ts`: Role `symbols` (unified types and members).
+  - `hierarchyPane.ts`: Role `hierarchy`.
+  - `relationsPane.ts`: Roles `definitions`, `declarations`, `implementations`, `references`, `callers`.
+  - `problemsPane.ts`: Role `problems`.
+  - `changesPane.ts`: Role `changes`.
+- Adding a new pane requires zero changes to coordinator logic: implement `PaneDefinition`, register in `createDefaultPaneRegistry()`, and declare configuration types.
+
 ### Native Contextual Pane Controls & Header Actions
 
 - **Pane Header Actions (Native `view/title`):**
   - **Inline Action Buttons (`group: "navigation"`):**
-    - `$(list-tree)` Tree Display: Toggle between tree hierarchy and flat list display.
+    - `$(list-flat)` / `$(list-tree)` Tree Display: Toggle between tree hierarchy and flat list display (when `capabilities.supportsTree` is true).
+    - `$(repo-forked)` Recursive Traversal: Toggle between recursive descendant traversal and shallow direct children (when `capabilities.supportsRecursive` is true).
     - `$(filter)` Filter: Configure glob pattern (for directories/files) or 26 symbol kind toggles (for symbols/relations/hierarchy).
+    - `$(gear)` Configure Pane: Opens pane configuration quickpick.
   - **Three-Dot Popup Menu (`...` / `group: "1_settings"`):**
     - `Configure Pane...`: Full configuration quickpick (Title, Type, Input, Selection, Sort, Filter, Tree Display, Recursive).
-    - `Change Type...`: Switch pane role (Files, Directories, Symbols, Definitions, Declarations, Implementations, References, Callers, Hierarchy, Problems, Changes).
+    - `Change Type...`: Switch pane role.
     - `Input Source...`: Switch input source (`project`, `openEditors`, `activeEditor`, `previousPane`).
     - `Sort by...`: Change ordering (`position`, `name`, `category`).
 - **Global Pipeline Operations (Command Palette `Ctrl+Shift+P` / `Cmd+Shift+P`):**

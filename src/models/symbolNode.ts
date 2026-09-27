@@ -295,3 +295,62 @@ export function buildTypeHierarchy(
 
   return uniqueRoots;
 }
+
+export function sortSymbolNodes<T extends FacetSymbolNode>(
+  items: readonly T[],
+  sort: 'position' | 'name' | 'category',
+): T[] {
+  const copy = items.slice();
+  return copy.sort((a, b) => {
+    const uriA = a.uri ? (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(a.uri) : a.uri.fsPath) : '';
+    const uriB = b.uri ? (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(b.uri) : b.uri.fsPath) : '';
+    const uriDiff = uriA.localeCompare(uriB);
+
+    const lineDiff = (a.range?.start?.line ?? 0) - (b.range?.start?.line ?? 0);
+    const charDiff = (a.range?.start?.character ?? 0) - (b.range?.start?.character ?? 0);
+
+    if (sort === 'category') {
+      const kindDiff = a.kind - b.kind;
+      if (kindDiff !== 0) {
+        return kindDiff;
+      }
+      const nameDiff = a.name.localeCompare(b.name);
+      if (nameDiff !== 0) {
+        return nameDiff;
+      }
+      if (uriDiff !== 0) {
+        return uriDiff;
+      }
+      if (lineDiff !== 0) {
+        return lineDiff;
+      }
+      return charDiff;
+    }
+
+    if (sort === 'position') {
+      if (uriDiff !== 0) {
+        return uriDiff;
+      }
+      if (lineDiff !== 0) {
+        return lineDiff;
+      }
+      if (charDiff !== 0) {
+        return charDiff;
+      }
+      return a.name.localeCompare(b.name);
+    }
+
+    // Default: 'name'
+    const nameDiff = a.name.localeCompare(b.name);
+    if (nameDiff !== 0) {
+      return nameDiff;
+    }
+    if (uriDiff !== 0) {
+      return uriDiff;
+    }
+    if (lineDiff !== 0) {
+      return lineDiff;
+    }
+    return charDiff;
+  });
+}

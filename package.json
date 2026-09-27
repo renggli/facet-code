@@ -116,27 +116,24 @@
         "icon": "$(trash)"
       },
       {
-        "command": "facet.pane.focus",
-        "title": "Facet: Focus on Pane..."
+        "command": "facet.pane.1.toggleTree.on",
+        "title": "View as List",
+        "icon": "$(list-flat)"
       },
       {
-        "command": "facet.pane.configure",
-        "title": "Facet: Configure Pane...",
-        "icon": "$(gear)"
-      },
-      {
-        "command": "facet.pane.presets",
-        "title": "Facet: View Presets",
-        "icon": "$(layers)"
-      },
-      {
-        "command": "facet.revealRange",
-        "title": "Facet: Reveal in Editor"
-      },
-      {
-        "command": "facet.pane.1.display",
-        "title": "Display Mode",
+        "command": "facet.pane.1.toggleTree.off",
+        "title": "View as Tree",
         "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.1.toggleRecursive.on",
+        "title": "Direct Items Only",
+        "icon": "$(repo-forked)"
+      },
+      {
+        "command": "facet.pane.1.toggleRecursive.off",
+        "title": "Enumerate Recursively",
+        "icon": "$(repo-forked)"
       },
       {
         "command": "facet.pane.1.filter",
@@ -164,9 +161,24 @@
         "icon": "$(sort-precedence)"
       },
       {
-        "command": "facet.pane.2.display",
-        "title": "Display Mode",
+        "command": "facet.pane.2.toggleTree.on",
+        "title": "View as List",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "facet.pane.2.toggleTree.off",
+        "title": "View as Tree",
         "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.2.toggleRecursive.on",
+        "title": "Direct Items Only",
+        "icon": "$(repo-forked)"
+      },
+      {
+        "command": "facet.pane.2.toggleRecursive.off",
+        "title": "Enumerate Recursively",
+        "icon": "$(repo-forked)"
       },
       {
         "command": "facet.pane.2.filter",
@@ -194,9 +206,24 @@
         "icon": "$(sort-precedence)"
       },
       {
-        "command": "facet.pane.3.display",
-        "title": "Display Mode",
+        "command": "facet.pane.3.toggleTree.on",
+        "title": "View as List",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "facet.pane.3.toggleTree.off",
+        "title": "View as Tree",
         "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.3.toggleRecursive.on",
+        "title": "Direct Items Only",
+        "icon": "$(repo-forked)"
+      },
+      {
+        "command": "facet.pane.3.toggleRecursive.off",
+        "title": "Enumerate Recursively",
+        "icon": "$(repo-forked)"
       },
       {
         "command": "facet.pane.3.filter",
@@ -224,9 +251,24 @@
         "icon": "$(sort-precedence)"
       },
       {
-        "command": "facet.pane.4.display",
-        "title": "Display Mode",
+        "command": "facet.pane.4.toggleTree.on",
+        "title": "View as List",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "facet.pane.4.toggleTree.off",
+        "title": "View as Tree",
         "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.4.toggleRecursive.on",
+        "title": "Direct Items Only",
+        "icon": "$(repo-forked)"
+      },
+      {
+        "command": "facet.pane.4.toggleRecursive.off",
+        "title": "Enumerate Recursively",
+        "icon": "$(repo-forked)"
       },
       {
         "command": "facet.pane.4.filter",
@@ -254,9 +296,24 @@
         "icon": "$(sort-precedence)"
       },
       {
-        "command": "facet.pane.5.display",
-        "title": "Display Mode",
+        "command": "facet.pane.5.toggleTree.on",
+        "title": "View as List",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "facet.pane.5.toggleTree.off",
+        "title": "View as Tree",
         "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.5.toggleRecursive.on",
+        "title": "Direct Items Only",
+        "icon": "$(repo-forked)"
+      },
+      {
+        "command": "facet.pane.5.toggleRecursive.off",
+        "title": "Enumerate Recursively",
+        "icon": "$(repo-forked)"
       },
       {
         "command": "facet.pane.5.filter",
@@ -284,9 +341,24 @@
         "icon": "$(sort-precedence)"
       },
       {
-        "command": "facet.pane.6.display",
-        "title": "Display Mode",
+        "command": "facet.pane.6.toggleTree.on",
+        "title": "View as List",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "facet.pane.6.toggleTree.off",
+        "title": "View as Tree",
         "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.pane.6.toggleRecursive.on",
+        "title": "Direct Items Only",
+        "icon": "$(repo-forked)"
+      },
+      {
+        "command": "facet.pane.6.toggleRecursive.off",
+        "title": "Enumerate Recursively",
+        "icon": "$(repo-forked)"
       },
       {
         "command": "facet.pane.6.filter",
@@ -317,7 +389,19 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "facet.pane.1.display",
+          "command": "facet.pane.1.toggleTree.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.1.toggleTree.off",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.1.toggleRecursive.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.1.toggleRecursive.off",
           "when": "false"
         },
         {
@@ -341,7 +425,19 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.2.display",
+          "command": "facet.pane.2.toggleTree.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.toggleTree.off",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.toggleRecursive.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.toggleRecursive.off",
           "when": "false"
         },
         {
@@ -365,7 +461,19 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.3.display",
+          "command": "facet.pane.3.toggleTree.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.toggleTree.off",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.toggleRecursive.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.toggleRecursive.off",
           "when": "false"
         },
         {
@@ -389,7 +497,19 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.4.display",
+          "command": "facet.pane.4.toggleTree.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.toggleTree.off",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.toggleRecursive.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.toggleRecursive.off",
           "when": "false"
         },
         {
@@ -413,7 +533,19 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.5.display",
+          "command": "facet.pane.5.toggleTree.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.toggleTree.off",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.toggleRecursive.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.toggleRecursive.off",
           "when": "false"
         },
         {
@@ -437,7 +569,19 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.6.display",
+          "command": "facet.pane.6.toggleTree.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.toggleTree.off",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.toggleRecursive.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.toggleRecursive.off",
           "when": "false"
         },
         {
@@ -463,14 +607,29 @@
       ],
       "view/title": [
         {
-          "command": "facet.pane.1.display",
-          "when": "view == facet.pane.1",
+          "command": "facet.pane.1.toggleTree.on",
+          "when": "view == facet.pane.1 && facet.pane.1.hasTree && facet.pane.1.isTree",
           "group": "navigation@1"
         },
         {
-          "command": "facet.pane.1.filter",
-          "when": "view == facet.pane.1",
+          "command": "facet.pane.1.toggleTree.off",
+          "when": "view == facet.pane.1 && facet.pane.1.hasTree && !facet.pane.1.isTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.1.toggleRecursive.on",
+          "when": "view == facet.pane.1 && facet.pane.1.hasRecursive && facet.pane.1.isRecursive",
           "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.1.toggleRecursive.off",
+          "when": "view == facet.pane.1 && facet.pane.1.hasRecursive && !facet.pane.1.isRecursive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.1.filter",
+          "when": "view == facet.pane.1 && facet.pane.1.hasFilter",
+          "group": "navigation@3"
         },
         {
           "command": "facet.pane.1.configure",
@@ -493,14 +652,29 @@
           "group": "1_settings@4"
         },
         {
-          "command": "facet.pane.2.display",
-          "when": "view == facet.pane.2",
+          "command": "facet.pane.2.toggleTree.on",
+          "when": "view == facet.pane.2 && facet.pane.2.hasTree && facet.pane.2.isTree",
           "group": "navigation@1"
         },
         {
-          "command": "facet.pane.2.filter",
-          "when": "view == facet.pane.2",
+          "command": "facet.pane.2.toggleTree.off",
+          "when": "view == facet.pane.2 && facet.pane.2.hasTree && !facet.pane.2.isTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.2.toggleRecursive.on",
+          "when": "view == facet.pane.2 && facet.pane.2.hasRecursive && facet.pane.2.isRecursive",
           "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.2.toggleRecursive.off",
+          "when": "view == facet.pane.2 && facet.pane.2.hasRecursive && !facet.pane.2.isRecursive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.2.filter",
+          "when": "view == facet.pane.2 && facet.pane.2.hasFilter",
+          "group": "navigation@3"
         },
         {
           "command": "facet.pane.2.configure",
@@ -523,14 +697,29 @@
           "group": "1_settings@4"
         },
         {
-          "command": "facet.pane.3.display",
-          "when": "view == facet.pane.3",
+          "command": "facet.pane.3.toggleTree.on",
+          "when": "view == facet.pane.3 && facet.pane.3.hasTree && facet.pane.3.isTree",
           "group": "navigation@1"
         },
         {
-          "command": "facet.pane.3.filter",
-          "when": "view == facet.pane.3",
+          "command": "facet.pane.3.toggleTree.off",
+          "when": "view == facet.pane.3 && facet.pane.3.hasTree && !facet.pane.3.isTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.3.toggleRecursive.on",
+          "when": "view == facet.pane.3 && facet.pane.3.hasRecursive && facet.pane.3.isRecursive",
           "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.3.toggleRecursive.off",
+          "when": "view == facet.pane.3 && facet.pane.3.hasRecursive && !facet.pane.3.isRecursive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.3.filter",
+          "when": "view == facet.pane.3 && facet.pane.3.hasFilter",
+          "group": "navigation@3"
         },
         {
           "command": "facet.pane.3.configure",
@@ -553,14 +742,29 @@
           "group": "1_settings@4"
         },
         {
-          "command": "facet.pane.4.display",
-          "when": "view == facet.pane.4",
+          "command": "facet.pane.4.toggleTree.on",
+          "when": "view == facet.pane.4 && facet.pane.4.hasTree && facet.pane.4.isTree",
           "group": "navigation@1"
         },
         {
-          "command": "facet.pane.4.filter",
-          "when": "view == facet.pane.4",
+          "command": "facet.pane.4.toggleTree.off",
+          "when": "view == facet.pane.4 && facet.pane.4.hasTree && !facet.pane.4.isTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.4.toggleRecursive.on",
+          "when": "view == facet.pane.4 && facet.pane.4.hasRecursive && facet.pane.4.isRecursive",
           "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.4.toggleRecursive.off",
+          "when": "view == facet.pane.4 && facet.pane.4.hasRecursive && !facet.pane.4.isRecursive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.4.filter",
+          "when": "view == facet.pane.4 && facet.pane.4.hasFilter",
+          "group": "navigation@3"
         },
         {
           "command": "facet.pane.4.configure",
@@ -583,14 +787,29 @@
           "group": "1_settings@4"
         },
         {
-          "command": "facet.pane.5.display",
-          "when": "view == facet.pane.5",
+          "command": "facet.pane.5.toggleTree.on",
+          "when": "view == facet.pane.5 && facet.pane.5.hasTree && facet.pane.5.isTree",
           "group": "navigation@1"
         },
         {
-          "command": "facet.pane.5.filter",
-          "when": "view == facet.pane.5",
+          "command": "facet.pane.5.toggleTree.off",
+          "when": "view == facet.pane.5 && facet.pane.5.hasTree && !facet.pane.5.isTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.5.toggleRecursive.on",
+          "when": "view == facet.pane.5 && facet.pane.5.hasRecursive && facet.pane.5.isRecursive",
           "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.5.toggleRecursive.off",
+          "when": "view == facet.pane.5 && facet.pane.5.hasRecursive && !facet.pane.5.isRecursive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.5.filter",
+          "when": "view == facet.pane.5 && facet.pane.5.hasFilter",
+          "group": "navigation@3"
         },
         {
           "command": "facet.pane.5.configure",
@@ -613,14 +832,29 @@
           "group": "1_settings@4"
         },
         {
-          "command": "facet.pane.6.display",
-          "when": "view == facet.pane.6",
+          "command": "facet.pane.6.toggleTree.on",
+          "when": "view == facet.pane.6 && facet.pane.6.hasTree && facet.pane.6.isTree",
           "group": "navigation@1"
         },
         {
-          "command": "facet.pane.6.filter",
-          "when": "view == facet.pane.6",
+          "command": "facet.pane.6.toggleTree.off",
+          "when": "view == facet.pane.6 && facet.pane.6.hasTree && !facet.pane.6.isTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.6.toggleRecursive.on",
+          "when": "view == facet.pane.6 && facet.pane.6.hasRecursive && facet.pane.6.isRecursive",
           "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.6.toggleRecursive.off",
+          "when": "view == facet.pane.6 && facet.pane.6.hasRecursive && !facet.pane.6.isRecursive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.6.filter",
+          "when": "view == facet.pane.6 && facet.pane.6.hasFilter",
+          "group": "navigation@3"
         },
         {
           "command": "facet.pane.6.configure",

@@ -1,47 +1,16 @@
 import * as vscode from 'vscode';
-import {
-  type DirectoriesPaneConfig,
-  type FilesPaneConfig,
-  type HierarchyPaneConfig,
-  matchesGlob,
-  matchesPaneFilters,
-  type PaneConfig,
-  type SortOption,
-  type SymbolsPaneConfig,
-} from '../models/paneConfig';
-import {
-  buildTypeHierarchy,
-  extractSuperTypes,
-  extractTypeHeader,
-  type FacetSymbolNode,
-  getSymbolIcon,
-  isTypeKind,
-  unionMembers,
-} from '../models/symbolNode';
-import { RelationItem, RelationsTreeProvider } from '../providers/relationsTreeProvider';
+import type { PaneConfig } from '../models/paneConfig';
+import { extractSuperTypes, extractTypeHeader, type FacetSymbolNode, isTypeKind } from '../models/symbolNode';
+import type { DirectoryNode } from '../panes/definitions/directoriesPane';
+import type { ProblemItem } from '../panes/definitions/problemsPane';
+
+export type { DirectoryNode, ProblemItem };
+
+import type { PaneExecutionContext, PaneOutput } from '../panes/paneDefinition';
+import { createDefaultPaneRegistry, type PaneRegistry } from '../panes/paneRegistry';
+import { RelationsTreeProvider } from '../providers/relationsTreeProvider';
 import type { SymbolResolver } from '../services/symbolResolver';
 import type { PanePipelineManager } from './panePipelineManager';
-
-export interface DirectoryNode {
-  type: 'directory';
-  uri: vscode.Uri;
-  name: string;
-  relativePath: string;
-  parent?: DirectoryNode;
-  children?: DirectoryNode[];
-}
-
-export interface ProblemItem {
-  type: 'problem';
-  label: string;
-  message: string;
-  description: string;
-  tooltip: string;
-  severity: vscode.DiagnosticSeverity;
-  uri: vscode.Uri;
-  range: vscode.Range;
-  iconPath: vscode.ThemeIcon;
-}
 
 export class FacetCoordinator implements vscode.Disposable {
   private cancellationSource?: vscode.CancellationTokenSource;
@@ -68,6 +37,7 @@ export class FacetCoordinator implements vscode.Disposable {
   constructor(
     public readonly resolver: SymbolResolver,
     public readonly relationsProvider: RelationsTreeProvider = new RelationsTreeProvider(),
+    public readonly registry: PaneRegistry = createDefaultPaneRegistry(),
   ) {}
 
   public setPipelineManager(pm: PanePipelineManager): void {
@@ -76,6 +46,30 @@ export class FacetCoordinator implements vscode.Disposable {
 
   public getPipelineManager(): PanePipelineManager | undefined {
     return this.pipelineManager;
+  }
+
+  public getCachedWorkspaceFiles(): vscode.Uri[] {
+    return this.cachedWorkspaceFiles;
+  }
+
+  public setCachedWorkspaceFiles(files: vscode.Uri[]): void {
+    this.cachedWorkspaceFiles = files;
+  }
+
+  public getCachedWorkspaceTypes(): FacetSymbolNode[] {
+    return this.cachedWorkspaceTypes;
+  }
+
+  public setCachedWorkspaceTypes(types: FacetSymbolNode[]): void {
+    this.cachedWorkspaceTypes = types;
+  }
+
+  public getCachedDocumentSymbols(): FacetSymbolNode[] {
+    return this.cachedDocumentSymbols;
+  }
+
+  public setCachedDocumentSymbols(symbols: FacetSymbolNode[]): void {
+    this.cachedDocumentSymbols = symbols;
   }
 
   public getSlotSelection(slotId: string): readonly any[] {
@@ -139,6 +133,14 @@ export class FacetCoordinator implements vscode.Disposable {
         break;
       }
     }
+    if (lastCursorIdx === -1) {
+      for (let i = 0; i < visible.length; i++) {
+        if (visible[i].inputSource === 'previousPane') {
+          lastCursorIdx = Math.max(0, i - 1);
+          break;
+        }
+      }
+    }
 
     const enclosingType = this.findEnclosingTypeAtCursor();
     const memberAtCursor = this.findMemberAtCursor();
@@ -171,7 +173,8 @@ export class FacetCoordinator implements vscode.Disposable {
         const diags = vscode.languages.getDiagnostics(docUri);
         const matchDiag = diags.find((d) => d.range.contains(pos));
         if (matchDiag) {
-          rawTarget = this.createProblemItem(docUri, matchDiag);
+          const probDef = this.registry.get('problems') as any;
+          rawTarget = probDef.createProblemItem ? probDef.createProblemItem(docUri, matchDiag) : undefined;
         }
       }
 
@@ -259,94 +262,68 @@ export class FacetCoordinator implements vscode.Disposable {
       };
       return search(items);
     }
-    return target;
+    return undefined;
   }
 
   public handlePaneSelectionSourceChange(slotId: string): void {
-    const pane = this.pipelineManager?.getPane(slotId);
+    if (!this.pipelineManager) {
+      return;
+    }
+    const pane = this.pipelineManager.getPane(slotId);
     if (!pane) {
       return;
     }
 
-    if (pane.selectionSource === 'cursor') {
-      if (this.currentEditor) {
-        this.handleSelectionChange(this.currentEditor);
-      }
+    if (pane.selectionSource === 'none') {
+      this.setSlotSelection(slotId, []);
+      this.refreshSlot(slotId);
     } else if (pane.selectionSource === 'all') {
-      void (async () => {
-        const items = await this.getSlotChildren(pane);
+      void this.getSlotChildren(pane).then((items) => {
         this.setSlotSelection(slotId, items);
         this.refreshSlot(slotId);
-        // Refresh downstream panes whose input is 'pane' and upstream is this slot
-        if (this.pipelineManager) {
-          const visible = this.pipelineManager.getVisiblePanes();
-          for (const other of visible) {
-            if (other.id !== slotId && other.inputSource === 'previousPane') {
-              const upstream = this.getPreviousPane(other.id);
-              if (upstream && upstream.id === slotId) {
-                this.refreshSlot(other.id);
-              }
-            }
-          }
-        }
-      })();
-    } else {
-      // none
-      this.refreshSlot(slotId);
+      });
+    } else if (pane.selectionSource === 'cursor' && this.currentEditor) {
+      void this.handleSelectionChange(this.currentEditor);
     }
   }
 
-  public scheduleSync(delayMs = 150): void {
+  public scheduleSync(): void {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
-
-    if (this.cancellationSource) {
-      this.cancellationSource.cancel();
-      this.cancellationSource.dispose();
-      this.cancellationSource = undefined;
-    }
-
     this.debounceTimer = setTimeout(() => {
       void this.sync();
-    }, delayMs);
+    }, 150);
   }
 
   public async sync(): Promise<void> {
+    if (this.cancellationSource) {
+      this.cancellationSource.cancel();
+      this.cancellationSource.dispose();
+    }
     this.cancellationSource = new vscode.CancellationTokenSource();
     const token = this.cancellationSource.token;
 
     try {
-      // 1. Resolve workspace types for global-scoped queries
-      this.cachedWorkspaceTypes = await this.resolver.resolveWorkspaceTypes('', token);
-      if (token.isCancellationRequested) {
-        return;
-      }
+      this.cachedWorkspaceFiles = [];
+      this.cachedWorkspaceTypes = [];
+      this.cachedDocumentSymbols = [];
 
-      // 2. Discover workspace files
-      try {
-        this.cachedWorkspaceFiles = await vscode.workspace.findFiles(
-          '**/*',
-          '**/{node_modules,.git,dist,out,build}/**',
-        );
-      } catch {
-        this.cachedWorkspaceFiles = [];
-      }
-      if (token.isCancellationRequested) {
-        return;
-      }
-
-      // 3. Resolve current editor document symbols if editor is active
-      if (this.currentEditor) {
-        this.cachedDocumentSymbols = await this.resolver.resolveDocumentSymbols(this.currentEditor.document, token);
-        if (token.isCancellationRequested) {
-          return;
+      if (this.currentEditor && !token.isCancellationRequested) {
+        try {
+          this.cachedDocumentSymbols = await this.resolver.resolveDocumentSymbols(this.currentEditor.document, token);
+          this.cachedDocumentUri = this.currentEditor.document.uri.toString();
+        } catch {
+          this.cachedDocumentSymbols = [];
         }
-      } else {
-        this.cachedDocumentSymbols = [];
+      }
+
+      if (token.isCancellationRequested) {
+        return;
       }
 
       this.refreshAll();
+
       if (this.currentEditor) {
         void this.handleSelectionChange(this.currentEditor);
       }
@@ -391,7 +368,6 @@ export class FacetCoordinator implements vscode.Disposable {
         }
       }
 
-      // Refresh downstream panes whose input is 'previousPane' and upstream is this slot
       if (this.pipelineManager) {
         const visible = this.pipelineManager.getVisiblePanes();
         for (const other of visible) {
@@ -425,36 +401,75 @@ export class FacetCoordinator implements vscode.Disposable {
     return prev ? this.getSlotSelection(prev.id) : [];
   }
 
-  public async getSlotChildren(config: PaneConfig, element?: any): Promise<any[]> {
-    switch (config.role) {
-      case 'directories':
-        return this.getDirectoryChildren(config, element);
-      case 'files':
-        return this.getFileChildren(config);
-      case 'symbols':
-        return this.getSymbolChildren(config as SymbolsPaneConfig, element);
-      case 'definitions':
-        return this.getRelationChildren(config, 'definitions');
-      case 'declarations':
-        return this.getRelationChildren(config, 'declarations');
-      case 'implementations':
-        return this.getRelationChildren(config, 'implementations');
-      case 'references':
-        return this.getRelationChildren(config, 'references');
-      case 'callers':
-        return this.getRelationChildren(config, 'callers');
-      case 'problems':
-        return this.getProblemChildren(config);
-      case 'changes':
-        return this.getChangeChildren(config);
-      case 'hierarchy':
-        return this.getHierarchyChildren(config as HierarchyPaneConfig, element);
-      default:
-        return [];
+  public async getUpstreamOutput(slotId: string): Promise<PaneOutput> {
+    const prev = this.getPreviousPane(slotId);
+    if (!prev) {
+      return {};
     }
+    const def = this.registry.tryGet(prev.role);
+    let items = this.getSlotSelection(prev.id);
+    if (items.length === 0) {
+      items = await this.getSlotChildren(prev);
+    }
+    if (!def) {
+      const uris = items
+        .map((i) => (i instanceof vscode.Uri ? i : i?.uri))
+        .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
+      return { items: Array.from(items), uris };
+    }
+    const context: PaneExecutionContext = {
+      config: prev,
+      slotId: prev.id,
+      coordinator: this,
+      upstreamOutput: {},
+      activeEditor: this.currentEditor,
+      cancellationToken: this.cancellationSource?.token,
+    };
+    return def.getOutput(items, context);
+  }
+
+  public async getSlotChildren(config: PaneConfig, element?: any): Promise<any[]> {
+    const def = this.registry.get(config.role);
+    const upstreamOutput = await this.getUpstreamOutput(config.id);
+
+    const context: PaneExecutionContext = {
+      config,
+      slotId: config.id,
+      coordinator: this,
+      upstreamOutput,
+      activeEditor: this.currentEditor,
+      cancellationToken: this.cancellationSource?.token,
+    };
+
+    return def.getChildren(context, element);
+  }
+
+  public getSlotTreeItem(config: PaneConfig, element: any): vscode.TreeItem {
+    const def = this.registry.get(config.role);
+    const context: PaneExecutionContext = {
+      config,
+      slotId: config.id,
+      coordinator: this,
+      upstreamOutput: {},
+      activeEditor: this.currentEditor,
+      cancellationToken: this.cancellationSource?.token,
+    };
+    return def.getTreeItem(element, context);
   }
 
   public getSlotParent(config: PaneConfig, element: any): any | undefined {
+    const def = this.registry.get(config.role);
+    if (def.getParent) {
+      const context: PaneExecutionContext = {
+        config,
+        slotId: config.id,
+        coordinator: this,
+        upstreamOutput: {},
+        activeEditor: this.currentEditor,
+        cancellationToken: this.cancellationSource?.token,
+      };
+      return def.getParent(element, context);
+    }
     if (element && typeof element === 'object' && 'parent' in element) {
       return element.parent;
     }
@@ -483,893 +498,7 @@ export class FacetCoordinator implements vscode.Disposable {
     return Array.from(openUris.values());
   }
 
-  private async getDirectoryChildren(config: DirectoriesPaneConfig, element?: any): Promise<DirectoryNode[]> {
-    if (element && element.type === 'directory') {
-      return element.children || [];
-    }
-
-    let candidateUris: vscode.Uri[] = [];
-    if (config.inputSource === 'project') {
-      if (this.cachedWorkspaceFiles.length === 0) {
-        try {
-          this.cachedWorkspaceFiles = await vscode.workspace.findFiles(
-            '**/*',
-            '**/{node_modules,.git,dist,out,build}/**',
-          );
-        } catch {
-          this.cachedWorkspaceFiles = [];
-        }
-      }
-      candidateUris = this.cachedWorkspaceFiles;
-    } else if (config.inputSource === 'openEditors') {
-      candidateUris = this.getOpenEditorUris();
-    } else if (config.inputSource === 'activeEditor') {
-      const activeUri = this.currentEditor?.document.uri || vscode.window.activeTextEditor?.document.uri;
-      if (activeUri) {
-        candidateUris = [activeUri];
-      }
-    } else if (config.inputSource === 'previousPane') {
-      const prevSel = this.getPreviousPaneSelection(config.id);
-      candidateUris = prevSel
-        .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-        .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
-    }
-
-    // Extract base directories from candidates
-    const baseDirMap = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
-
-    const prevSel = config.inputSource === 'previousPane' ? this.getPreviousPaneSelection(config.id) : [];
-    const prevDirNodes = prevSel.filter((item) => item?.type === 'directory');
-
-    for (const dNode of prevDirNodes) {
-      if (dNode.relativePath) {
-        const normRel = dNode.relativePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-        if (normRel && normRel !== '.') {
-          baseDirMap.set(normRel, {
-            uri: dNode.uri,
-            relPath: normRel,
-            name: dNode.name || normRel.split('/').pop() || normRel,
-          });
-        }
-      }
-    }
-
-    for (const uri of candidateUris) {
-      const fullPath = uri.fsPath;
-      const lastSlash = Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\'));
-      if (lastSlash > 0) {
-        const dirPath = fullPath.slice(0, lastSlash);
-        const dirUri = vscode.Uri.file(dirPath);
-        let relPath = '';
-        try {
-          relPath = (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(dirUri) : dirUri.fsPath) || '';
-        } catch {
-          relPath = dirPath;
-        }
-        relPath = relPath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-        if (relPath && relPath !== '.') {
-          const name = relPath.split('/').pop() || relPath;
-          if (!baseDirMap.has(relPath)) {
-            baseDirMap.set(relPath, { uri: dirUri, relPath, name });
-          }
-        }
-      }
-    }
-
-    // Synthesize all ancestor path segments from baseDirMap
-    const allDirsMap = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
-
-    for (const base of baseDirMap.values()) {
-      const parts = base.relPath.split('/');
-      let currentPath = '';
-      for (let i = 0; i < parts.length; i++) {
-        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
-        if (!allDirsMap.has(currentPath)) {
-          let segUri = base.uri;
-          if (currentPath === base.relPath) {
-            segUri = base.uri;
-          } else {
-            try {
-              if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-                segUri = vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, currentPath);
-              } else {
-                segUri = vscode.Uri.file(currentPath);
-              }
-            } catch {
-              segUri = base.uri;
-            }
-          }
-          allDirsMap.set(currentPath, {
-            uri: segUri,
-            relPath: currentPath,
-            name: parts[i],
-          });
-        }
-      }
-    }
-
-    const pattern = 'globPattern' in config ? config.globPattern : undefined;
-
-    const isTree = Boolean(config.tree);
-    const isRecursive = Boolean(config.recursive);
-
-    if (!isTree) {
-      if (!isRecursive) {
-        let currentDirs: { uri: vscode.Uri; relPath: string; name: string }[] = [];
-        if (config.inputSource === 'previousPane') {
-          const prevSelDirs = prevSel.filter((item) => item?.type === 'directory');
-          if (prevSelDirs.length > 0) {
-            const matchedSubDirs = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
-            for (const dNode of prevSelDirs) {
-              const parentRel = (dNode.relativePath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-              for (const item of allDirsMap.values()) {
-                if (item.relPath !== parentRel) {
-                  const prefix = parentRel ? `${parentRel}/` : '';
-                  if (item.relPath.startsWith(prefix)) {
-                    const subRel = item.relPath.slice(prefix.length);
-                    if (!subRel.includes('/')) {
-                      matchedSubDirs.set(item.relPath, item);
-                    }
-                  }
-                }
-              }
-            }
-            currentDirs = Array.from(matchedSubDirs.values());
-          } else {
-            currentDirs = Array.from(allDirsMap.values());
-          }
-        } else {
-          // Project or openEditors: top-level project items (no '/' in relPath)
-          currentDirs = Array.from(allDirsMap.values()).filter((d) => !d.relPath.includes('/'));
-        }
-
-        const currentNodes: DirectoryNode[] = currentDirs
-          .filter((d) => matchesGlob(d.relPath, pattern) || matchesGlob(d.name, pattern))
-          .map((d) => ({
-            type: 'directory',
-            uri: d.uri,
-            name: d.name,
-            relativePath: d.relPath,
-          }));
-
-        currentNodes.sort((a, b) =>
-          config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath),
-        );
-        return currentNodes;
-      } else {
-        const flatNodes: DirectoryNode[] = Array.from(baseDirMap.values())
-          .filter((d) => matchesGlob(d.relPath, pattern) || matchesGlob(d.name, pattern))
-          .map((d) => ({
-            type: 'directory',
-            uri: d.uri,
-            name: d.name,
-            relativePath: d.relPath,
-          }));
-
-        flatNodes.sort((a, b) =>
-          config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath),
-        );
-        return flatNodes;
-      }
-    }
-
-    // Hierarchy mode (isTree === true)
-
-    // 2. Build DirectoryNode map
-    const nodeMap = new Map<string, DirectoryNode>();
-    for (const d of allDirsMap.values()) {
-      nodeMap.set(d.relPath, {
-        type: 'directory',
-        uri: d.uri,
-        name: d.name,
-        relativePath: d.relPath,
-        children: [],
-      });
-    }
-
-    // 3. Link parent and children
-    const childRelPaths = new Set<string>();
-
-    for (const [relPath, node] of nodeMap) {
-      const lastSlash = relPath.lastIndexOf('/');
-      if (lastSlash !== -1) {
-        const parentRel = relPath.slice(0, lastSlash);
-        const parentNode = nodeMap.get(parentRel);
-        if (parentNode) {
-          node.parent = parentNode;
-          parentNode.children = parentNode.children || [];
-          if (!parentNode.children.some((c) => c.relativePath === node.relativePath)) {
-            parentNode.children.push(node);
-          }
-          childRelPaths.add(relPath);
-        }
-      }
-    }
-
-    // 4. Leaf-based filtering
-    const matchesDirectoryFilter = (node: DirectoryNode): boolean => {
-      if (!pattern || !pattern.trim()) {
-        return true;
-      }
-      return (
-        matchesGlob(node.relativePath, pattern) ||
-        matchesGlob(node.name, pattern) ||
-        node.relativePath.split('/').some((part) => matchesGlob(part, pattern))
-      );
-    };
-
-    const filterLeaves = (node: DirectoryNode): boolean => {
-      if (node.children && node.children.length > 0) {
-        node.children = node.children.filter((child) => filterLeaves(child));
-        if (node.children.length > 0) {
-          return true;
-        }
-      }
-      return matchesDirectoryFilter(node);
-    };
-
-    // 5. Roots extraction, strictly removing duplicates nested elsewhere
-    const rootNodes: DirectoryNode[] = [];
-    const rootSeen = new Set<string>();
-
-    const allNodes = Array.from(nodeMap.values()).sort(
-      (a, b) => a.relativePath.split('/').length - b.relativePath.split('/').length,
-    );
-
-    for (const node of allNodes) {
-      if (childRelPaths.has(node.relativePath) || node.parent !== undefined) {
-        continue;
-      }
-      if (rootSeen.has(node.relativePath)) {
-        continue;
-      }
-
-      if (filterLeaves(node)) {
-        rootSeen.add(node.relativePath);
-        rootNodes.push(node);
-      }
-    }
-
-    const sortNodes = (nodes: DirectoryNode[]) => {
-      nodes.sort((a, b) =>
-        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath),
-      );
-      for (const n of nodes) {
-        if (n.children && n.children.length > 0) {
-          sortNodes(n.children);
-        }
-      }
-    };
-    sortNodes(rootNodes);
-    return rootNodes;
-  }
-
-  private async getFileChildren(config: PaneConfig): Promise<vscode.Uri[]> {
-    let files: vscode.Uri[] = [];
-
-    if (config.inputSource === 'project') {
-      if (this.cachedWorkspaceFiles.length === 0) {
-        try {
-          this.cachedWorkspaceFiles = await vscode.workspace.findFiles(
-            '**/*',
-            '**/{node_modules,.git,dist,out,build}/**',
-          );
-        } catch {
-          this.cachedWorkspaceFiles = [];
-        }
-      }
-      files = [...this.cachedWorkspaceFiles];
-    } else if (config.inputSource === 'openEditors') {
-      files = this.getOpenEditorUris();
-    } else if (config.inputSource === 'activeEditor') {
-      const activeUri = this.currentEditor?.document.uri || vscode.window.activeTextEditor?.document.uri;
-      if (activeUri) {
-        files = [activeUri];
-      }
-    } else if (config.inputSource === 'previousPane') {
-      const prevSel = this.getPreviousPaneSelection(config.id);
-      const dirPaths = prevSel
-        .filter((item) => item?.type === 'directory' || (item instanceof vscode.Uri && !item.path.includes('.')))
-        .map((item) => (item?.uri ? item.uri.fsPath : item.fsPath));
-
-      if (dirPaths.length > 0) {
-        if (this.cachedWorkspaceFiles.length === 0) {
-          try {
-            this.cachedWorkspaceFiles = await vscode.workspace.findFiles(
-              '**/*',
-              '**/{node_modules,.git,dist,out,build}/**',
-            );
-          } catch {
-            this.cachedWorkspaceFiles = [];
-          }
-        }
-        const isRecursive = Boolean((config as FilesPaneConfig).recursive);
-        files = this.cachedWorkspaceFiles.filter((file) => {
-          const normFile = file.fsPath.replace(/\\/g, '/').replace(/\/+$/, '');
-          return dirPaths.some((dir) => {
-            const normDir = dir.replace(/\\/g, '/').replace(/\/+$/, '');
-            if (isRecursive) {
-              return normFile.startsWith(normDir + '/');
-            } else {
-              const lastSlash = normFile.lastIndexOf('/');
-              const fileDir = lastSlash !== -1 ? normFile.slice(0, lastSlash) : '';
-              return fileDir === normDir;
-            }
-          });
-        });
-      } else {
-        const rawFiles = prevSel
-          .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-          .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
-        if (rawFiles.length === 0) {
-          const prevPane = this.getPreviousPane(config.id);
-          if (prevPane) {
-            const prevChildren = await this.getSlotChildren(prevPane);
-            rawFiles.push(
-              ...prevChildren
-                .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-                .filter((u): u is vscode.Uri => u instanceof vscode.Uri),
-            );
-          }
-        }
-        const seen = new Set<string>();
-        files = rawFiles.filter((u) => {
-          if (seen.has(u.fsPath)) {
-            return false;
-          }
-          seen.add(u.fsPath);
-          return true;
-        });
-      }
-    }
-
-    const pattern = 'globPattern' in config ? config.globPattern : undefined;
-
-    if (pattern && pattern.trim()) {
-      files = files.filter((u) => {
-        const relPath = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(u) : u.fsPath;
-        return matchesGlob(relPath, pattern);
-      });
-    }
-
-    // Stable sort files with deterministic secondary tie-breaker (full path)
-    files.sort((a, b) => {
-      const pathA = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(a) : a.fsPath;
-      const pathB = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(b) : b.fsPath;
-      if (config.sort === 'name') {
-        const nameA = a.path.split('/').pop() || '';
-        const nameB = b.path.split('/').pop() || '';
-        const diff = nameA.localeCompare(nameB);
-        if (diff !== 0) {
-          return diff;
-        }
-      }
-      return pathA.localeCompare(pathB);
-    });
-
-    return files;
-  }
-
-  private sortItems<T extends FacetSymbolNode>(items: T[], sort: SortOption): T[] {
-    const copy = items.slice();
-    return copy.sort((a, b) => {
-      const uriA = a.uri
-        ? vscode.workspace.asRelativePath
-          ? vscode.workspace.asRelativePath(a.uri)
-          : a.uri.fsPath
-        : '';
-      const uriB = b.uri
-        ? vscode.workspace.asRelativePath
-          ? vscode.workspace.asRelativePath(b.uri)
-          : b.uri.fsPath
-        : '';
-      const uriDiff = uriA.localeCompare(uriB);
-
-      const lineDiff = (a.range?.start?.line ?? 0) - (b.range?.start?.line ?? 0);
-      const charDiff = (a.range?.start?.character ?? 0) - (b.range?.start?.character ?? 0);
-
-      if (sort === 'category') {
-        const kindDiff = a.kind - b.kind;
-        if (kindDiff !== 0) {
-          return kindDiff;
-        }
-        const nameDiff = a.name.localeCompare(b.name);
-        if (nameDiff !== 0) {
-          return nameDiff;
-        }
-        if (uriDiff !== 0) {
-          return uriDiff;
-        }
-        if (lineDiff !== 0) {
-          return lineDiff;
-        }
-        return charDiff;
-      }
-
-      if (sort === 'position') {
-        if (uriDiff !== 0) {
-          return uriDiff;
-        }
-        if (lineDiff !== 0) {
-          return lineDiff;
-        }
-        if (charDiff !== 0) {
-          return charDiff;
-        }
-        return a.name.localeCompare(b.name);
-      }
-
-      // Default: 'name'
-      const nameDiff = a.name.localeCompare(b.name);
-      if (nameDiff !== 0) {
-        return nameDiff;
-      }
-      if (uriDiff !== 0) {
-        return uriDiff;
-      }
-      if (lineDiff !== 0) {
-        return lineDiff;
-      }
-      return charDiff;
-    });
-  }
-
-  private async resolveTypesFromFiles(fileUris: vscode.Uri[], recursive: boolean): Promise<FacetSymbolNode[]> {
-    const rawTypes: FacetSymbolNode[] = [];
-    const seenUris = new Set<string>();
-
-    for (const uri of fileUris) {
-      if (seenUris.has(uri.fsPath)) {
-        continue;
-      }
-      seenUris.add(uri.fsPath);
-      try {
-        const doc = await vscode.workspace.openTextDocument(uri);
-        const symbols = await this.resolver.resolveDocumentSymbols(doc);
-        if (recursive) {
-          const types = this.resolver.extractTypesOnly(symbols);
-          rawTypes.push(...types);
-        } else {
-          const types = symbols.filter((s) => isTypeKind(s.kind));
-          rawTypes.push(...types);
-        }
-      } catch {
-        // ignore unopenable files
-      }
-    }
-    return rawTypes;
-  }
-
-  private async getSymbolChildren(config: SymbolsPaneConfig, element?: any): Promise<any[]> {
-    const filters = config.filters;
-    const isTree = Boolean(config.tree);
-    const isRecursive = Boolean(config.recursive);
-
-    // 1. Element is provided: VS Code requested children of an existing tree node
-    if (element) {
-      if (!isTree) {
-        return [];
-      }
-      const node = element as FacetSymbolNode;
-
-      // If the node is a type, lazily hydrate members if needed
-      if (isTypeKind(node.kind)) {
-        if ((!node.children || node.children.length === 0) && node.uri) {
-          try {
-            const doc = await vscode.workspace.openTextDocument(node.uri);
-            const symbols = await this.resolver.resolveDocumentSymbols(doc);
-            const match = symbols.find((s) => s.name === node.name && isTypeKind(s.kind));
-            if (match && match.children) {
-              node.children = match.children;
-              for (const child of node.children) {
-                child.parent = node;
-              }
-            }
-          } catch {
-            // ignore
-          }
-        }
-        let children = node.children || [];
-        children = children.filter((c) => matchesPaneFilters(c, filters));
-        return this.sortItems(children, config.sort);
-      }
-
-      // If the node is not a type (e.g. a member) and recursive is true, expand its children
-      if (isRecursive && node.children && node.children.length > 0) {
-        const children = node.children.filter((c) => matchesPaneFilters(c, filters));
-        return this.sortItems(children, config.sort);
-      }
-
-      return [];
-    }
-
-    // 2. Root level: element is undefined
-    let targetTypes: FacetSymbolNode[] = [];
-    let isTypeInput = false;
-
-    if (config.inputSource === 'previousPane') {
-      const prevSel = this.getPreviousPaneSelection(config.id);
-      const symbolTypes = prevSel.filter((s) => s && isTypeKind(s.kind));
-
-      if (symbolTypes.length > 0) {
-        targetTypes = symbolTypes;
-        isTypeInput = true;
-      } else {
-        const fileUris = prevSel
-          .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-          .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
-
-        if (fileUris.length > 0) {
-          isTypeInput = false;
-          targetTypes = await this.resolveTypesFromFiles(fileUris, isRecursive);
-        } else {
-          const prevPane = this.getPreviousPane(config.id);
-          if (prevPane) {
-            const prevChildren = await this.getSlotChildren(prevPane);
-            const prevTypes = prevChildren.filter((s) => s && isTypeKind(s.kind));
-            if (prevTypes.length > 0) {
-              targetTypes = [prevTypes[0]];
-              isTypeInput = true;
-            } else {
-              const prevUris = prevChildren
-                .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-                .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
-              if (prevUris.length > 0) {
-                targetTypes = await this.resolveTypesFromFiles(prevUris, isRecursive);
-                isTypeInput = false;
-              }
-            }
-          }
-        }
-      }
-    } else if (config.inputSource === 'activeEditor') {
-      const activeUri = this.currentEditor?.document.uri || vscode.window.activeTextEditor?.document.uri;
-      if (activeUri) {
-        targetTypes = await this.resolveTypesFromFiles([activeUri], isRecursive);
-      }
-      isTypeInput = false;
-    } else if (config.inputSource === 'openEditors') {
-      const openUris = this.getOpenEditorUris();
-      targetTypes = await this.resolveTypesFromFiles(openUris, isRecursive);
-      isTypeInput = false;
-    } else if (config.inputSource === 'project') {
-      if (this.cachedWorkspaceTypes.length === 0) {
-        this.cachedWorkspaceTypes = await this.resolver.resolveWorkspaceTypes('');
-      }
-      targetTypes = this.cachedWorkspaceTypes;
-      isTypeInput = false;
-    }
-
-    if (isTypeInput) {
-      for (const t of targetTypes) {
-        if ((!t.children || t.children.length === 0) && t.uri) {
-          try {
-            const doc = await vscode.workspace.openTextDocument(t.uri);
-            const symbols = await this.resolver.resolveDocumentSymbols(doc);
-            const match = symbols.find((s) => s.name === t.name && isTypeKind(s.kind));
-            if (match && match.children) {
-              t.children = match.children;
-              for (const child of t.children) {
-                child.parent = t;
-              }
-            }
-          } catch {
-            // ignore
-          }
-        }
-      }
-
-      let rawMembers = unionMembers(targetTypes);
-
-      if (isRecursive && !isTree) {
-        const flattened: FacetSymbolNode[] = [];
-        const collect = (list: FacetSymbolNode[]) => {
-          for (const m of list) {
-            flattened.push(m);
-            if (m.children && m.children.length > 0) {
-              collect(m.children);
-            }
-          }
-        };
-        collect(rawMembers);
-        rawMembers = flattened;
-      }
-
-      const filtered = rawMembers.filter((m) => matchesPaneFilters(m, filters));
-      return this.sortItems(filtered, config.sort);
-    }
-
-    await this.hydrateMissingSuperTypes(targetTypes);
-
-    const filtered = targetTypes.filter((t) => matchesPaneFilters(t, filters));
-    return this.sortItems(filtered, config.sort);
-  }
-
-  private async getHierarchyChildren(config: HierarchyPaneConfig, element?: any): Promise<any[]> {
-    const isTree = Boolean(config.tree);
-    const filters = config.filters;
-    const subclassTypes = config.subclassTypes;
-
-    if (element) {
-      if (isTree) {
-        const node = element as FacetSymbolNode;
-        const subTypes = node.subTypes || [];
-        const filtered = subTypes.filter((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters));
-        return this.sortItems(filtered, config.sort);
-      }
-      return [];
-    }
-
-    let rawTypes: FacetSymbolNode[] = [];
-
-    if (config.inputSource === 'project') {
-      if (this.cachedWorkspaceTypes.length === 0) {
-        this.cachedWorkspaceTypes = await this.resolver.resolveWorkspaceTypes('');
-      }
-      rawTypes = this.cachedWorkspaceTypes;
-    } else if (config.inputSource === 'activeEditor') {
-      rawTypes = this.cachedDocumentSymbols.filter((s) => isTypeKind(s.kind));
-    } else if (config.inputSource === 'openEditors') {
-      const openUris = this.getOpenEditorUris();
-      for (const uri of openUris) {
-        try {
-          const doc = await vscode.workspace.openTextDocument(uri);
-          const symbols = await this.resolver.resolveDocumentSymbols(doc);
-          const types = this.resolver.extractTypesOnly(symbols);
-          rawTypes.push(...types);
-        } catch {
-          // ignore
-        }
-      }
-    } else if (config.inputSource === 'previousPane') {
-      const prev = this.getPreviousPaneSelection(config.id);
-      const symbolTypes = prev.filter((s) => s && isTypeKind(s.kind));
-      if (symbolTypes.length > 0) {
-        rawTypes = symbolTypes;
-      } else {
-        const fileUris = prev
-          .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-          .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
-
-        let targetUris = fileUris;
-        if (targetUris.length === 0) {
-          const prevPane = this.getPreviousPane(config.id);
-          if (prevPane) {
-            const prevChildren = await this.getSlotChildren(prevPane);
-            targetUris = prevChildren
-              .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-              .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
-          }
-        }
-
-        if (targetUris.length > 0) {
-          const seenUris = new Set<string>();
-          for (const uri of targetUris) {
-            if (seenUris.has(uri.fsPath)) {
-              continue;
-            }
-            seenUris.add(uri.fsPath);
-            try {
-              const doc = await vscode.workspace.openTextDocument(uri);
-              const symbols = await this.resolver.resolveDocumentSymbols(doc);
-              const types = this.resolver.extractTypesOnly(symbols);
-              rawTypes.push(...types);
-            } catch {
-              // ignore unopenable files
-            }
-          }
-        }
-      }
-    }
-
-    // Hydrate superTypes if missing across open tabs and disk files
-    await this.hydrateMissingSuperTypes(rawTypes);
-
-    if (isTree) {
-      let allowedKinds: vscode.SymbolKind[] | undefined;
-      if (subclassTypes && subclassTypes.length > 0) {
-        const keyMap: Record<string, vscode.SymbolKind> = {
-          class: vscode.SymbolKind.Class,
-          interface: vscode.SymbolKind.Interface,
-          struct: vscode.SymbolKind.Struct,
-          enum: vscode.SymbolKind.Enum,
-        };
-        allowedKinds = subclassTypes.map((k) => keyMap[k]).filter((k) => k !== undefined);
-      }
-      const roots = buildTypeHierarchy(rawTypes, allowedKinds, filters);
-      return this.sortItems(roots, config.sort);
-    }
-
-    const filtered = rawTypes.filter((t) => matchesPaneFilters(t, filters));
-    return this.sortItems(filtered, config.sort);
-  }
-
-  private async getRelationChildren(
-    config: PaneConfig,
-    mode: 'references' | 'callers' | 'implementations' | 'definitions' | 'declarations',
-  ): Promise<any[]> {
-    let targets: FacetSymbolNode[] = [];
-
-    const prevSel = this.getPreviousPaneSelection(config.id);
-    targets = prevSel.filter((s) => s && s.name && s.uri);
-
-    if (targets.length === 0) {
-      const prevPane = this.getPreviousPane(config.id);
-      if (prevPane) {
-        const prevItems = await this.getSlotChildren(prevPane);
-        if (prevItems.length > 0 && prevItems[0].uri) {
-          targets = [prevItems[0]];
-        }
-      }
-    }
-
-    if (targets.length === 0) {
-      return [];
-    }
-
-    const raw = await this.relationsProvider.fetchRelationsForNodes(targets, mode);
-    const filters = 'filters' in config ? config.filters : undefined;
-    const filtered = raw.filter((item) => matchesPaneFilters(item, filters));
-
-    return filtered.sort((a, b) => {
-      if (config.sort === 'name') {
-        return a.label.localeCompare(b.label);
-      }
-      const uriDiff = a.uri.fsPath.localeCompare(b.uri.fsPath);
-      if (uriDiff !== 0) {
-        return uriDiff;
-      }
-      return a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character;
-    });
-  }
-
-  private async getProblemChildren(config: PaneConfig): Promise<ProblemItem[]> {
-    let candidateUris: vscode.Uri[] = [];
-
-    if (config.inputSource === 'project') {
-      const allDiags = vscode.languages.getDiagnostics();
-      const items: ProblemItem[] = [];
-      for (const [uri, diags] of allDiags) {
-        for (const d of diags) {
-          items.push(this.createProblemItem(uri, d));
-        }
-      }
-      return this.sortProblems(items, config.sort);
-    } else if (config.inputSource === 'openEditors') {
-      candidateUris = this.getOpenEditorUris();
-    } else if (config.inputSource === 'activeEditor') {
-      if (this.currentEditor?.document.uri) {
-        candidateUris = [this.currentEditor.document.uri];
-      }
-    } else if (config.inputSource === 'previousPane') {
-      const prevSel = this.getPreviousPaneSelection(config.id);
-      candidateUris = prevSel
-        .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-        .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
-      if (candidateUris.length === 0) {
-        const prevPane = this.getPreviousPane(config.id);
-        if (prevPane) {
-          const prevChildren = await this.getSlotChildren(prevPane);
-          candidateUris = prevChildren
-            .map((item) => (item instanceof vscode.Uri ? item : item?.uri))
-            .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
-        }
-      }
-    }
-
-    const items: ProblemItem[] = [];
-    for (const uri of candidateUris) {
-      const diags = vscode.languages.getDiagnostics(uri);
-      for (const d of diags) {
-        items.push(this.createProblemItem(uri, d));
-      }
-    }
-    return this.sortProblems(items, config.sort);
-  }
-
-  public createProblemItem(uri: vscode.Uri, d: vscode.Diagnostic): ProblemItem {
-    const relPath = vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(uri) : uri.fsPath;
-    const lineNum = d.range.start.line + 1;
-    let icon = new vscode.ThemeIcon('info');
-    if (d.severity === vscode.DiagnosticSeverity.Error) {
-      icon = new vscode.ThemeIcon('error');
-    } else if (d.severity === vscode.DiagnosticSeverity.Warning) {
-      icon = new vscode.ThemeIcon('warning');
-    }
-
-    return {
-      type: 'problem',
-      label: d.message,
-      message: d.message,
-      description: `${relPath}:${lineNum}`,
-      tooltip: `[${vscode.DiagnosticSeverity[d.severity]}] ${d.message} (${relPath}:${lineNum})`,
-      severity: d.severity,
-      uri,
-      range: d.range,
-      iconPath: icon,
-    };
-  }
-
-  private sortProblems(items: ProblemItem[], sort: SortOption): ProblemItem[] {
-    return items.sort((a, b) => {
-      if (sort === 'category') {
-        const sevDiff = a.severity - b.severity;
-        if (sevDiff !== 0) {
-          return sevDiff;
-        }
-      }
-      if (sort === 'name') {
-        const msgDiff = a.message.localeCompare(b.message);
-        if (msgDiff !== 0) {
-          return msgDiff;
-        }
-      }
-      const uriDiff = a.uri.fsPath.localeCompare(b.uri.fsPath);
-      if (uriDiff !== 0) {
-        return uriDiff;
-      }
-      return a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character;
-    });
-  }
-
-  private async getChangeChildren(config: PaneConfig): Promise<vscode.Uri[]> {
-    const dirtyDocs = (vscode.workspace.textDocuments || [])
-      .filter((d) => d.isDirty && d.uri.scheme === 'file')
-      .map((d) => d.uri);
-
-    const changedUris = new Map<string, vscode.Uri>();
-    for (const u of dirtyDocs) {
-      changedUris.set(u.fsPath, u);
-    }
-
-    try {
-      const gitExt = vscode.extensions.getExtension('vscode.git');
-      if (gitExt) {
-        const git = (gitExt.exports as any)?.getAPI ? (gitExt.exports as any).getAPI(1) : undefined;
-        if (git && git.repositories) {
-          for (const repo of git.repositories) {
-            const changes = [...(repo.state?.workingTreeChanges || []), ...(repo.state?.indexChanges || [])];
-            for (const ch of changes) {
-              if (ch.uri) {
-                changedUris.set(ch.uri.fsPath, ch.uri);
-              }
-            }
-          }
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    let files = Array.from(changedUris.values());
-
-    if (config.inputSource === 'activeEditor') {
-      const activeUri = this.currentEditor?.document.uri;
-      files = activeUri && changedUris.has(activeUri.fsPath) ? [activeUri] : [];
-    } else if (config.inputSource === 'openEditors') {
-      const openUris = new Set(this.getOpenEditorUris().map((u) => u.fsPath));
-      files = files.filter((u) => openUris.has(u.fsPath));
-    } else if (config.inputSource === 'previousPane') {
-      const prevSel = this.getPreviousPaneSelection(config.id);
-      const prevPaths = new Set(
-        prevSel.map((i) => (i instanceof vscode.Uri ? i.fsPath : i?.uri?.fsPath)).filter(Boolean),
-      );
-      files = files.filter((u) => prevPaths.has(u.fsPath));
-    }
-
-    files.sort((a, b) => {
-      if (config.sort === 'name') {
-        const nameA = a.path.split('/').pop() || '';
-        const nameB = b.path.split('/').pop() || '';
-        return nameA.localeCompare(nameB) || a.fsPath.localeCompare(b.fsPath);
-      }
-      return a.fsPath.localeCompare(b.fsPath);
-    });
-
-    return files;
-  }
-
-  private async hydrateMissingSuperTypes(types: FacetSymbolNode[]): Promise<void> {
+  public async hydrateMissingSuperTypes(types: FacetSymbolNode[]): Promise<void> {
     const missing = types.filter((t) => t.superTypes === undefined && t.uri);
     if (missing.length === 0) {
       return;
@@ -1412,116 +541,6 @@ export class FacetCoordinator implements vscode.Disposable {
         }
       }
     }
-  }
-
-  public getSlotTreeItem(config: PaneConfig, element: any): vscode.TreeItem {
-    if (element && element.type === 'directory') {
-      const dir = element as DirectoryNode;
-      const hasChildren = Boolean(dir.children && dir.children.length > 0);
-      const isTree = 'tree' in config ? Boolean(config.tree) : false;
-      const item = new vscode.TreeItem(
-        dir.name,
-        isTree && hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
-      );
-      if (!isTree && dir.relativePath) {
-        item.description = dir.relativePath;
-      }
-      item.iconPath = vscode.ThemeIcon.Folder;
-      return item;
-    }
-
-    if (element && element.type === 'problem') {
-      const prob = element as ProblemItem;
-      const item = new vscode.TreeItem(prob.label, vscode.TreeItemCollapsibleState.None);
-      item.description = prob.description;
-      item.tooltip = prob.tooltip;
-      item.iconPath = prob.iconPath;
-      item.command = {
-        command: 'facet.revealRange',
-        title: 'Reveal Problem',
-        arguments: [prob.uri, prob.range],
-      };
-      return item;
-    }
-
-    if (element instanceof vscode.Uri) {
-      const fileName = element.path?.split('/').pop() || element.fsPath || 'file';
-      let relPath = '';
-      try {
-        relPath = (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(element) : element.fsPath) || '';
-      } catch {
-        relPath = element.fsPath || element.path || '';
-      }
-      const item = new vscode.TreeItem(fileName, vscode.TreeItemCollapsibleState.None);
-      if (relPath) {
-        const lastSlash = relPath.lastIndexOf('/');
-        item.description = lastSlash !== -1 ? relPath.slice(0, lastSlash) : undefined;
-      }
-      item.iconPath = vscode.ThemeIcon.File;
-      item.command = {
-        command: 'vscode.open',
-        title: 'Open File',
-        arguments: [element],
-      };
-      return item;
-    }
-
-    if (
-      element &&
-      'uri' in element &&
-      'range' in element &&
-      'label' in element &&
-      !('kind' in element && 'category' in element)
-    ) {
-      return this.relationsProvider.getTreeItem(element);
-    }
-
-    const node = element as FacetSymbolNode;
-    let hasChildren = false;
-
-    if (config.role === 'symbols') {
-      const symConfig = config as SymbolsPaneConfig;
-      if (symConfig.tree) {
-        if (isTypeKind(node.kind)) {
-          const filters = symConfig.filters;
-          if (node.children && node.children.length > 0) {
-            hasChildren = node.children.some((c) => matchesPaneFilters(c, filters));
-          } else {
-            hasChildren = true;
-          }
-        } else if (symConfig.recursive) {
-          const filters = symConfig.filters;
-          hasChildren = Boolean(node.children && node.children.some((c) => matchesPaneFilters(c, filters)));
-        }
-      }
-    } else if (config.role === 'hierarchy' && config.tree) {
-      const filters = config.filters;
-      hasChildren = Boolean(
-        node.subTypes && node.subTypes.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters)),
-      );
-    } else if ('tree' in config && config.tree) {
-      hasChildren = Boolean(node.children && node.children.length > 0);
-    }
-
-    const item = new vscode.TreeItem(
-      node.name,
-      hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
-    );
-
-    let desc = node.detail || '';
-    if (node.isStatic) {
-      desc = desc ? `static ${desc}` : 'static';
-    }
-    item.description = desc || undefined;
-    item.iconPath = getSymbolIcon(node.kind);
-
-    item.command = {
-      command: 'facet.revealRange',
-      title: 'Reveal in Editor',
-      arguments: [node.uri, node.selectionRange || node.range],
-    };
-
-    return item;
   }
 
   public findEnclosingTypeAtCursor(): FacetSymbolNode | undefined {

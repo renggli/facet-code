@@ -73,7 +73,12 @@ suite('Extension Lifecycle Test Suite', () => {
     await vscode.commands.executeCommand('facet.focus.members');
 
     // Execute slot-specific action commands
-    await vscode.commands.executeCommand('facet.pane.1.display');
+    await vscode.commands.executeCommand('facet.pane.1.toggleTree');
+    await vscode.commands.executeCommand('facet.pane.1.toggleTree.on');
+    await vscode.commands.executeCommand('facet.pane.1.toggleTree.off');
+    await vscode.commands.executeCommand('facet.pane.1.toggleRecursive');
+    await vscode.commands.executeCommand('facet.pane.1.toggleRecursive.on');
+    await vscode.commands.executeCommand('facet.pane.1.toggleRecursive.off');
     await vscode.commands.executeCommand('facet.pane.1.filter');
     await vscode.commands.executeCommand('facet.pane.1.type');
     await vscode.commands.executeCommand('facet.pane.1.input');

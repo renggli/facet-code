@@ -119,8 +119,23 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(`${slotId}.configure`, async () => {
         await pipelineManager.configurePane(slotId);
       }),
-      vscode.commands.registerCommand(`${slotId}.display`, async () => {
-        await pipelineManager.configureTreeDisplay(slotId);
+      vscode.commands.registerCommand(`${slotId}.toggleTree`, async () => {
+        await pipelineManager.toggleTreeDisplay(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.toggleTree.on`, async () => {
+        await pipelineManager.toggleTreeDisplay(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.toggleTree.off`, async () => {
+        await pipelineManager.toggleTreeDisplay(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.toggleRecursive`, async () => {
+        await pipelineManager.toggleRecursive(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.toggleRecursive.on`, async () => {
+        await pipelineManager.toggleRecursive(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.toggleRecursive.off`, async () => {
+        await pipelineManager.toggleRecursive(slotId);
       }),
       vscode.commands.registerCommand(`${slotId}.filter`, async () => {
         await pipelineManager.configureFilter(slotId);
