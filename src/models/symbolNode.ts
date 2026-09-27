@@ -12,9 +12,6 @@ export enum MemberCategory {
   Special = 'special',
 }
 
-export type HierarchyMode = 'flat' | 'inherited';
-export type LayoutMode = 'tree' | 'list';
-
 export interface FacetSymbolNode {
   name: string;
   detail?: string;
@@ -37,18 +34,6 @@ export function isTypeKind(kind: vscode.SymbolKind): boolean {
     kind === vscode.SymbolKind.Enum ||
     kind === vscode.SymbolKind.Struct
   );
-}
-
-export function filterMembers(
-  members: readonly FacetSymbolNode[],
-  category: MemberCategory = MemberCategory.All,
-): FacetSymbolNode[] {
-  return members.filter((m) => {
-    if (category !== MemberCategory.All && m.category !== category) {
-      return false;
-    }
-    return true;
-  });
 }
 
 export function unionMembers(types: readonly FacetSymbolNode[]): FacetSymbolNode[] {

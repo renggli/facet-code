@@ -76,19 +76,6 @@ export const ALL_SYMBOL_FILTER_OPTIONS: { key: SymbolKindKey; label: string; kin
 
 export const TYPE_FILTER_KEYS: SymbolKindKey[] = ['class', 'interface', 'struct', 'enum', 'module', 'namespace'];
 
-export const MEMBER_FILTER_KEYS: SymbolKindKey[] = [
-  'method',
-  'field',
-  'property',
-  'constructor',
-  'constant',
-  'variable',
-  'function',
-  'enumMember',
-  'event',
-  'operator',
-];
-
 export const SYMBOL_KIND_TO_KEY: Record<number, SymbolKindKey> = {
   [vscode.SymbolKind.File]: 'file',
   [vscode.SymbolKind.Module]: 'module',
@@ -417,33 +404,6 @@ export function createHierarchyPane(id: string, overrides?: Partial<HierarchyPan
     visible: true,
     ...overrides,
   };
-}
-
-export function createPaneByRole(role: PaneRole, id: string, overrides?: Partial<any>): PaneConfig {
-  switch (role) {
-    case 'files':
-      return createFilesPane(id, overrides);
-    case 'directories':
-      return createDirectoriesPane(id, overrides);
-    case 'symbols':
-      return createSymbolsPane(id, overrides);
-    case 'definitions':
-      return createDefinitionsPane(id, overrides);
-    case 'declarations':
-      return createDeclarationsPane(id, overrides);
-    case 'implementations':
-      return createImplementationsPane(id, overrides);
-    case 'references':
-      return createReferencesPane(id, overrides);
-    case 'problems':
-      return createProblemsPane(id, overrides);
-    case 'changes':
-      return createChangesPane(id, overrides);
-    case 'callers':
-      return createCallersPane(id, overrides);
-    case 'hierarchy':
-      return createHierarchyPane(id, overrides);
-  }
 }
 
 export function createDefaultPanes(): PaneConfig[] {

@@ -3,7 +3,7 @@ import type { FacetCoordinator } from '../coordinator/facetCoordinator';
 import type { PaneConfig } from '../models/paneConfig';
 
 export class SlotTreeProvider implements vscode.TreeDataProvider<any> {
-  private _onDidChangeTreeData = new vscode.EventEmitter<any | undefined | void>();
+  private _onDidChangeTreeData = new vscode.EventEmitter<any | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
   private explicitConfig?: PaneConfig;
   public readonly slotId: string;

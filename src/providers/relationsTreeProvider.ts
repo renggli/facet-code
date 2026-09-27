@@ -37,47 +37,7 @@ async function getLineSnippet(uri: vscode.Uri, lineIndex: number, fallback: stri
   return fallback;
 }
 
-export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationItem> {
-  private _onDidChangeTreeData = new vscode.EventEmitter<RelationItem | undefined | void>();
-  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
-
-  private selectedMembers: readonly FacetSymbolNode[] = [];
-  private mode: RelationsMode = 'references';
-  private cachedItems: RelationItem[] = [];
-
-  refresh(): void {
-    this._onDidChangeTreeData.fire();
-  }
-
-  setMode(mode: RelationsMode): void {
-    this.mode = mode;
-    void this.fetchRelations();
-  }
-
-  getMode(): RelationsMode {
-    return this.mode;
-  }
-
-  setSelectedMembers(members: readonly FacetSymbolNode[]): void {
-    this.selectedMembers = members;
-    void this.fetchRelations();
-  }
-
-  getSelectedMembers(): readonly FacetSymbolNode[] {
-    return this.selectedMembers;
-  }
-
-  async fetchRelations(): Promise<void> {
-    if (this.selectedMembers.length === 0) {
-      this.cachedItems = [];
-      this.refresh();
-      return;
-    }
-
-    this.cachedItems = await this.fetchRelationsForNodes(this.selectedMembers, this.mode);
-    this.refresh();
-  }
-
+export class RelationsTreeProvider {
   async fetchRelationsForNodes(nodes: readonly FacetSymbolNode[], mode: RelationsMode): Promise<RelationItem[]> {
     const allResults: RelationItem[] = [];
 
@@ -290,9 +250,5 @@ export class RelationsTreeProvider implements vscode.TreeDataProvider<RelationIt
       arguments: [element.uri, element.range],
     };
     return item;
-  }
-
-  getChildren(): vscode.ProviderResult<RelationItem[]> {
-    return this.cachedItems;
   }
 }

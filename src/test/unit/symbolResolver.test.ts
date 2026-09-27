@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { type FacetSymbolNode, filterMembers, MemberCategory, unionMembers } from '../../models/symbolNode';
+import { type FacetSymbolNode, MemberCategory, unionMembers } from '../../models/symbolNode';
 import { SymbolResolver } from '../../services/symbolResolver';
 import { commands } from './mockVscode';
 
@@ -62,42 +62,6 @@ export class Calculator {
     const calcMethod = cls.children.find((c) => c.name === 'calculate')!;
     assert.strictEqual(calcMethod.isStatic, false);
     assert.strictEqual(calcMethod.category, MemberCategory.InstanceMethods);
-  });
-
-  test('filterMembers filters by category', () => {
-    const members: FacetSymbolNode[] = [
-      {
-        name: 'instMethod',
-        kind: vscode.SymbolKind.Method,
-        uri: dummyUri,
-        range: new vscode.Range(0, 0, 0, 0),
-        selectionRange: new vscode.Range(0, 0, 0, 0),
-        category: MemberCategory.InstanceMethods,
-        isStatic: false,
-        children: [],
-      },
-      {
-        name: 'staticMethod',
-        kind: vscode.SymbolKind.Method,
-        uri: dummyUri,
-        range: new vscode.Range(1, 0, 1, 0),
-        selectionRange: new vscode.Range(1, 0, 1, 0),
-        category: MemberCategory.StaticMethods,
-        isStatic: true,
-        children: [],
-      },
-    ];
-
-    const allMembers = filterMembers(members, MemberCategory.All);
-    assert.strictEqual(allMembers.length, 2);
-
-    const methodsOnly = filterMembers(members, MemberCategory.InstanceMethods);
-    assert.strictEqual(methodsOnly.length, 1);
-    assert.strictEqual(methodsOnly[0].name, 'instMethod');
-
-    const catFiltered = filterMembers(members, MemberCategory.StaticMethods);
-    assert.strictEqual(catFiltered.length, 1);
-    assert.strictEqual(catFiltered[0].name, 'staticMethod');
   });
 
   test('unionMembers computes deduplicated union across multiple types', () => {

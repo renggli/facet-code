@@ -30,25 +30,8 @@ suite('Providers Test Suite', () => {
     ],
   };
 
-  test('RelationsTreeProvider switches modes and generates readable tree items', () => {
+  test('RelationsTreeProvider generates readable tree items', () => {
     const provider = new RelationsTreeProvider();
-    assert.strictEqual(provider.getMode(), 'references');
-
-    provider.setMode('callers');
-    assert.strictEqual(provider.getMode(), 'callers');
-
-    provider.setMode('definitions');
-    assert.strictEqual(provider.getMode(), 'definitions');
-
-    provider.setMode('declarations');
-    assert.strictEqual(provider.getMode(), 'declarations');
-
-    provider.setMode('implementations');
-    assert.strictEqual(provider.getMode(), 'implementations');
-
-    provider.setSelectedMembers([mockType.children[0]]);
-    assert.strictEqual(provider.getSelectedMembers().length, 1);
-    assert.strictEqual(provider.getSelectedMembers()[0].name, 'doWork');
 
     const sampleItem: RelationItem = {
       label: 'const x = doWork();',
