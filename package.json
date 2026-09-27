@@ -2,18 +2,44 @@
   "name": "facet-code",
   "displayName": "Facet Code",
   "description": "Structural, configurable code browser.",
+  "icon": "media/facet-logo.png",
   "version": "0.1.0",
+  "author": "Lukas Renggli (https://www.lukas-renggli.ch/)",
+  "publisher": "LukasRenggli",
+  "license": "MIT",
+  "homepage": "https://github.com/renggli/facet-code",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/renggli/facet-code.git"
+  },
+  "bugs": {
+    "url": "https://github.com/renggli/facet-code/issues"
+  },
+  "sponsor": {
+    "url": "https://github.com/sponsors/renggli"
+  },
+  "funding": "https://github.com/sponsors/renggli",
   "engines": {
     "vscode": "^1.138.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "Visualization"
+  ],
+  "keywords": [
+    "navigation",
+    "symbol",
+    "outline",
+    "structure",
+    "hierarchy",
+    "references",
+    "call-hierarchy",
+    "type-hierarchy"
   ],
   "activationEvents": [
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
-  "icon": "media/facet-logo.png",
   "contributes": {
     "viewsContainers": {
       "activitybar": [

@@ -8,19 +8,17 @@ import {
   createFilesPane,
   createHierarchyPane,
   createImplementationsPane,
-  createMembersPane,
   createPaneByRole,
   createProblemsPane,
   createReferencesPane,
-  createTypesPane,
-  type DisplayMode,
-  MEMBER_FILTER_KEYS,
+  createSymbolsPane,
   type PaneConfig,
   type PaneInputSource,
   type PaneRole,
   type SelectionSource,
   type SortOption,
   type SymbolKindKey,
+  type SymbolsPaneConfig,
   TYPE_FILTER_KEYS,
 } from '../models/paneConfig';
 import type { FacetCoordinator } from './facetCoordinator';
@@ -56,8 +54,7 @@ export class PanePipelineManager {
     const allRoles: PaneRole[] = [
       'files',
       'directories',
-      'types',
-      'members',
+      'symbols',
       'definitions',
       'declarations',
       'implementations',
@@ -97,16 +94,16 @@ export class PanePipelineManager {
       p.id = visualSlotOrder[i];
       p.visible = true;
 
-      // If the first visible pane was set to previousPane, default it to project/activeEditor
+      // If the first visible pane was set to previousPane, default it to project
       if (i === 0 && p.inputSource === 'previousPane') {
-        p.inputSource = (p.role === 'members' ? 'openEditors' : 'project') as any;
+        p.inputSource = 'project' as any;
       }
       updatedPanes.push(p);
     }
 
     for (let i = clampedVisible.length; i < totalSlots; i++) {
       const slotId = visualSlotOrder[i];
-      const hiddenPane = createMembersPane(slotId, { visible: false });
+      const hiddenPane = createSymbolsPane(slotId, { visible: false });
       updatedPanes.push(hiddenPane);
     }
 
@@ -209,11 +206,11 @@ export class PanePipelineManager {
       }
     }
     const hiddenPanes = hiddenIds.map(
-      (id) => this.panes.find((p) => p.id === id) || createMembersPane(id, { visible: false }),
+      (id) => this.panes.find((p) => p.id === id) || createSymbolsPane(id, { visible: false }),
     );
 
     if (newVisible.length > 0 && newVisible[0].inputSource === 'previousPane') {
-      newVisible[0].inputSource = (newVisible[0].role === 'members' ? 'openEditors' : 'project') as any;
+      newVisible[0].inputSource = 'project' as any;
     }
 
     this.panes = [...newVisible, ...hiddenPanes];
@@ -273,8 +270,7 @@ export class PanePipelineManager {
     }
 
     if (
-      pane.role === 'types' ||
-      pane.role === 'members' ||
+      pane.role === 'symbols' ||
       pane.role === 'definitions' ||
       pane.role === 'declarations' ||
       pane.role === 'implementations' ||
@@ -288,33 +284,30 @@ export class PanePipelineManager {
       });
     }
 
-    if (
-      pane.role === 'files' ||
-      pane.role === 'directories' ||
-      pane.role === 'types' ||
-      pane.role === 'members' ||
-      pane.role === 'hierarchy'
-    ) {
-      let dispDesc = 'Flat';
-      if ('display' in pane) {
-        if (pane.display === 'hierarchy') {
-          dispDesc = 'Hierarchy';
-        } else if (pane.display === 'current') {
-          dispDesc = 'Current (Inputs/Top-level)';
-        }
-      }
+    if ('tree' in pane) {
+      const isTree = Boolean((pane as any).tree);
       items.push({
-        label: '$(list-tree) Display Mode...',
-        description: dispDesc,
-        action: 'display',
+        label: '$(list-tree) Tree Display...',
+        description: isTree ? 'Yes (Tree)' : 'No (Flat List)',
+        action: 'tree',
       });
-      if ('subclassTypes' in pane && pane.display === 'hierarchy') {
-        items.push({
-          label: '$(type-hierarchy-sub) Subclass Kinds...',
-          description: (pane.subclassTypes || ['class', 'struct']).join(', '),
-          action: 'subclassTypes',
-        });
-      }
+    }
+
+    if ('recursive' in pane) {
+      const isRecursive = Boolean((pane as any).recursive);
+      items.push({
+        label: '$(repo-forked) Enumerate Recursively...',
+        description: isRecursive ? 'Yes (Recursive)' : 'No (Direct Only)',
+        action: 'recursive',
+      });
+    }
+
+    if (pane.role === 'hierarchy' && pane.tree) {
+      items.push({
+        label: '$(type-hierarchy-sub) Subclass Kinds...',
+        description: (pane.subclassTypes || ['class', 'struct']).join(', '),
+        action: 'subclassTypes',
+      });
     }
 
     const picked = await vscode.window.showQuickPick(items, {
@@ -362,6 +355,14 @@ export class PanePipelineManager {
         await this.configureDisplayMode(slotId);
         break;
       }
+      case 'tree': {
+        await this.configureTreeDisplay(slotId);
+        break;
+      }
+      case 'recursive': {
+        await this.configureRecursive(slotId);
+        break;
+      }
       case 'subclassTypes': {
         await this.configureSubclassTypes(slotId);
         break;
@@ -406,7 +407,7 @@ export class PanePipelineManager {
     if (rolePick) {
       const newPane = createPaneByRole(rolePick.role, pane.id, {
         title: rolePick.label,
-        inputSource: isFirstPane ? (rolePick.role === 'members' ? 'openEditors' : 'project') : pane.inputSource,
+        inputSource: isFirstPane ? 'project' : pane.inputSource,
         visible: true,
       });
       visible[idx] = newPane;
@@ -424,14 +425,14 @@ export class PanePipelineManager {
     const isFirstPane = idx === 0;
 
     const inputOptions: { label: string; description: string; source: PaneInputSource }[] = [];
-    if (['files', 'directories', 'types', 'problems', 'changes'].includes(pane.role)) {
+    if (['files', 'directories', 'symbols', 'problems', 'changes'].includes(pane.role)) {
       inputOptions.push({
         label: 'Project',
         description: 'Workspace-wide files, directories, symbols, or issues',
         source: 'project',
       });
     }
-    if (['files', 'directories', 'types', 'members', 'problems', 'changes'].includes(pane.role)) {
+    if (['files', 'directories', 'symbols', 'problems', 'changes'].includes(pane.role)) {
       inputOptions.push({
         label: 'Open Editors',
         description: 'Items from open editor tabs',
@@ -466,7 +467,7 @@ export class PanePipelineManager {
       return;
     }
     const options: { label: string; description: string; source: SelectionSource }[] = [];
-    if (['files', 'directories', 'types', 'members', 'problems', 'changes'].includes(pane.role)) {
+    if (['files', 'directories', 'symbols', 'problems', 'changes'].includes(pane.role)) {
       options.push({
         label: 'Cursor',
         description: 'Active cursor symbol or file (selects item under cursor)',
@@ -512,7 +513,11 @@ export class PanePipelineManager {
         sort: 'position',
       },
     ];
-    if (pane.role === 'types' || pane.role === 'members' || pane.role === 'hierarchy' || pane.role === 'problems') {
+    if (
+      pane.role === 'symbols' ||
+      pane.role === 'hierarchy' ||
+      pane.role === 'problems'
+    ) {
       sortOptions.push({
         label: 'Category',
         description: 'Group items by kind, category, or severity',
@@ -548,8 +553,7 @@ export class PanePipelineManager {
         this.coordinator.refreshSlot(pane.id);
       }
     } else if (
-      pane.role === 'types' ||
-      pane.role === 'members' ||
+      pane.role === 'symbols' ||
       pane.role === 'definitions' ||
       pane.role === 'declarations' ||
       pane.role === 'implementations' ||
@@ -561,35 +565,60 @@ export class PanePipelineManager {
   }
 
   public async configureDisplayMode(slotId: string): Promise<void> {
+    await this.configureTreeDisplay(slotId);
+  }
+
+  public async configureTreeDisplay(slotId: string): Promise<void> {
     const pane = this.getPane(slotId);
-    if (!pane || !('display' in pane)) {
+    if (!pane || !('tree' in pane)) {
       return;
     }
-    const displayOptions: { label: string; description: string; mode: DisplayMode }[] = [];
-    if (pane.role === 'files' || pane.role === 'directories') {
-      displayOptions.push({
-        label: 'Current',
-        description: 'Shows inputs / top-level project items (non-recursive)',
-        mode: 'current' as DisplayMode,
-      });
-    }
-    displayOptions.push(
+    const isTree = Boolean((pane as any).tree);
+    const options = [
       {
-        label: 'Flat',
-        description: 'Recursively traverses and flattens',
-        mode: 'flat' as DisplayMode,
+        label: 'Yes',
+        description: 'Display in a nested hierarchical tree',
+        tree: true,
       },
       {
-        label: 'Hierarchy',
-        description: 'Tree hierarchy structure',
-        mode: 'hierarchy' as DisplayMode,
+        label: 'No',
+        description: 'Display in a flat list',
+        tree: false,
       },
-    );
-    const dispPick = await vscode.window.showQuickPick(displayOptions, {
-      placeHolder: 'Select Display Mode',
+    ];
+    const picked = await vscode.window.showQuickPick(options, {
+      placeHolder: `Display in a tree? Current: ${isTree ? 'Yes' : 'No'}`,
     });
-    if (dispPick) {
-      pane.display = dispPick.mode;
+    if (picked) {
+      (pane as any).tree = picked.tree;
+      this._onDidUpdatePanes.fire();
+      await this.coordinator.sync();
+    }
+  }
+
+  public async configureRecursive(slotId: string): Promise<void> {
+    const pane = this.getPane(slotId);
+    if (!pane || !('recursive' in pane)) {
+      return;
+    }
+    const isRecursive = Boolean((pane as any).recursive);
+    const options = [
+      {
+        label: 'Yes',
+        description: 'Enumerate items and nested descendants recursively',
+        recursive: true,
+      },
+      {
+        label: 'No',
+        description: 'Enumerate direct items only (non-recursive)',
+        recursive: false,
+      },
+    ];
+    const picked = await vscode.window.showQuickPick(options, {
+      placeHolder: `Enumerate recursively? Current: ${isRecursive ? 'Yes' : 'No'}`,
+    });
+    if (picked) {
+      (pane as any).recursive = picked.recursive;
       this._onDidUpdatePanes.fire();
       await this.coordinator.sync();
     }
@@ -764,25 +793,29 @@ export class PanePipelineManager {
         newVisible = [
           createDirectoriesPane('', {
             title: 'Directories',
-            display: 'hierarchy',
+            tree: true,
+            recursive: false,
             inputSource: 'project',
             selectionSource: 'cursor',
           }),
           createFilesPane('', {
             title: 'Files',
-            display: 'flat',
+            tree: false,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'cursor',
           }),
-          createTypesPane('', {
-            title: 'Types',
-            display: 'hierarchy',
+          createSymbolsPane('', {
+            title: 'Symbols',
+            tree: true,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'cursor',
           }),
-          createMembersPane('', {
+          createSymbolsPane('', {
             title: 'Members',
-            display: 'flat',
+            tree: false,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'none',
           }),
@@ -791,15 +824,17 @@ export class PanePipelineManager {
       case 'activeEditor':
       case 'callers':
         newVisible = [
-          createTypesPane('', {
-            title: 'Types',
-            display: 'hierarchy',
+          createSymbolsPane('', {
+            title: 'Symbols',
+            tree: true,
+            recursive: false,
             inputSource: 'activeEditor',
             selectionSource: 'cursor',
           }),
-          createMembersPane('', {
+          createSymbolsPane('', {
             title: 'Members',
-            display: 'flat',
+            tree: false,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'cursor',
           }),
@@ -810,15 +845,17 @@ export class PanePipelineManager {
       case 'changes':
         newVisible = [
           createChangesPane('', { title: 'Changes', inputSource: 'project', selectionSource: 'cursor' }),
-          createTypesPane('', {
-            title: 'Types',
-            display: 'hierarchy',
+          createSymbolsPane('', {
+            title: 'Symbols',
+            tree: true,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'cursor',
           }),
-          createMembersPane('', {
+          createSymbolsPane('', {
             title: 'Members',
-            display: 'flat',
+            tree: false,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'none',
           }),
@@ -829,15 +866,17 @@ export class PanePipelineManager {
       case 'problems':
         newVisible = [
           createProblemsPane('', { title: 'Problems', inputSource: 'project', selectionSource: 'cursor' }),
-          createTypesPane('', {
-            title: 'Types',
-            display: 'hierarchy',
+          createSymbolsPane('', {
+            title: 'Symbols',
+            tree: true,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'cursor',
           }),
-          createMembersPane('', {
+          createSymbolsPane('', {
             title: 'Members',
-            display: 'flat',
+            tree: false,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'cursor',
           }),
@@ -850,13 +889,15 @@ export class PanePipelineManager {
         newVisible = [
           createHierarchyPane('', {
             title: 'Hierarchy',
-            display: 'hierarchy',
+            tree: true,
+            recursive: false,
             inputSource: 'project',
             selectionSource: 'cursor',
           }),
-          createMembersPane('', {
+          createSymbolsPane('', {
             title: 'Members',
-            display: 'flat',
+            tree: false,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'cursor',
           }),
@@ -872,19 +913,22 @@ export class PanePipelineManager {
         newVisible = [
           createFilesPane('', {
             title: 'Open Files',
-            display: 'flat',
+            tree: false,
+            recursive: false,
             inputSource: 'openEditors',
             selectionSource: 'cursor',
           }),
-          createTypesPane('', {
-            title: 'Types',
-            display: 'hierarchy',
+          createSymbolsPane('', {
+            title: 'Symbols',
+            tree: true,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'cursor',
           }),
-          createMembersPane('', {
+          createSymbolsPane('', {
             title: 'Members',
-            display: 'flat',
+            tree: false,
+            recursive: false,
             inputSource: 'previousPane',
             selectionSource: 'none',
           }),
@@ -1041,14 +1085,9 @@ export class PanePipelineManager {
           role: 'directories' as PaneRole,
         },
         {
-          label: 'Types',
-          description: 'Classes, Interfaces, Enums, Structs',
-          role: 'types' as PaneRole,
-        },
-        {
-          label: 'Members',
-          description: 'Methods, Fields, Properties, Constants',
-          role: 'members' as PaneRole,
+          label: 'Symbols',
+          description: 'Types (Classes, Interfaces) & Members (Methods, Fields)',
+          role: 'symbols' as PaneRole,
         },
         {
           label: 'Definitions',
@@ -1101,10 +1140,8 @@ export class PanePipelineManager {
         return 'Files';
       case 'directories':
         return 'Directories';
-      case 'types':
-        return 'Types';
-      case 'members':
-        return 'Members';
+      case 'symbols':
+        return 'Symbols';
       case 'definitions':
         return 'Definitions';
       case 'declarations':

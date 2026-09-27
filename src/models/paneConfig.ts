@@ -1,11 +1,9 @@
 import * as vscode from 'vscode';
-import { FacetSymbolNode } from './symbolNode';
 
 export type PaneRole =
   | 'files'
   | 'directories'
-  | 'types'
-  | 'members'
+  | 'symbols'
   | 'definitions'
   | 'declarations'
   | 'implementations'
@@ -18,7 +16,6 @@ export type PaneRole =
 export type PaneInputSource = 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
 export type SelectionSource = 'none' | 'all' | 'cursor';
 export type SortOption = 'position' | 'name' | 'category';
-export type DisplayMode = 'current' | 'flat' | 'hierarchy';
 
 export type SymbolKindKey =
   | 'array'
@@ -136,7 +133,8 @@ export interface FilesPaneConfig extends BasePaneConfig {
   inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
-  display: 'current' | 'flat' | 'hierarchy';
+  tree: boolean;
+  recursive: boolean;
   globPattern?: string;
 }
 
@@ -145,27 +143,9 @@ export interface DirectoriesPaneConfig extends BasePaneConfig {
   inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
-  display: 'current' | 'flat' | 'hierarchy';
+  tree: boolean;
+  recursive: boolean;
   globPattern?: string;
-}
-
-export interface TypesPaneConfig extends BasePaneConfig {
-  role: 'types';
-  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
-  selectionSource: 'cursor' | 'all' | 'none';
-  sort: 'position' | 'name' | 'category';
-  display: 'flat' | 'hierarchy';
-  subclassTypes?: SymbolKindKey[];
-  filters: PaneFilters;
-}
-
-export interface MembersPaneConfig extends BasePaneConfig {
-  role: 'members';
-  inputSource: 'openEditors' | 'activeEditor' | 'previousPane';
-  selectionSource: 'cursor' | 'all' | 'none';
-  sort: 'position' | 'name' | 'category';
-  display: 'flat' | 'hierarchy';
-  filters: PaneFilters;
 }
 
 export interface DefinitionsPaneConfig extends BasePaneConfig {
@@ -226,16 +206,26 @@ export interface HierarchyPaneConfig extends BasePaneConfig {
   inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name' | 'category';
-  display: 'hierarchy';
+  tree: boolean;
+  recursive: boolean;
   subclassTypes?: SymbolKindKey[];
+  filters: PaneFilters;
+}
+
+export interface SymbolsPaneConfig extends BasePaneConfig {
+  role: 'symbols';
+  inputSource: 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
+  selectionSource: 'cursor' | 'all' | 'none';
+  sort: 'position' | 'name' | 'category';
+  tree: boolean;
+  recursive: boolean;
   filters: PaneFilters;
 }
 
 export type PaneConfig =
   | FilesPaneConfig
   | DirectoriesPaneConfig
-  | TypesPaneConfig
-  | MembersPaneConfig
+  | SymbolsPaneConfig
   | DefinitionsPaneConfig
   | DeclarationsPaneConfig
   | ImplementationsPaneConfig
@@ -273,7 +263,8 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
     inputSource: 'project',
     selectionSource: 'none',
     sort: 'name',
-    display: 'flat',
+    tree: false,
+    recursive: false,
     visible: true,
     ...overrides,
   };
@@ -287,38 +278,24 @@ export function createDirectoriesPane(id: string, overrides?: Partial<Directorie
     inputSource: 'project',
     selectionSource: 'none',
     sort: 'name',
-    display: 'hierarchy',
+    tree: true,
+    recursive: false,
     visible: true,
     ...overrides,
   };
 }
 
-export function createTypesPane(id: string, overrides?: Partial<TypesPaneConfig>): TypesPaneConfig {
+export function createSymbolsPane(id: string, overrides?: Partial<SymbolsPaneConfig>): SymbolsPaneConfig {
   return {
     id,
-    title: 'Types',
-    role: 'types',
-    inputSource: 'project',
+    title: 'Symbols',
+    role: 'symbols',
+    inputSource: 'previousPane',
     selectionSource: 'cursor',
     sort: 'name',
-    display: 'hierarchy',
-    subclassTypes: ['class', 'struct'],
-    filters: createDefaultFilters(TYPE_FILTER_KEYS),
-    visible: true,
-    ...overrides,
-  };
-}
-
-export function createMembersPane(id: string, overrides?: Partial<MembersPaneConfig>): MembersPaneConfig {
-  return {
-    id,
-    title: 'Members',
-    role: 'members',
-    inputSource: 'previousPane',
-    selectionSource: 'none',
-    sort: 'name',
-    display: 'flat',
-    filters: createDefaultFilters(MEMBER_FILTER_KEYS),
+    tree: true,
+    recursive: false,
+    filters: createDefaultFilters(),
     visible: true,
     ...overrides,
   };
@@ -433,7 +410,8 @@ export function createHierarchyPane(id: string, overrides?: Partial<HierarchyPan
     inputSource: 'previousPane',
     selectionSource: 'cursor',
     sort: 'name',
-    display: 'hierarchy',
+    tree: true,
+    recursive: false,
     subclassTypes: ['class', 'struct'],
     filters: createDefaultFilters(TYPE_FILTER_KEYS),
     visible: true,
@@ -447,10 +425,8 @@ export function createPaneByRole(role: PaneRole, id: string, overrides?: Partial
       return createFilesPane(id, overrides);
     case 'directories':
       return createDirectoriesPane(id, overrides);
-    case 'types':
-      return createTypesPane(id, overrides);
-    case 'members':
-      return createMembersPane(id, overrides);
+    case 'symbols':
+      return createSymbolsPane(id, overrides);
     case 'definitions':
       return createDefinitionsPane(id, overrides);
     case 'declarations':
@@ -474,28 +450,43 @@ export function createDefaultPanes(): PaneConfig[] {
   return [
     createDirectoriesPane('facet.pane.1', {
       visible: true,
-      display: 'hierarchy',
+      tree: true,
+      recursive: false,
       inputSource: 'project',
       selectionSource: 'cursor',
     }),
     createFilesPane('facet.pane.2', {
       visible: true,
-      display: 'flat',
+      tree: false,
+      recursive: false,
       inputSource: 'previousPane',
       selectionSource: 'cursor',
     }),
-    createTypesPane('facet.pane.3', {
+    createSymbolsPane('facet.pane.3', {
       visible: true,
-      display: 'hierarchy',
+      title: 'Symbols',
+      tree: true,
+      recursive: false,
       inputSource: 'previousPane',
       selectionSource: 'cursor',
     }),
-    createMembersPane('facet.pane.4', {
+    createSymbolsPane('facet.pane.4', {
       visible: true,
-      display: 'flat',
+      title: 'Members',
+      tree: false,
+      recursive: false,
       inputSource: 'previousPane',
       selectionSource: 'none',
     }),
+    createReferencesPane('facet.pane.5', {
+      visible: false,
+      inputSource: 'previousPane',
+      selectionSource: 'none',
+    }),
+    createImplementationsPane('facet.pane.6', {
+      visible: false,
+      inputSource: 'previousPane',
+      selectionSource: 'none',
     createReferencesPane('facet.pane.5', {
       visible: false,
       inputSource: 'previousPane',

@@ -13,8 +13,10 @@ import {
   createImplementationsPane,
   createProblemsPane,
   createReferencesPane,
+  createSymbolsPane,
   createTypesPane,
   type PaneConfig,
+  type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
@@ -57,7 +59,7 @@ suite('FacetCoordinator Test Suite', () => {
     ],
   };
 
-  test('coordinator handles directories pane role with hierarchy and flat display', async () => {
+  test('coordinator handles directories pane role with tree and recursive options', async () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
@@ -71,7 +73,8 @@ suite('FacetCoordinator Test Suite', () => {
     (vscode.workspace as any).findFiles = async () => testFiles;
 
     const dirConfigHierarchy = createDirectoriesPane('facet.pane.1', {
-      display: 'hierarchy',
+      tree: true,
+      recursive: false,
       inputSource: 'project',
     });
 
@@ -82,14 +85,16 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(treeItem.iconPath, vscode.ThemeIcon.Folder);
 
     const dirConfigFlat = createDirectoriesPane('facet.pane.1', {
-      display: 'flat',
+      tree: false,
+      recursive: true,
       inputSource: 'project',
     });
     const flatDirs = await coordinator.getSlotChildren(dirConfigFlat);
     assert.ok(flatDirs.length >= 2);
 
     const dirConfigCurrent = createDirectoriesPane('facet.pane.1', {
-      display: 'current',
+      tree: false,
+      recursive: false,
       inputSource: 'project',
     });
     const currentDirs = await coordinator.getSlotChildren(dirConfigCurrent);
@@ -896,6 +901,160 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(revealedUri.fsPath, docUri.fsPath);
 
     commands.clearHandlers();
+    coordinator.dispose();
+  });
+
+  test('coordinator handles combined symbols pane: file input enumerates types, type input enumerates members, with recursive and tree options', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+
+    const fileUri = vscode.Uri.file('/workspace/src/example.ts');
+
+    const nestedMember: FacetSymbolNode = {
+      name: 'nestedHelper',
+      kind: vscode.SymbolKind.Function,
+      uri: fileUri,
+      range: dummyRange,
+      selectionRange: dummyRange,
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+    };
+
+    const directMember: FacetSymbolNode = {
+      name: 'doWork',
+      kind: vscode.SymbolKind.Method,
+      uri: fileUri,
+      range: dummyRange,
+      selectionRange: dummyRange,
+      category: MemberCategory.InstanceMethods,
+      isStatic: false,
+      children: [nestedMember],
+    };
+
+    const innerType: FacetSymbolNode = {
+      name: 'InnerType',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: dummyRange,
+      selectionRange: dummyRange,
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+    };
+
+    const outerType: FacetSymbolNode = {
+      name: 'OuterType',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: dummyRange,
+      selectionRange: dummyRange,
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [directMember, innerType],
+    };
+    directMember.parent = outerType;
+    nestedMember.parent = directMember;
+    innerType.parent = outerType;
+
+    const mockDoc = {
+      uri: fileUri,
+      version: 1,
+      getText: () => 'class OuterType { doWork() { function nestedHelper() {} } class InnerType {} }',
+    };
+
+    const origOpenTextDoc = vscode.workspace.openTextDocument;
+    (vscode.workspace as any).openTextDocument = async () => mockDoc;
+
+    // Mock document symbols returned by LSP
+    (coordinator as any).resolver.resolveDocumentSymbols = async () => [outerType];
+
+    // --- Scenario 1: Input is files, tree = true, recursive = false ---
+    const symbolsPaneFilesTree: SymbolsPaneConfig = createSymbolsPane('facet.pane.3', {
+      inputSource: 'previousPane',
+      tree: true,
+      recursive: false,
+    });
+
+    coordinator.setSlotSelection('facet.pane.2', [fileUri]);
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.2', role: 'files' });
+
+    // Root children should be top-level types (OuterType only, non-recursive)
+    const rootTypesNonRecursive = await coordinator.getSlotChildren(symbolsPaneFilesTree);
+    assert.strictEqual(rootTypesNonRecursive.length, 1);
+    assert.strictEqual(rootTypesNonRecursive[0].name, 'OuterType');
+
+    // Tree item for OuterType should be collapsible
+    const treeItem = coordinator.getSlotTreeItem(symbolsPaneFilesTree, rootTypesNonRecursive[0]);
+    assert.strictEqual(treeItem.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
+
+    // Expanding OuterType in tree returns its members (doWork and innerType)
+    const outerChildren = await coordinator.getSlotChildren(symbolsPaneFilesTree, rootTypesNonRecursive[0]);
+    assert.strictEqual(outerChildren.length, 2);
+    const childNames = outerChildren.map((c) => c.name);
+    assert.ok(childNames.includes('doWork'));
+    assert.ok(childNames.includes('InnerType'));
+
+    // Non-recursive: doWork does NOT expand further
+    const doWorkChildren = await coordinator.getSlotChildren(symbolsPaneFilesTree, directMember);
+    assert.strictEqual(doWorkChildren.length, 0);
+
+    // --- Scenario 2: Input is files, tree = false, recursive = true ---
+    const symbolsPaneFilesFlatRecursive: SymbolsPaneConfig = createSymbolsPane('facet.pane.3', {
+      inputSource: 'previousPane',
+      tree: false,
+      recursive: true,
+    });
+
+    const rootTypesRecursive = await coordinator.getSlotChildren(symbolsPaneFilesFlatRecursive);
+    // Recursive: includes OuterType and InnerType
+    assert.strictEqual(rootTypesRecursive.length, 2);
+    const typeNames = rootTypesRecursive.map((t) => t.name);
+    assert.ok(typeNames.includes('OuterType'));
+    assert.ok(typeNames.includes('InnerType'));
+
+    // Tree is false: tree item has collapsibleState None
+    const flatItem = coordinator.getSlotTreeItem(symbolsPaneFilesFlatRecursive, rootTypesRecursive[0]);
+    assert.strictEqual(flatItem.collapsibleState, vscode.TreeItemCollapsibleState.None);
+
+    // Tree is false: passing element returns empty array
+    const flatChildren = await coordinator.getSlotChildren(symbolsPaneFilesFlatRecursive, rootTypesRecursive[0]);
+    assert.strictEqual(flatChildren.length, 0);
+
+    // --- Scenario 3: Input is another type (e.g. from previous pane) ---
+    const symbolsPaneFromType: SymbolsPaneConfig = createSymbolsPane('facet.pane.4', {
+      inputSource: 'previousPane',
+      tree: false,
+      recursive: false,
+    });
+
+    // Upstream pane has OuterType selected
+    coordinator.setSlotSelection('facet.pane.3', [outerType]);
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.3', role: 'symbols' });
+
+    // Since input is a type, it enumerates the type's members!
+    const membersNonRecursive = await coordinator.getSlotChildren(symbolsPaneFromType);
+    assert.strictEqual(membersNonRecursive.length, 2);
+    const memberNames = membersNonRecursive.map((m) => m.name);
+    assert.ok(memberNames.includes('doWork'));
+    assert.ok(memberNames.includes('InnerType'));
+
+    // --- Scenario 4: Input is another type, recursive = true (flattens nested descendants in flat mode) ---
+    const symbolsPaneFromTypeRecursive: SymbolsPaneConfig = createSymbolsPane('facet.pane.4', {
+      inputSource: 'previousPane',
+      tree: false,
+      recursive: true,
+    });
+
+    const membersRecursive = await coordinator.getSlotChildren(symbolsPaneFromTypeRecursive);
+    assert.strictEqual(membersRecursive.length, 3);
+    const recNames = membersRecursive.map((m) => m.name);
+    assert.ok(recNames.includes('doWork'));
+    assert.ok(recNames.includes('InnerType'));
+    assert.ok(recNames.includes('nestedHelper'));
+
+    (vscode.workspace as any).openTextDocument = origOpenTextDoc;
     coordinator.dispose();
   });
 });

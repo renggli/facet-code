@@ -14,8 +14,8 @@
   - **Distinct Strongly-Typed Pane Configurations:**
     - `DirectoriesPaneConfig`: Role `directories`, glob filtering, position/name sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), display (`current`, `flat`, `hierarchy`).
     - `FilesPaneConfig`: Role `files`, glob file filtering, position/name sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), display (`current`, `flat`, `hierarchy`).
-    - `TypesPaneConfig` & `HierarchyPaneConfig`: Role `types`/`hierarchy`, hierarchical vs. flat display mode, selectable subclass kinds, 26 symbol kind filters, position/name/category sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`).
-    - `MembersPaneConfig`: Role `members`, 26 symbol kind filters, flat vs. hierarchical display, position/name/category sorting, input source (`openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`).
+    - `SymbolsPaneConfig`: Role `symbols`, unified types and members navigator. When input is one or more files, enumerates types; when input is a type, enumerates members. Configurable recursive enumeration (`recursive: boolean`), tree hierarchy vs. flat list display (`tree: boolean`, `display: 'flat' | 'hierarchy'`), 26 symbol kind filters, position/name/category sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`).
+    - `HierarchyPaneConfig`: Role `hierarchy`, type hierarchy view, selectable subclass kinds, 26 symbol kind filters, position/name/category sorting, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`).
     - `DefinitionsPaneConfig`, `DeclarationsPaneConfig`, `ImplementationsPaneConfig`, `ReferencesPaneConfig`: Dedicated symbol relation/navigation views with readable snippet previews, file paths, 26 symbol kind filters, position/name sorting, input source (`previousPane`), selection source (`all`, `none`).
     - `CallersPaneConfig`: Incoming calls with container and snippet preview, input source (`previousPane`), selection source (`all`, `none`).
     - `ProblemsPaneConfig`: Workspace/editor/active diagnostics with severity grouping, input source (`project`, `openEditors`, `activeEditor`, `previousPane`), selection source (`cursor`, `all`, `none`), position/name/category sorting.
@@ -27,12 +27,12 @@
     - Predefined presets out of the box (`Project Browser`, `Active Editor`, `Working Changes`, `Problem Triage`, `Type Hierarchy`, `Open Editors`).
     - Save, load, and delete custom presets to Workspace (`facet.presets.workspace`) or Global settings (`facet.presets.global`).
     - **Predefined Presets (`facet.pane.presets`):**
-      - **Project Browser:** Directories (hierarchical) -> Files -> Types (hierarchical) -> Members.
-      - **Active Editor:** Types (activeEditor, hierarchical) -> Members -> Callers.
-      - **Working Changes:** Changes (project) -> Types (hierarchical) -> Members -> Problems.
-      - **Problem Triage:** Problems (project) -> Types (hierarchical) -> Members -> References.
+      - **Project Browser:** Directories (hierarchical) -> Files -> Symbols (hierarchical tree) -> Members (flat list).
+      - **Active Editor:** Symbols (activeEditor, hierarchical) -> Members -> Callers.
+      - **Working Changes:** Changes (project) -> Symbols (hierarchical) -> Members -> Problems.
+      - **Problem Triage:** Problems (project) -> Symbols (hierarchical) -> Members -> References.
       - **Type Hierarchy:** Hierarchy (project, hierarchical) -> Members -> Implementations.
-      - **Open Editors:** Open Files (openEditors) -> Types (hierarchical) -> Members -> References.
+      - **Open Editors:** Open Files (openEditors) -> Symbols (hierarchical) -> Members -> References.
   - **Display Modes for Directories and Files**:
     - `current`: Non-recursive. Shows immediate direct children of previous directory or top-level project items.
     - `flat`: Recursive. Recursively traverses all descendants and flattens into a single list.
@@ -49,6 +49,7 @@
   - Cursor tracking identifies enclosing type, active member, and document URI simultaneously.
   - Synchronizes across all downstream and upstream tiers (Files -> Types -> Members), resolving exact tree references and auto-expanding hierarchical parents via `getParent()`.
 - **Resilient & Non-Blocking:** In-memory caching keyed by `(uri, document.version)`, debounced background synchronization (150ms) with `CancellationTokenSource`, and tiered LSP fallbacks down to regex parsing.
+- **No Backward Compatibility:** Cleanup old and no longer used code. Do not add layers for backward compatibility. Update all users including tests immediately.
 
 ---
 

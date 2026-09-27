@@ -10,10 +10,9 @@ import {
   createFilesPane,
   createHierarchyPane,
   createImplementationsPane,
-  createMembersPane,
   createProblemsPane,
   createReferencesPane,
-  createTypesPane,
+  createSymbolsPane,
   matchesGlob,
   matchesPaneFilters,
 } from '../../models/paneConfig';
@@ -99,9 +98,9 @@ suite('PaneConfig & Filter Helpers Test Suite', () => {
       assert.strictEqual(panes[0].visible, true);
       assert.strictEqual(panes[1].role, 'files');
       assert.strictEqual(panes[1].visible, true);
-      assert.strictEqual(panes[2].role, 'types');
+      assert.strictEqual(panes[2].role, 'symbols');
       assert.strictEqual(panes[2].visible, true);
-      assert.strictEqual(panes[3].role, 'members');
+      assert.strictEqual(panes[3].role, 'symbols');
       assert.strictEqual(panes[3].visible, true);
       assert.strictEqual(panes[4].role, 'references');
       assert.strictEqual(panes[4].visible, false);
@@ -110,17 +109,20 @@ suite('PaneConfig & Filter Helpers Test Suite', () => {
     });
 
     test('all pane factory functions create valid pane configurations', () => {
+      const symbols = createSymbolsPane('facet.pane.3');
+      assert.strictEqual(symbols.role, 'symbols');
+      assert.strictEqual(symbols.tree, true);
+      assert.strictEqual(symbols.recursive, false);
+
       const dir = createDirectoriesPane('facet.pane.1');
       assert.strictEqual(dir.role, 'directories');
+      assert.strictEqual(dir.tree, true);
+      assert.strictEqual(dir.recursive, false);
 
       const files = createFilesPane('facet.pane.2');
       assert.strictEqual(files.role, 'files');
-
-      const types = createTypesPane('facet.pane.3');
-      assert.strictEqual(types.role, 'types');
-
-      const members = createMembersPane('facet.pane.4');
-      assert.strictEqual(members.role, 'members');
+      assert.strictEqual(files.tree, false);
+      assert.strictEqual(files.recursive, false);
 
       const defs = createDefinitionsPane('facet.pane.5');
       assert.strictEqual(defs.role, 'definitions');

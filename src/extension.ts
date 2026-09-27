@@ -120,7 +120,7 @@ export function activate(context: vscode.ExtensionContext) {
         await pipelineManager.configurePane(slotId);
       }),
       vscode.commands.registerCommand(`${slotId}.display`, async () => {
-        await pipelineManager.configureDisplayMode(slotId);
+        await pipelineManager.configureTreeDisplay(slotId);
       }),
       vscode.commands.registerCommand(`${slotId}.filter`, async () => {
         await pipelineManager.configureFilter(slotId);

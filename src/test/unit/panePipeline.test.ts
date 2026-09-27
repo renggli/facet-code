@@ -57,8 +57,8 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(manager.getVisiblePanes()[0].inputSource, 'project');
     assert.strictEqual(manager.getVisiblePanes()[0].role, 'directories');
     assert.strictEqual(manager.getVisiblePanes()[1].role, 'files');
-    assert.strictEqual(manager.getVisiblePanes()[2].role, 'types');
-    assert.strictEqual(manager.getVisiblePanes()[3].role, 'members');
+    assert.strictEqual(manager.getVisiblePanes()[2].role, 'symbols');
+    assert.strictEqual(manager.getVisiblePanes()[3].role, 'symbols');
 
     coordinator.dispose();
   });
@@ -116,7 +116,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(manager.getVisiblePanes()[5].role, 'definitions');
 
     // Cannot add beyond 6
-    const addedOverflow = await manager.addPaneToEnd('members');
+    const addedOverflow = await manager.addPaneToEnd('symbols');
     assert.strictEqual(addedOverflow, undefined);
     assert.strictEqual(manager.getVisiblePanes().length, 6);
 
@@ -140,9 +140,9 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(visibleAfter[0].id, 'facet.pane.1');
     assert.strictEqual(visibleAfter[0].role, 'files');
     assert.strictEqual(visibleAfter[1].id, 'facet.pane.2');
-    assert.strictEqual(visibleAfter[1].role, 'types');
+    assert.strictEqual(visibleAfter[1].role, 'symbols');
     assert.strictEqual(visibleAfter[2].id, 'facet.pane.3');
-    assert.strictEqual(visibleAfter[2].role, 'members');
+    assert.strictEqual(visibleAfter[2].role, 'symbols');
 
     // Upstream chaining is strictly relative to previous visible pane
     const upstream = coordinator.getPreviousPane('facet.pane.2');
@@ -189,7 +189,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('PanePipelineManager configurePane executes title, role, input, selection, filter, sort, and display actions', async () => {
+  test('PanePipelineManager configurePane executes title, role, input, selection, filter, sort, tree, and recursive actions', async () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
@@ -239,11 +239,11 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const pane3 = manager.getPane('facet.pane.3') as any;
     assert.strictEqual(pane3?.filters?.class, true);
 
-    // 8. Test Display mode toggle
-    window.pushQuickPick({ action: 'display' });
-    window.pushQuickPick({ mode: 'flat' });
+    // 8. Test Tree display mode toggle
+    window.pushQuickPick({ action: 'tree' });
+    window.pushQuickPick({ tree: false });
     await manager.configurePane('facet.pane.3');
-    assert.strictEqual((manager.getPane('facet.pane.3') as any)?.display, 'flat');
+    assert.strictEqual((manager.getPane('facet.pane.3') as any)?.tree, false);
 
     // 9. Test Add Pane action via promptAddPane()
     window.pushQuickPick({ role: 'callers', label: 'Callers' });
@@ -251,11 +251,11 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(manager.getVisiblePanes().length, 5);
     assert.strictEqual(manager.getVisiblePanes()[4].role, 'callers');
 
-    // 10. Test Display mode toggle for files pane
-    window.pushQuickPick({ action: 'display' });
-    window.pushQuickPick({ mode: 'current' });
+    // 10. Test Recursive toggle for files pane
+    window.pushQuickPick({ action: 'recursive' });
+    window.pushQuickPick({ recursive: true });
     await manager.configurePane('facet.pane.2');
-    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.display, 'current');
+    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.recursive, true);
 
     // 11. Test Remove Pane action via promptRemovePane()
     window.pushQuickPick({ id: 'facet.pane.5' });
@@ -275,9 +275,9 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     await manager.applyPreset('Active Editor');
     let visible = manager.getVisiblePanes();
     assert.strictEqual(visible.length, 3);
-    assert.strictEqual(visible[0].role, 'types');
+    assert.strictEqual(visible[0].role, 'symbols');
     assert.strictEqual(visible[0].inputSource, 'activeEditor');
-    assert.strictEqual(visible[1].role, 'members');
+    assert.strictEqual(visible[1].role, 'symbols');
     assert.strictEqual(visible[2].role, 'callers');
 
     // Apply Working Changes preset
@@ -285,8 +285,8 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     visible = manager.getVisiblePanes();
     assert.strictEqual(visible.length, 4);
     assert.strictEqual(visible[0].role, 'changes');
-    assert.strictEqual(visible[1].role, 'types');
-    assert.strictEqual(visible[2].role, 'members');
+    assert.strictEqual(visible[1].role, 'symbols');
+    assert.strictEqual(visible[2].role, 'symbols');
     assert.strictEqual(visible[3].role, 'problems');
 
     // Apply Problem Triage preset
@@ -294,8 +294,8 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     visible = manager.getVisiblePanes();
     assert.strictEqual(visible.length, 4);
     assert.strictEqual(visible[0].role, 'problems');
-    assert.strictEqual(visible[1].role, 'types');
-    assert.strictEqual(visible[2].role, 'members');
+    assert.strictEqual(visible[1].role, 'symbols');
+    assert.strictEqual(visible[2].role, 'symbols');
     assert.strictEqual(visible[3].role, 'references');
 
     // Apply Type Hierarchy preset
@@ -303,7 +303,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     visible = manager.getVisiblePanes();
     assert.strictEqual(visible.length, 3);
     assert.strictEqual(visible[0].role, 'hierarchy');
-    assert.strictEqual(visible[1].role, 'members');
+    assert.strictEqual(visible[1].role, 'symbols');
     assert.strictEqual(visible[2].role, 'implementations');
 
     // Apply Open Editors preset
@@ -312,8 +312,8 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(visible.length, 4);
     assert.strictEqual(visible[0].role, 'files');
     assert.strictEqual(visible[0].inputSource, 'openEditors');
-    assert.strictEqual(visible[1].role, 'types');
-    assert.strictEqual(visible[2].role, 'members');
+    assert.strictEqual(visible[1].role, 'symbols');
+    assert.strictEqual(visible[2].role, 'symbols');
     assert.strictEqual(visible[3].role, 'references');
 
     // Apply Project Browser preset
@@ -322,8 +322,8 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(visible.length, 4);
     assert.strictEqual(visible[0].role, 'directories');
     assert.strictEqual(visible[1].role, 'files');
-    assert.strictEqual(visible[2].role, 'types');
-    assert.strictEqual(visible[3].role, 'members');
+    assert.strictEqual(visible[2].role, 'symbols');
+    assert.strictEqual(visible[3].role, 'symbols');
 
     // Save current preset to workspace and global
     await manager.savePreset('MyCustomPreset', 'workspace');
@@ -372,8 +372,8 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(restored.length, 4);
     assert.strictEqual(restored[0].role, 'directories');
     assert.strictEqual(restored[1].role, 'files');
-    assert.strictEqual(restored[2].role, 'types');
-    assert.strictEqual(restored[3].role, 'members');
+    assert.strictEqual(restored[2].role, 'symbols');
+    assert.strictEqual(restored[3].role, 'symbols');
 
     coordinator.dispose();
   });
@@ -429,7 +429,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
 
     const visible = manager.getVisiblePanes();
     assert.strictEqual(visible[0].id, 'facet.pane.3');
-    assert.strictEqual(visible[0].role, 'types');
+    assert.strictEqual(visible[0].role, 'symbols');
     // Because Types was at index 0 and had inputSource: 'previousPane', it must safely default to 'project'
     assert.strictEqual(visible[0].inputSource, 'project');
 
@@ -462,9 +462,9 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(visibleAfterPreset[1].id, 'facet.pane.1');
     assert.strictEqual(visibleAfterPreset[1].role, 'files');
     assert.strictEqual(visibleAfterPreset[2].id, 'facet.pane.2');
-    assert.strictEqual(visibleAfterPreset[2].role, 'types');
+    assert.strictEqual(visibleAfterPreset[2].role, 'symbols');
     assert.strictEqual(visibleAfterPreset[3].id, 'facet.pane.4');
-    assert.strictEqual(visibleAfterPreset[3].role, 'members');
+    assert.strictEqual(visibleAfterPreset[3].role, 'symbols');
 
     coordinator.dispose();
   });
@@ -550,9 +550,9 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const manager = new PanePipelineManager(coordinator);
 
     // 1. configurePaneType
-    window.pushQuickPick({ role: 'types', label: 'Types' });
+    window.pushQuickPick({ role: 'symbols', label: 'Symbols' });
     await manager.configurePaneType('facet.pane.1');
-    assert.strictEqual(manager.getPane('facet.pane.1')?.role, 'types');
+    assert.strictEqual(manager.getPane('facet.pane.1')?.role, 'symbols');
 
     // 2. configureInputSource
     window.pushQuickPick({ source: 'activeEditor', label: 'Active Editor' });
@@ -574,10 +574,28 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     await manager.configureFilter('facet.pane.2');
     assert.strictEqual((manager.getPane('facet.pane.2') as any)?.globPattern, '**/*.test.ts');
 
-    // 6. configureDisplayMode
-    window.pushQuickPick({ mode: 'current' });
-    await manager.configureDisplayMode('facet.pane.2');
-    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.display, 'current');
+    // 6. configureTreeDisplay (files pane)
+    window.pushQuickPick({ tree: true });
+    await manager.configureTreeDisplay('facet.pane.2');
+    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.tree, true);
+
+    // 7. configureTreeDisplay (symbols pane)
+    window.pushQuickPick({ tree: false });
+    await manager.configureTreeDisplay('facet.pane.3');
+    assert.strictEqual((manager.getPane('facet.pane.3') as any)?.tree, false);
+
+    window.pushQuickPick({ tree: true });
+    await manager.configureTreeDisplay('facet.pane.3');
+    assert.strictEqual((manager.getPane('facet.pane.3') as any)?.tree, true);
+
+    // 8. configureRecursive (symbols pane)
+    window.pushQuickPick({ recursive: true });
+    await manager.configureRecursive('facet.pane.3');
+    assert.strictEqual((manager.getPane('facet.pane.3') as any)?.recursive, true);
+
+    window.pushQuickPick({ recursive: false });
+    await manager.configureRecursive('facet.pane.3');
+    assert.strictEqual((manager.getPane('facet.pane.3') as any)?.recursive, false);
 
     coordinator.dispose();
   });
