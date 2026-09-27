@@ -6,38 +6,12 @@ import * as vscode from 'vscode';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import { parseSlotOrderFromBuffer, WorkbenchLayoutWatcher } from '../../coordinator/workbenchLayoutWatcher';
-import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { SlotTreeProvider } from '../../providers/slotTreeProvider';
 import { SymbolResolver } from '../../services/symbolResolver';
 import { window } from './mockVscode';
 
 suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
-  const dummyUri = vscode.Uri.file('/path/to/test.ts');
-  const dummyRange = new vscode.Range(0, 0, 0, 0);
-
-  const mockClass: FacetSymbolNode = {
-    name: 'PipelineTestClass',
-    kind: vscode.SymbolKind.Class,
-    uri: dummyUri,
-    range: dummyRange,
-    selectionRange: dummyRange,
-    category: MemberCategory.All,
-    isStatic: false,
-    children: [
-      {
-        name: 'testMethod',
-        kind: vscode.SymbolKind.Method,
-        uri: dummyUri,
-        range: dummyRange,
-        selectionRange: dummyRange,
-        category: MemberCategory.InstanceMethods,
-        isStatic: false,
-        children: [],
-      },
-    ],
-  };
-
   setup(() => {
     window.clearPromptQueues();
   });

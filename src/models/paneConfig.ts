@@ -487,15 +487,6 @@ export function createDefaultPanes(): PaneConfig[] {
       visible: false,
       inputSource: 'previousPane',
       selectionSource: 'none',
-    createReferencesPane('facet.pane.5', {
-      visible: false,
-      inputSource: 'previousPane',
-      selectionSource: 'none',
-    }),
-    createImplementationsPane('facet.pane.6', {
-      visible: false,
-      inputSource: 'previousPane',
-      selectionSource: 'none',
     }),
   ];
 }

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import {
+  type DirectoriesPaneConfig,
   type FilesPaneConfig,
   type HierarchyPaneConfig,
   matchesGlob,
@@ -482,7 +483,7 @@ export class FacetCoordinator implements vscode.Disposable {
     return Array.from(openUris.values());
   }
 
-  private async getDirectoryChildren(config: PaneConfig, element?: any): Promise<DirectoryNode[]> {
+  private async getDirectoryChildren(config: DirectoriesPaneConfig, element?: any): Promise<DirectoryNode[]> {
     if (element && element.type === 'directory') {
       return element.children || [];
     }
@@ -820,18 +821,6 @@ export class FacetCoordinator implements vscode.Disposable {
           return true;
         });
       }
-    }
-
-    // Top-level filter if not recursive with project or openEditors input
-    const isRecursive = Boolean((config as FilesPaneConfig).recursive);
-    if (!isRecursive && config.inputSource !== 'previousPane') {
-      files = files.filter((u) => {
-        const rel = (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(u) : u.fsPath).replace(
-          /\\/g,
-          '/',
-        );
-        return !rel.includes('/');
-      });
     }
 
     const pattern = 'globPattern' in config ? config.globPattern : undefined;

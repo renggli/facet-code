@@ -14,8 +14,7 @@ import {
   createProblemsPane,
   createReferencesPane,
   createSymbolsPane,
-  createTypesPane,
-  type PaneConfig,
+  type HierarchyPaneConfig,
   type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
@@ -124,7 +123,8 @@ suite('FacetCoordinator Test Suite', () => {
 
     // 1. Filter by 'auth': leaf 'src/services/auth' matches
     const dirConfigAuth = createDirectoriesPane('facet.pane.1', {
-      display: 'hierarchy',
+      tree: true,
+      recursive: false,
       inputSource: 'project',
       globPattern: 'auth',
     });
@@ -156,7 +156,8 @@ suite('FacetCoordinator Test Suite', () => {
 
     // 2. Filter by 'nonexistent': returns 0 roots
     const dirConfigNone = createDirectoriesPane('facet.pane.1', {
-      display: 'hierarchy',
+      tree: true,
+      recursive: false,
       inputSource: 'project',
       globPattern: 'nonexistent',
     });
@@ -165,7 +166,8 @@ suite('FacetCoordinator Test Suite', () => {
 
     // 3. No filter: roots should only be 'src' and 'test'; none of the nested directories appear in roots
     const dirConfigAll = createDirectoriesPane('facet.pane.1', {
-      display: 'hierarchy',
+      tree: true,
+      recursive: false,
       inputSource: 'project',
     });
     const allRoots = await coordinator.getSlotChildren(dirConfigAll);
@@ -228,25 +230,24 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('coordinator resolves slot children for types and members according to filters', async () => {
+  test('coordinator resolves slot children for symbols according to filters', async () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
 
-    const membersPaneConfig: PaneConfig = {
-      id: 'facet.pane.2',
+    const membersPaneConfig: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
       title: 'Members',
-      role: 'members',
       inputSource: 'previousPane',
       selectionSource: 'none',
       sort: 'name',
       filters: { ...createDefaultFilters(), constant: false },
-      display: 'flat',
+      tree: false,
+      recursive: false,
       visible: true,
-    };
+    });
 
     coordinator.setSlotSelection('facet.pane.1', [mockClass]);
-    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'types' });
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'symbols' });
 
     const children = await coordinator.getSlotChildren(membersPaneConfig);
     // defaultConfig (constant) is filtered out
@@ -273,17 +274,16 @@ suite('FacetCoordinator Test Suite', () => {
       children: [],
     };
 
-    const config: PaneConfig = {
-      id: 'facet.pane.2',
+    const config: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
       title: 'Members',
-      role: 'members',
       inputSource: 'previousPane',
       selectionSource: 'none',
       sort: 'name',
       filters: createDefaultFilters(),
-      display: 'flat',
+      tree: false,
+      recursive: false,
       visible: true,
-    };
+    });
 
     const item = coordinator.getSlotTreeItem(config, node);
     assert.ok(item.iconPath !== undefined);
@@ -325,17 +325,16 @@ suite('FacetCoordinator Test Suite', () => {
 
     (coordinator as any).cachedWorkspaceTypes = [baseClass, subClass];
 
-    const typesPaneConfig: PaneConfig = {
-      id: 'facet.pane.1',
-      title: 'Types',
-      role: 'types',
+    const typesPaneConfig: HierarchyPaneConfig = createHierarchyPane('facet.pane.1', {
+      title: 'Hierarchy',
       inputSource: 'project',
       selectionSource: 'cursor',
       sort: 'name',
+      tree: true,
+      recursive: false,
       filters: createDefaultFilters(),
-      display: 'hierarchy',
       visible: true,
-    };
+    });
 
     // Root children: only BaseClass should be returned! SubClass is omitted from root
     const rootChildren = await coordinator.getSlotChildren(typesPaneConfig);
@@ -415,19 +414,17 @@ suite('FacetCoordinator Test Suite', () => {
 
     (coordinator as any).cachedWorkspaceTypes = [petNode, animalNode, dogNode];
 
-    const typesPaneConfig: PaneConfig = {
-      id: 'facet.pane.1',
-      title: 'Types',
-      role: 'types',
+    const hierarchyPaneConfig: HierarchyPaneConfig = createHierarchyPane('facet.pane.1', {
+      title: 'Hierarchy',
       inputSource: 'project',
       selectionSource: 'cursor',
       sort: 'name',
       filters: createDefaultFilters(),
-      display: 'hierarchy',
-      visible: true,
-    };
+      tree: true,
+      recursive: false,
+    });
 
-    const roots = await coordinator.getSlotChildren(typesPaneConfig);
+    const roots = await coordinator.getSlotChildren(hierarchyPaneConfig);
     assert.strictEqual(roots.length, 2);
     const rootNames = roots.map((r: any) => r.name);
     assert.ok(rootNames.includes('Animal'));
@@ -507,10 +504,11 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.setSlotSelection('facet.pane.1', [dirNode]);
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'directories' });
 
-    // Test current display mode (immediate direct children)
+    // Test non-recursive mode (immediate direct children)
     const currentConfig = createFilesPane('facet.pane.2', {
       inputSource: 'previousPane',
-      display: 'current',
+      tree: false,
+      recursive: false,
     });
 
     const directFiles = await coordinator.getSlotChildren(currentConfig);
@@ -520,10 +518,11 @@ suite('FacetCoordinator Test Suite', () => {
     assert.ok(directPaths.includes('/workspace/src/utils.ts'));
     assert.ok(!directPaths.includes('/workspace/src/components/button.tsx'));
 
-    // Test flat display mode (recursively traverses and flattens)
+    // Test recursive mode (traverses and flattens)
     const flatConfig = createFilesPane('facet.pane.2', {
       inputSource: 'previousPane',
-      display: 'flat',
+      tree: false,
+      recursive: true,
     });
 
     const allDescendantFiles = await coordinator.getSlotChildren(flatConfig);
@@ -566,22 +565,20 @@ suite('FacetCoordinator Test Suite', () => {
       return file2Doc;
     };
 
-    const typesPaneConfig: PaneConfig = {
-      id: 'facet.pane.2',
-      title: 'Types',
-      role: 'types',
+    const symbolsPaneConfig: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
+      title: 'Symbols',
       inputSource: 'previousPane',
       selectionSource: 'none',
       sort: 'name',
       filters: createDefaultFilters(),
-      display: 'flat',
-      visible: true,
-    };
+      tree: false,
+      recursive: false,
+    });
 
     coordinator.setSlotSelection('facet.pane.1', [file1Uri, file2Uri]);
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'files' });
 
-    const types = await coordinator.getSlotChildren(typesPaneConfig);
+    const types = await coordinator.getSlotChildren(symbolsPaneConfig);
     assert.strictEqual(types.length, 2);
     const names = types.map((t: FacetSymbolNode) => t.name);
     assert.ok(names.includes('ClassOne'));
@@ -730,7 +727,7 @@ suite('FacetCoordinator Test Suite', () => {
     };
 
     coordinator.setSlotSelection('facet.pane.4', [targetMember]);
-    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.4', role: 'members' });
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.4', role: 'symbols' });
 
     // Mock relations fetch
     (relationsProvider as any).fetchRelationsForNodes = async (_nodes: any, mode: string) => [
@@ -802,13 +799,13 @@ suite('FacetCoordinator Test Suite', () => {
 
     // 3. Directories with openEditors
     const dirOpen = await coordinator.getSlotChildren(
-      createDirectoriesPane('facet.pane.1', { inputSource: 'openEditors', display: 'flat' }),
+      createDirectoriesPane('facet.pane.1', { inputSource: 'openEditors', tree: false, recursive: true }),
     );
     assert.ok(dirOpen.length >= 2);
 
     // 4. Directories with activeEditor
     const dirActive = await coordinator.getSlotChildren(
-      createDirectoriesPane('facet.pane.1', { inputSource: 'activeEditor', display: 'flat' }),
+      createDirectoriesPane('facet.pane.1', { inputSource: 'activeEditor', tree: false, recursive: true }),
     );
     assert.strictEqual(dirActive.length, 1);
 
@@ -865,8 +862,8 @@ suite('FacetCoordinator Test Suite', () => {
     };
 
     // Test getSlotParent
-    const typesPane = createTypesPane('facet.pane.3');
-    const parentOfMember = coordinator.getSlotParent(typesPane, memberNode);
+    const symbolsPane = createSymbolsPane('facet.pane.3');
+    const parentOfMember = coordinator.getSlotParent(symbolsPane, memberNode);
     assert.strictEqual(parentOfMember?.name, 'ParentClass');
 
     const dirsPane = createDirectoriesPane('facet.pane.1');
