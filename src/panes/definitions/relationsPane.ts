@@ -24,7 +24,6 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
     supportedSelections: ['all', 'none'],
     supportedSorts: ['position', 'name'],
     hasTreeToggle: false,
-    hasRecursiveToggle: false,
     hasFilter: true,
   };
 

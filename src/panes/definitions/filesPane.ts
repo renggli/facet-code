@@ -13,7 +13,6 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
     supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name'],
     hasTreeToggle: true,
-    hasRecursiveToggle: true,
     hasFilter: true,
   };
 
@@ -27,7 +26,6 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
       selectionSource: 'cursor',
       sort: 'name',
       tree: false,
-      recursive: false,
     };
   }
 
@@ -36,6 +34,7 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
     _element?: vscode.Uri,
   ): Promise<vscode.Uri[]> {
     const config = context.config;
+    const isRecursive = Boolean(config.tree);
     let files: vscode.Uri[] = [];
 
     if (config.inputSource === 'project') {
@@ -48,7 +47,27 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
           workspaceFiles = [];
         }
       }
-      files = [...workspaceFiles];
+      if (isRecursive) {
+        files = [...workspaceFiles];
+      } else {
+        files = workspaceFiles.filter((u) => {
+          let rel = u.fsPath.replace(/\\/g, '/');
+          if (vscode.workspace.asRelativePath) {
+            try {
+              rel = vscode.workspace.asRelativePath(u);
+            } catch {
+              // fallback
+            }
+          } else if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            const root = vscode.workspace.workspaceFolders[0].uri.fsPath.replace(/\\/g, '/').replace(/\/+$/, '');
+            if (rel.startsWith(root + '/')) {
+              rel = rel.slice(root.length + 1);
+            }
+          }
+          rel = rel.replace(/^\/+/, '');
+          return !rel.includes('/');
+        });
+      }
     } else if (config.inputSource === 'openEditors') {
       files = context.coordinator.getOpenEditorUris();
     } else if (config.inputSource === 'activeEditor') {
@@ -76,7 +95,6 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
             workspaceFiles = [];
           }
         }
-        const isRecursive = Boolean(config.recursive);
         files = workspaceFiles.filter((file) => {
           const normFile = file.fsPath.replace(/\\/g, '/').replace(/\/+$/, '');
           return dirPaths.some((dir) => {

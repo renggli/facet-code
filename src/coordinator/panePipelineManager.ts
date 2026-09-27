@@ -63,15 +63,11 @@ export class PanePipelineManager {
       const def = this.registry.tryGet(pane.role);
       const hasTree = Boolean(def?.capabilities.hasTreeToggle);
       const isTree = hasTree ? Boolean((pane as any).tree) : false;
-      const hasRecursive = Boolean(def?.capabilities.hasRecursiveToggle);
-      const isRecursive = hasRecursive ? Boolean((pane as any).recursive) : false;
       const hasFilter = Boolean(def?.capabilities.hasFilter);
 
       contextPromises.push(
         vscode.commands.executeCommand('setContext', `${pane.id}.hasTree`, hasTree),
         vscode.commands.executeCommand('setContext', `${pane.id}.isTree`, isTree),
-        vscode.commands.executeCommand('setContext', `${pane.id}.hasRecursive`, hasRecursive),
-        vscode.commands.executeCommand('setContext', `${pane.id}.isRecursive`, isRecursive),
         vscode.commands.executeCommand('setContext', `${pane.id}.hasFilter`, hasFilter),
       );
     }
@@ -327,15 +323,6 @@ export class PanePipelineManager {
       });
     }
 
-    if (caps.hasRecursiveToggle) {
-      const isRecursive = Boolean((pane as any).recursive);
-      items.push({
-        label: '$(repo-forked) Enumerate Recursively...',
-        description: isRecursive ? 'Yes (Recursive)' : 'No (Direct Only)',
-        action: 'recursive',
-      });
-    }
-
     const picked = await vscode.window.showQuickPick(items, {
       placeHolder: `Configure Pane: ${pane.title}`,
     });
@@ -367,9 +354,6 @@ export class PanePipelineManager {
         break;
       case 'tree':
         await this.configureTreeDisplay(slotId);
-        break;
-      case 'recursive':
-        await this.configureRecursive(slotId);
         break;
     }
   }
@@ -548,17 +532,6 @@ export class PanePipelineManager {
     await this.coordinator.sync();
   }
 
-  public async toggleRecursive(slotId: string): Promise<void> {
-    const pane = this.getPane(slotId);
-    if (!pane || !('recursive' in pane)) {
-      return;
-    }
-    (pane as any).recursive = !(pane as any).recursive;
-    await this.syncContextKeys();
-    this._onDidUpdatePanes.fire();
-    await this.coordinator.sync();
-  }
-
   public async configureTreeDisplay(slotId: string): Promise<void> {
     const pane = this.getPane(slotId);
     if (!pane || !('tree' in pane)) {
@@ -584,37 +557,6 @@ export class PanePipelineManager {
     });
     if (picked) {
       (pane as any).tree = picked.tree;
-      await this.syncContextKeys();
-      this._onDidUpdatePanes.fire();
-      await this.coordinator.sync();
-    }
-  }
-
-  public async configureRecursive(slotId: string): Promise<void> {
-    const pane = this.getPane(slotId);
-    if (!pane || !('recursive' in pane)) {
-      return;
-    }
-    const current = Boolean((pane as any).recursive);
-    const options = [
-      {
-        label: '$(repo-forked) Recursive',
-        description: 'Enumerate all nested descendant items',
-        recursive: true,
-        picked: current === true,
-      },
-      {
-        label: '$(list-selection) Direct Children Only',
-        description: 'Shallow enumeration of immediate direct children only',
-        recursive: false,
-        picked: current === false,
-      },
-    ];
-    const picked = await vscode.window.showQuickPick(options, {
-      placeHolder: 'Select Recursive or Shallow Enumeration',
-    });
-    if (picked) {
-      (pane as any).recursive = picked.recursive;
       await this.syncContextKeys();
       this._onDidUpdatePanes.fire();
       await this.coordinator.sync();
@@ -749,28 +691,24 @@ export class PanePipelineManager {
         const d = dirDef.defaultConfig('');
         d.title = 'Directories';
         d.tree = true;
-        d.recursive = false;
         d.inputSource = 'project';
         d.selectionSource = 'cursor';
 
         const f = filesDef.defaultConfig('');
         f.title = 'Files';
         f.tree = false;
-        f.recursive = false;
         f.inputSource = 'previousPane';
         f.selectionSource = 'cursor';
 
         const s1 = symDef.defaultConfig('');
-        s1.title = 'Symbols';
-        s1.tree = true;
-        s1.recursive = false;
+        s1.title = 'Definitions';
+        s1.tree = false;
         s1.inputSource = 'previousPane';
         s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
-        s2.tree = false;
-        s2.recursive = false;
+        s2.tree = true;
         s2.inputSource = 'previousPane';
         s2.selectionSource = 'none';
 
@@ -782,14 +720,12 @@ export class PanePipelineManager {
         const s1 = symDef.defaultConfig('');
         s1.title = 'Symbols';
         s1.tree = true;
-        s1.recursive = false;
         s1.inputSource = 'activeEditor';
         s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
-        s2.recursive = false;
         s2.inputSource = 'previousPane';
         s2.selectionSource = 'cursor';
 
@@ -811,14 +747,12 @@ export class PanePipelineManager {
         const s1 = symDef.defaultConfig('');
         s1.title = 'Symbols';
         s1.tree = true;
-        s1.recursive = false;
         s1.inputSource = 'previousPane';
         s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
-        s2.recursive = false;
         s2.inputSource = 'previousPane';
         s2.selectionSource = 'none';
 
@@ -840,14 +774,12 @@ export class PanePipelineManager {
         const s1 = symDef.defaultConfig('');
         s1.title = 'Symbols';
         s1.tree = true;
-        s1.recursive = false;
         s1.inputSource = 'previousPane';
         s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
-        s2.recursive = false;
         s2.inputSource = 'previousPane';
         s2.selectionSource = 'cursor';
 
@@ -865,14 +797,12 @@ export class PanePipelineManager {
         const h = hierDef.defaultConfig('');
         h.title = 'Hierarchy';
         h.tree = true;
-        h.recursive = false;
         h.inputSource = 'project';
         h.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
-        s2.recursive = false;
         s2.inputSource = 'previousPane';
         s2.selectionSource = 'cursor';
 
@@ -889,21 +819,18 @@ export class PanePipelineManager {
         const f = filesDef.defaultConfig('');
         f.title = 'Open Files';
         f.tree = false;
-        f.recursive = false;
         f.inputSource = 'openEditors';
         f.selectionSource = 'cursor';
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Symbols';
         s1.tree = true;
-        s1.recursive = false;
         s1.inputSource = 'previousPane';
         s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
-        s2.recursive = false;
         s2.inputSource = 'previousPane';
         s2.selectionSource = 'none';
 

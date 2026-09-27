@@ -32,7 +32,11 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(manager.getVisiblePanes()[0].role, 'directories');
     assert.strictEqual(manager.getVisiblePanes()[1].role, 'files');
     assert.strictEqual(manager.getVisiblePanes()[2].role, 'symbols');
+    assert.strictEqual(manager.getVisiblePanes()[2].title, 'Definitions');
+    assert.strictEqual((manager.getVisiblePanes()[2] as any).tree, false);
     assert.strictEqual(manager.getVisiblePanes()[3].role, 'symbols');
+    assert.strictEqual(manager.getVisiblePanes()[3].title, 'Members');
+    assert.strictEqual((manager.getVisiblePanes()[3] as any).tree, true);
 
     coordinator.dispose();
   });
@@ -163,7 +167,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('PanePipelineManager configurePane executes title, role, input, selection, filter, sort, tree, and recursive actions', async () => {
+  test('PanePipelineManager configurePane executes title, role, input, selection, filter, sort, and tree actions', async () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
@@ -225,13 +229,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(manager.getVisiblePanes().length, 5);
     assert.strictEqual(manager.getVisiblePanes()[4].role, 'callers');
 
-    // 10. Test Recursive toggle for files pane
-    window.pushQuickPick({ action: 'recursive' });
-    window.pushQuickPick({ recursive: true });
-    await manager.configurePane('facet.pane.2');
-    assert.strictEqual((manager.getPane('facet.pane.2') as any)?.recursive, true);
-
-    // 11. Test Remove Pane action via promptRemovePane()
+    // 10. Test Remove Pane action via promptRemovePane()
     window.pushQuickPick({ id: 'facet.pane.5' });
     await manager.promptRemovePane();
     assert.strictEqual(manager.getVisiblePanes().length, 4);
@@ -561,15 +559,6 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     window.pushQuickPick({ tree: true });
     await manager.configureTreeDisplay('facet.pane.3');
     assert.strictEqual((manager.getPane('facet.pane.3') as any)?.tree, true);
-
-    // 8. configureRecursive (symbols pane)
-    window.pushQuickPick({ recursive: true });
-    await manager.configureRecursive('facet.pane.3');
-    assert.strictEqual((manager.getPane('facet.pane.3') as any)?.recursive, true);
-
-    window.pushQuickPick({ recursive: false });
-    await manager.configureRecursive('facet.pane.3');
-    assert.strictEqual((manager.getPane('facet.pane.3') as any)?.recursive, false);
 
     coordinator.dispose();
   });

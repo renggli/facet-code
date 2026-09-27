@@ -25,7 +25,6 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
     supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name', 'category'],
     hasTreeToggle: false,
-    hasRecursiveToggle: false,
     hasFilter: false,
   };
 

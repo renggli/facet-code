@@ -121,7 +121,6 @@ export interface FilesPaneConfig extends BasePaneConfig {
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
   tree: boolean;
-  recursive: boolean;
   globPattern?: string;
 }
 
@@ -131,7 +130,6 @@ export interface DirectoriesPaneConfig extends BasePaneConfig {
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name';
   tree: boolean;
-  recursive: boolean;
   globPattern?: string;
 }
 
@@ -194,7 +192,6 @@ export interface HierarchyPaneConfig extends BasePaneConfig {
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name' | 'category';
   tree: boolean;
-  recursive: boolean;
   subclassTypes?: SymbolKindKey[];
   filters: PaneFilters;
 }
@@ -205,7 +202,6 @@ export interface SymbolsPaneConfig extends BasePaneConfig {
   selectionSource: 'cursor' | 'all' | 'none';
   sort: 'position' | 'name' | 'category';
   tree: boolean;
-  recursive: boolean;
   filters: PaneFilters;
 }
 
@@ -251,7 +247,6 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
     selectionSource: 'none',
     sort: 'name',
     tree: false,
-    recursive: false,
     visible: true,
     ...overrides,
   };
@@ -266,7 +261,6 @@ export function createDirectoriesPane(id: string, overrides?: Partial<Directorie
     selectionSource: 'none',
     sort: 'name',
     tree: true,
-    recursive: false,
     visible: true,
     ...overrides,
   };
@@ -281,7 +275,6 @@ export function createSymbolsPane(id: string, overrides?: Partial<SymbolsPaneCon
     selectionSource: 'cursor',
     sort: 'name',
     tree: true,
-    recursive: false,
     filters: createDefaultFilters(),
     visible: true,
     ...overrides,
@@ -398,7 +391,6 @@ export function createHierarchyPane(id: string, overrides?: Partial<HierarchyPan
     selectionSource: 'cursor',
     sort: 'name',
     tree: true,
-    recursive: false,
     subclassTypes: ['class', 'struct'],
     filters: createDefaultFilters(TYPE_FILTER_KEYS),
     visible: true,
@@ -411,30 +403,26 @@ export function createDefaultPanes(): PaneConfig[] {
     createDirectoriesPane('facet.pane.1', {
       visible: true,
       tree: true,
-      recursive: false,
       inputSource: 'project',
       selectionSource: 'cursor',
     }),
     createFilesPane('facet.pane.2', {
       visible: true,
       tree: false,
-      recursive: false,
       inputSource: 'previousPane',
       selectionSource: 'cursor',
     }),
     createSymbolsPane('facet.pane.3', {
       visible: true,
-      title: 'Symbols',
-      tree: true,
-      recursive: false,
+      title: 'Definitions',
+      tree: false,
       inputSource: 'previousPane',
       selectionSource: 'cursor',
     }),
     createSymbolsPane('facet.pane.4', {
       visible: true,
       title: 'Members',
-      tree: false,
-      recursive: false,
+      tree: true,
       inputSource: 'previousPane',
       selectionSource: 'none',
     }),

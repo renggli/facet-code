@@ -69,22 +69,21 @@ suite('Extension Lifecycle Test Suite', () => {
     await vscode.commands.executeCommand('facet.configure.directories');
     await vscode.commands.executeCommand('facet.focus.files');
     await vscode.commands.executeCommand('facet.configure.files');
-    await vscode.commands.executeCommand('facet.focus.types');
+    await vscode.commands.executeCommand('facet.focus.definitions');
     await vscode.commands.executeCommand('facet.focus.members');
 
     // Execute slot-specific action commands
     await vscode.commands.executeCommand('facet.pane.1.toggleTree');
     await vscode.commands.executeCommand('facet.pane.1.toggleTree.on');
     await vscode.commands.executeCommand('facet.pane.1.toggleTree.off');
-    await vscode.commands.executeCommand('facet.pane.1.toggleRecursive');
-    await vscode.commands.executeCommand('facet.pane.1.toggleRecursive.on');
-    await vscode.commands.executeCommand('facet.pane.1.toggleRecursive.off');
     await vscode.commands.executeCommand('facet.pane.1.filter');
     await vscode.commands.executeCommand('facet.pane.1.type');
     await vscode.commands.executeCommand('facet.pane.1.input');
     await vscode.commands.executeCommand('facet.pane.1.sort');
 
     // Execute global palette commands
+    await vscode.commands.executeCommand('facet.focus');
+    await vscode.commands.executeCommand('facet.syncCursorAndFocus');
     await vscode.commands.executeCommand('facet.addPane');
     await vscode.commands.executeCommand('facet.removePane');
     await vscode.commands.executeCommand('facet.applyPreset');

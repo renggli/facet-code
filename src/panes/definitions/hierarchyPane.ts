@@ -26,7 +26,6 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
     supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name', 'category'],
     hasTreeToggle: true,
-    hasRecursiveToggle: false,
     hasFilter: true,
   };
 
@@ -41,7 +40,6 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
       sort: 'name',
       filters: createDefaultFilters(),
       tree: true,
-      recursive: false,
       subclassTypes: ['class', 'struct'],
     };
   }

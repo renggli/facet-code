@@ -15,6 +15,7 @@ import type { PanePipelineManager } from './panePipelineManager';
 export class FacetCoordinator implements vscode.Disposable {
   private cancellationSource?: vscode.CancellationTokenSource;
   private debounceTimer?: NodeJS.Timeout;
+  private selectionDebounceTimer?: NodeJS.Timeout;
   private currentEditor?: vscode.TextEditor;
 
   private cachedWorkspaceTypes: FacetSymbolNode[] = [];
@@ -24,6 +25,40 @@ export class FacetCoordinator implements vscode.Disposable {
   private isInternalSelection = false;
   private slotSelections = new Map<string, readonly any[]>();
   private pipelineManager?: PanePipelineManager;
+
+  public isSameSlotItem(a: any, b: any): boolean {
+    if (a === b) {
+      return true;
+    }
+    if (!a || !b) {
+      return false;
+    }
+    if (a instanceof vscode.Uri && b instanceof vscode.Uri) {
+      return a.fsPath === b.fsPath;
+    }
+    if (a?.type === 'directory' && b?.type === 'directory') {
+      return a.uri?.fsPath === b.uri?.fsPath;
+    }
+    if (a?.type === 'problem' && b?.type === 'problem') {
+      return (
+        a.uri?.fsPath === b.uri?.fsPath &&
+        a.range?.start?.line === b.range?.start?.line &&
+        a.range?.start?.character === b.range?.start?.character
+      );
+    }
+    if (a.name !== undefined && b.name !== undefined) {
+      return (
+        a.name === b.name &&
+        a.kind === b.kind &&
+        a.uri?.fsPath === b.uri?.fsPath &&
+        a.range?.start?.line === b.range?.start?.line
+      );
+    }
+    if (a.label !== undefined && b.label !== undefined && a.uri && b.uri) {
+      return a.label === b.label && a.uri?.fsPath === b.uri?.fsPath && a.range?.start?.line === b.range?.start?.line;
+    }
+    return false;
+  }
 
   private _onDidRefreshSlot = new vscode.EventEmitter<string>();
   readonly onDidRefreshSlot = this._onDidRefreshSlot.event;
@@ -97,9 +132,28 @@ export class FacetCoordinator implements vscode.Disposable {
     this.scheduleSync();
   }
 
-  public async handleSelectionChange(editor: vscode.TextEditor): Promise<void> {
+  public scheduleSelectionChange(editor: vscode.TextEditor): void {
+    if (this.selectionDebounceTimer) {
+      clearTimeout(this.selectionDebounceTimer);
+    }
+    this.selectionDebounceTimer = setTimeout(() => {
+      void this.handleSelectionChange(editor);
+    }, 150);
+  }
+
+  public async handleSelectionChange(
+    editor: vscode.TextEditor,
+    options?: { force?: boolean },
+  ): Promise<string | undefined> {
     if (this.isInternalSelection) {
-      return;
+      return undefined;
+    }
+    const force = options?.force ?? false;
+    if (!force) {
+      const autoSync = vscode.workspace.getConfiguration?.('facet')?.get<boolean>('autoSyncCursor', true) ?? true;
+      if (!autoSync) {
+        return undefined;
+      }
     }
     this.currentEditor = editor;
 
@@ -117,13 +171,13 @@ export class FacetCoordinator implements vscode.Disposable {
     }
 
     if (!this.pipelineManager) {
-      return;
+      return undefined;
     }
 
     const visible = this.pipelineManager.getVisiblePanes();
     const hasCursorPane = visible.some((p) => p.selectionSource === 'cursor');
-    if (!hasCursorPane) {
-      return;
+    if (!hasCursorPane && !force) {
+      return undefined;
     }
 
     let lastCursorIdx = -1;
@@ -141,15 +195,25 @@ export class FacetCoordinator implements vscode.Disposable {
         }
       }
     }
+    if (lastCursorIdx === -1 && force && visible.length > 0) {
+      lastCursorIdx = visible.length - 1;
+    }
 
     const enclosingType = this.findEnclosingTypeAtCursor();
     const memberAtCursor = this.findMemberAtCursor();
     const docUri = this.currentEditor.document.uri;
+    let targetSlotId: string | undefined;
 
     for (let i = 0; i <= lastCursorIdx; i++) {
       const pane = visible[i];
-      const shouldUpdate = pane.selectionSource === 'cursor' || i < lastCursorIdx;
+      const shouldUpdate = force || pane.selectionSource === 'cursor' || i < lastCursorIdx;
       if (!shouldUpdate) {
+        continue;
+      }
+
+      const currentSel = this.getSlotSelection(pane.id);
+      // Protect multi-selections: if user has multiple items selected in this pane, do not overwrite unless forced
+      if (!force && currentSel.length > 1) {
         continue;
       }
 
@@ -184,8 +248,16 @@ export class FacetCoordinator implements vscode.Disposable {
 
       const matchingItem = await this.findMatchingSlotItem(pane, rawTarget);
       const itemToSet = matchingItem || rawTarget;
+
+      // Redundancy guard: do not re-select or re-reveal if already selected
+      if (!force && currentSel.length === 1 && this.isSameSlotItem(currentSel[0], itemToSet)) {
+        targetSlotId = pane.id;
+        continue;
+      }
+
       this.setSlotSelection(pane.id, [itemToSet]);
       this._onRevealInView.fire({ slotId: pane.id, node: itemToSet });
+      targetSlotId = pane.id;
 
       for (const other of visible) {
         if (other.id !== pane.id && other.inputSource === 'previousPane') {
@@ -196,6 +268,8 @@ export class FacetCoordinator implements vscode.Disposable {
         }
       }
     }
+
+    return targetSlotId;
   }
 
   public async findMatchingSlotItem(pane: PaneConfig, target: any): Promise<any | undefined> {
@@ -570,6 +644,9 @@ export class FacetCoordinator implements vscode.Disposable {
   public dispose(): void {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
+    }
+    if (this.selectionDebounceTimer) {
+      clearTimeout(this.selectionDebounceTimer);
     }
     if (this.cancellationSource) {
       this.cancellationSource.cancel();

@@ -22,7 +22,6 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
     supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name'],
     hasTreeToggle: true,
-    hasRecursiveToggle: true,
     hasFilter: true,
   };
 
@@ -36,7 +35,6 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
       selectionSource: 'cursor',
       sort: 'name',
       tree: true,
-      recursive: false,
     };
   }
 
@@ -148,53 +146,8 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
 
     const pattern = config.globPattern;
     const isTree = Boolean(config.tree);
-    const isRecursive = Boolean(config.recursive);
 
     if (!isTree) {
-      if (!isRecursive) {
-        let currentDirs: { uri: vscode.Uri; relPath: string; name: string }[] = [];
-        if (config.inputSource === 'previousPane') {
-          const prevSelDirs = prevSel.filter((item: any) => item?.type === 'directory') as DirectoryNode[];
-          if (prevSelDirs.length > 0) {
-            const matchedSubDirs = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
-            for (const dNode of prevSelDirs) {
-              const parentRel = (dNode.relativePath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-              for (const item of allDirsMap.values()) {
-                if (item.relPath !== parentRel) {
-                  const prefix = parentRel ? `${parentRel}/` : '';
-                  if (item.relPath.startsWith(prefix)) {
-                    const subRel = item.relPath.slice(prefix.length);
-                    if (!subRel.includes('/')) {
-                      matchedSubDirs.set(item.relPath, item);
-                    }
-                  }
-                }
-              }
-            }
-            currentDirs = Array.from(matchedSubDirs.values());
-          } else {
-            currentDirs = Array.from(allDirsMap.values()).filter((item) => !item.relPath.includes('/'));
-          }
-        } else {
-          currentDirs = Array.from(allDirsMap.values()).filter((item) => !item.relPath.includes('/'));
-        }
-
-        const currentNodes: DirectoryNode[] = currentDirs
-          .filter((d) => matchesGlob(d.relPath, pattern) || matchesGlob(d.name, pattern))
-          .map((d) => ({
-            type: 'directory',
-            uri: d.uri,
-            name: d.name,
-            relativePath: d.relPath,
-          }));
-
-        currentNodes.sort((a, b) =>
-          config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath),
-        );
-        return currentNodes;
-      }
-
-      // Flat recursive: return baseDirMap matching directories
       let flatNodes = Array.from(baseDirMap.values());
       if (config.inputSource === 'previousPane') {
         const prevSelDirs = prevSel.filter((item: any) => item?.type === 'directory') as DirectoryNode[];

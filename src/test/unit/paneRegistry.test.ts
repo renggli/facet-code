@@ -48,7 +48,7 @@ suite('PaneRegistry & Modular Pane Architecture Test Suite', () => {
     assert.strictEqual(defs.length, 11);
   });
 
-  test('toggleTreeDisplay and toggleRecursive toggle state and publish context keys', async () => {
+  test('toggleTreeDisplay toggles state and publishes context keys', async () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
@@ -62,13 +62,6 @@ suite('PaneRegistry & Modular Pane Architecture Test Suite', () => {
 
     await manager.toggleTreeDisplay('facet.pane.1');
     assert.strictEqual(pane1.tree, true);
-
-    assert.strictEqual(pane1.recursive, false);
-    await manager.toggleRecursive('facet.pane.1');
-    assert.strictEqual(pane1.recursive, true);
-
-    await manager.toggleRecursive('facet.pane.1');
-    assert.strictEqual(pane1.recursive, false);
 
     coordinator.dispose();
   });

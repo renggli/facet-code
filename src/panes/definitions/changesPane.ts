@@ -13,7 +13,6 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
     supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name'],
     hasTreeToggle: false,
-    hasRecursiveToggle: false,
     hasFilter: false,
   };
 

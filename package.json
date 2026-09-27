@@ -64,7 +64,7 @@
         },
         {
           "id": "facet.pane.3",
-          "name": "Types",
+          "name": "Definitions",
           "when": "facet.pane.3.visible"
         },
         {
@@ -85,6 +85,18 @@
       ]
     },
     "commands": [
+      {
+        "command": "facet.focus",
+        "title": "Facet: Focus",
+        "category": "Facet",
+        "icon": "$(layout-sidebar-left)"
+      },
+      {
+        "command": "facet.syncCursorAndFocus",
+        "title": "Facet: Select at Cursor and Focus",
+        "category": "Facet",
+        "icon": "$(target)"
+      },
       {
         "command": "facet.addPane",
         "title": "Facet: Add Pane",
@@ -126,16 +138,6 @@
         "icon": "$(list-tree)"
       },
       {
-        "command": "facet.pane.1.toggleRecursive.on",
-        "title": "Direct Items Only",
-        "icon": "$(repo-forked)"
-      },
-      {
-        "command": "facet.pane.1.toggleRecursive.off",
-        "title": "Enumerate Recursively",
-        "icon": "$(repo-forked)"
-      },
-      {
         "command": "facet.pane.1.filter",
         "title": "Filter",
         "icon": "$(filter)"
@@ -169,16 +171,6 @@
         "command": "facet.pane.2.toggleTree.off",
         "title": "View as Tree",
         "icon": "$(list-tree)"
-      },
-      {
-        "command": "facet.pane.2.toggleRecursive.on",
-        "title": "Direct Items Only",
-        "icon": "$(repo-forked)"
-      },
-      {
-        "command": "facet.pane.2.toggleRecursive.off",
-        "title": "Enumerate Recursively",
-        "icon": "$(repo-forked)"
       },
       {
         "command": "facet.pane.2.filter",
@@ -216,16 +208,6 @@
         "icon": "$(list-tree)"
       },
       {
-        "command": "facet.pane.3.toggleRecursive.on",
-        "title": "Direct Items Only",
-        "icon": "$(repo-forked)"
-      },
-      {
-        "command": "facet.pane.3.toggleRecursive.off",
-        "title": "Enumerate Recursively",
-        "icon": "$(repo-forked)"
-      },
-      {
         "command": "facet.pane.3.filter",
         "title": "Filter",
         "icon": "$(filter)"
@@ -259,16 +241,6 @@
         "command": "facet.pane.4.toggleTree.off",
         "title": "View as Tree",
         "icon": "$(list-tree)"
-      },
-      {
-        "command": "facet.pane.4.toggleRecursive.on",
-        "title": "Direct Items Only",
-        "icon": "$(repo-forked)"
-      },
-      {
-        "command": "facet.pane.4.toggleRecursive.off",
-        "title": "Enumerate Recursively",
-        "icon": "$(repo-forked)"
       },
       {
         "command": "facet.pane.4.filter",
@@ -306,16 +278,6 @@
         "icon": "$(list-tree)"
       },
       {
-        "command": "facet.pane.5.toggleRecursive.on",
-        "title": "Direct Items Only",
-        "icon": "$(repo-forked)"
-      },
-      {
-        "command": "facet.pane.5.toggleRecursive.off",
-        "title": "Enumerate Recursively",
-        "icon": "$(repo-forked)"
-      },
-      {
         "command": "facet.pane.5.filter",
         "title": "Filter",
         "icon": "$(filter)"
@@ -349,16 +311,6 @@
         "command": "facet.pane.6.toggleTree.off",
         "title": "View as Tree",
         "icon": "$(list-tree)"
-      },
-      {
-        "command": "facet.pane.6.toggleRecursive.on",
-        "title": "Direct Items Only",
-        "icon": "$(repo-forked)"
-      },
-      {
-        "command": "facet.pane.6.toggleRecursive.off",
-        "title": "Enumerate Recursively",
-        "icon": "$(repo-forked)"
       },
       {
         "command": "facet.pane.6.filter",
@@ -397,14 +349,6 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.1.toggleRecursive.on",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.1.toggleRecursive.off",
-          "when": "false"
-        },
-        {
           "command": "facet.pane.1.filter",
           "when": "false"
         },
@@ -430,14 +374,6 @@
         },
         {
           "command": "facet.pane.2.toggleTree.off",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.2.toggleRecursive.on",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.2.toggleRecursive.off",
           "when": "false"
         },
         {
@@ -469,14 +405,6 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.3.toggleRecursive.on",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.3.toggleRecursive.off",
-          "when": "false"
-        },
-        {
           "command": "facet.pane.3.filter",
           "when": "false"
         },
@@ -502,14 +430,6 @@
         },
         {
           "command": "facet.pane.4.toggleTree.off",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.4.toggleRecursive.on",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.4.toggleRecursive.off",
           "when": "false"
         },
         {
@@ -541,14 +461,6 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.5.toggleRecursive.on",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.5.toggleRecursive.off",
-          "when": "false"
-        },
-        {
           "command": "facet.pane.5.filter",
           "when": "false"
         },
@@ -574,14 +486,6 @@
         },
         {
           "command": "facet.pane.6.toggleTree.off",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.6.toggleRecursive.on",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.6.toggleRecursive.off",
           "when": "false"
         },
         {
@@ -615,16 +519,6 @@
           "command": "facet.pane.1.toggleTree.off",
           "when": "view == facet.pane.1 && facet.pane.1.hasTree && !facet.pane.1.isTree",
           "group": "navigation@1"
-        },
-        {
-          "command": "facet.pane.1.toggleRecursive.on",
-          "when": "view == facet.pane.1 && facet.pane.1.hasRecursive && facet.pane.1.isRecursive",
-          "group": "navigation@2"
-        },
-        {
-          "command": "facet.pane.1.toggleRecursive.off",
-          "when": "view == facet.pane.1 && facet.pane.1.hasRecursive && !facet.pane.1.isRecursive",
-          "group": "navigation@2"
         },
         {
           "command": "facet.pane.1.filter",
@@ -662,16 +556,6 @@
           "group": "navigation@1"
         },
         {
-          "command": "facet.pane.2.toggleRecursive.on",
-          "when": "view == facet.pane.2 && facet.pane.2.hasRecursive && facet.pane.2.isRecursive",
-          "group": "navigation@2"
-        },
-        {
-          "command": "facet.pane.2.toggleRecursive.off",
-          "when": "view == facet.pane.2 && facet.pane.2.hasRecursive && !facet.pane.2.isRecursive",
-          "group": "navigation@2"
-        },
-        {
           "command": "facet.pane.2.filter",
           "when": "view == facet.pane.2 && facet.pane.2.hasFilter",
           "group": "navigation@3"
@@ -705,16 +589,6 @@
           "command": "facet.pane.3.toggleTree.off",
           "when": "view == facet.pane.3 && facet.pane.3.hasTree && !facet.pane.3.isTree",
           "group": "navigation@1"
-        },
-        {
-          "command": "facet.pane.3.toggleRecursive.on",
-          "when": "view == facet.pane.3 && facet.pane.3.hasRecursive && facet.pane.3.isRecursive",
-          "group": "navigation@2"
-        },
-        {
-          "command": "facet.pane.3.toggleRecursive.off",
-          "when": "view == facet.pane.3 && facet.pane.3.hasRecursive && !facet.pane.3.isRecursive",
-          "group": "navigation@2"
         },
         {
           "command": "facet.pane.3.filter",
@@ -752,16 +626,6 @@
           "group": "navigation@1"
         },
         {
-          "command": "facet.pane.4.toggleRecursive.on",
-          "when": "view == facet.pane.4 && facet.pane.4.hasRecursive && facet.pane.4.isRecursive",
-          "group": "navigation@2"
-        },
-        {
-          "command": "facet.pane.4.toggleRecursive.off",
-          "when": "view == facet.pane.4 && facet.pane.4.hasRecursive && !facet.pane.4.isRecursive",
-          "group": "navigation@2"
-        },
-        {
           "command": "facet.pane.4.filter",
           "when": "view == facet.pane.4 && facet.pane.4.hasFilter",
           "group": "navigation@3"
@@ -795,16 +659,6 @@
           "command": "facet.pane.5.toggleTree.off",
           "when": "view == facet.pane.5 && facet.pane.5.hasTree && !facet.pane.5.isTree",
           "group": "navigation@1"
-        },
-        {
-          "command": "facet.pane.5.toggleRecursive.on",
-          "when": "view == facet.pane.5 && facet.pane.5.hasRecursive && facet.pane.5.isRecursive",
-          "group": "navigation@2"
-        },
-        {
-          "command": "facet.pane.5.toggleRecursive.off",
-          "when": "view == facet.pane.5 && facet.pane.5.hasRecursive && !facet.pane.5.isRecursive",
-          "group": "navigation@2"
         },
         {
           "command": "facet.pane.5.filter",
@@ -842,16 +696,6 @@
           "group": "navigation@1"
         },
         {
-          "command": "facet.pane.6.toggleRecursive.on",
-          "when": "view == facet.pane.6 && facet.pane.6.hasRecursive && facet.pane.6.isRecursive",
-          "group": "navigation@2"
-        },
-        {
-          "command": "facet.pane.6.toggleRecursive.off",
-          "when": "view == facet.pane.6 && facet.pane.6.hasRecursive && !facet.pane.6.isRecursive",
-          "group": "navigation@2"
-        },
-        {
           "command": "facet.pane.6.filter",
           "when": "view == facet.pane.6 && facet.pane.6.hasFilter",
           "group": "navigation@3"
@@ -877,6 +721,29 @@
           "group": "1_settings@4"
         }
       ]
+    },
+    "keybindings": [
+      {
+        "command": "facet.focus",
+        "key": "ctrl+k f",
+        "mac": "cmd+k f"
+      },
+      {
+        "command": "facet.syncCursorAndFocus",
+        "key": "ctrl+k shift+f",
+        "mac": "cmd+k shift+f",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Facet",
+      "properties": {
+        "facet.autoSyncCursor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically synchronize Facet pane selections with the active editor cursor position."
+        }
+      }
     }
   },
   "scripts": {

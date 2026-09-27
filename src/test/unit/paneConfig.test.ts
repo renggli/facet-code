@@ -99,8 +99,12 @@ suite('PaneConfig & Filter Helpers Test Suite', () => {
       assert.strictEqual(panes[1].role, 'files');
       assert.strictEqual(panes[1].visible, true);
       assert.strictEqual(panes[2].role, 'symbols');
+      assert.strictEqual(panes[2].title, 'Definitions');
+      assert.strictEqual((panes[2] as any).tree, false);
       assert.strictEqual(panes[2].visible, true);
       assert.strictEqual(panes[3].role, 'symbols');
+      assert.strictEqual(panes[3].title, 'Members');
+      assert.strictEqual((panes[3] as any).tree, true);
       assert.strictEqual(panes[3].visible, true);
       assert.strictEqual(panes[4].role, 'references');
       assert.strictEqual(panes[4].visible, false);
@@ -112,17 +116,14 @@ suite('PaneConfig & Filter Helpers Test Suite', () => {
       const symbols = createSymbolsPane('facet.pane.3');
       assert.strictEqual(symbols.role, 'symbols');
       assert.strictEqual(symbols.tree, true);
-      assert.strictEqual(symbols.recursive, false);
 
       const dir = createDirectoriesPane('facet.pane.1');
       assert.strictEqual(dir.role, 'directories');
       assert.strictEqual(dir.tree, true);
-      assert.strictEqual(dir.recursive, false);
 
       const files = createFilesPane('facet.pane.2');
       assert.strictEqual(files.role, 'files');
       assert.strictEqual(files.tree, false);
-      assert.strictEqual(files.recursive, false);
 
       const defs = createDefinitionsPane('facet.pane.5');
       assert.strictEqual(defs.role, 'definitions');

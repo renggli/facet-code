@@ -58,7 +58,7 @@ suite('FacetCoordinator Test Suite', () => {
     ],
   };
 
-  test('coordinator handles directories pane role with tree and recursive options', async () => {
+  test('coordinator handles directories pane role with tree and flat options', async () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
@@ -73,7 +73,6 @@ suite('FacetCoordinator Test Suite', () => {
 
     const dirConfigHierarchy = createDirectoriesPane('facet.pane.1', {
       tree: true,
-      recursive: false,
       inputSource: 'project',
     });
 
@@ -85,23 +84,10 @@ suite('FacetCoordinator Test Suite', () => {
 
     const dirConfigFlat = createDirectoriesPane('facet.pane.1', {
       tree: false,
-      recursive: true,
       inputSource: 'project',
     });
     const flatDirs = await coordinator.getSlotChildren(dirConfigFlat);
     assert.ok(flatDirs.length >= 2);
-
-    const dirConfigCurrent = createDirectoriesPane('facet.pane.1', {
-      tree: false,
-      recursive: false,
-      inputSource: 'project',
-    });
-    const currentDirs = await coordinator.getSlotChildren(dirConfigCurrent);
-    // Top-level only: 'src' and 'test'
-    assert.strictEqual(currentDirs.length, 2);
-    const currentNames = currentDirs.map((d: any) => d.name);
-    assert.ok(currentNames.includes('src'));
-    assert.ok(currentNames.includes('test'));
 
     (vscode.workspace as any).findFiles = origFindFiles;
     coordinator.dispose();
@@ -124,7 +110,6 @@ suite('FacetCoordinator Test Suite', () => {
     // 1. Filter by 'auth': leaf 'src/services/auth' matches
     const dirConfigAuth = createDirectoriesPane('facet.pane.1', {
       tree: true,
-      recursive: false,
       inputSource: 'project',
       globPattern: 'auth',
     });
@@ -157,7 +142,6 @@ suite('FacetCoordinator Test Suite', () => {
     // 2. Filter by 'nonexistent': returns 0 roots
     const dirConfigNone = createDirectoriesPane('facet.pane.1', {
       tree: true,
-      recursive: false,
       inputSource: 'project',
       globPattern: 'nonexistent',
     });
@@ -167,7 +151,6 @@ suite('FacetCoordinator Test Suite', () => {
     // 3. No filter: roots should only be 'src' and 'test'; none of the nested directories appear in roots
     const dirConfigAll = createDirectoriesPane('facet.pane.1', {
       tree: true,
-      recursive: false,
       inputSource: 'project',
     });
     const allRoots = await coordinator.getSlotChildren(dirConfigAll);
@@ -242,7 +225,6 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
       filters: { ...createDefaultFilters(), constant: false },
       tree: false,
-      recursive: false,
       visible: true,
     });
 
@@ -281,7 +263,6 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
       filters: createDefaultFilters(),
       tree: false,
-      recursive: false,
       visible: true,
     });
 
@@ -331,7 +312,6 @@ suite('FacetCoordinator Test Suite', () => {
       selectionSource: 'cursor',
       sort: 'name',
       tree: true,
-      recursive: false,
       filters: createDefaultFilters(),
       visible: true,
     });
@@ -421,7 +401,6 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
       filters: createDefaultFilters(),
       tree: true,
-      recursive: false,
     });
 
     const roots = await coordinator.getSlotChildren(hierarchyPaneConfig);
@@ -459,6 +438,7 @@ suite('FacetCoordinator Test Suite', () => {
     const filesPaneConfig = createFilesPane('facet.pane.1', {
       globPattern: '*.ts',
       sort: 'name',
+      tree: true,
     });
 
     const matched = await coordinator.getSlotChildren(filesPaneConfig);
@@ -479,7 +459,7 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('coordinator filters files non-recursively vs recursively when directory is selected in previous pane', async () => {
+  test('coordinator filters files 1-level (tree: false) vs recursive (tree: true) when directory is selected in previous pane', async () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
@@ -504,11 +484,10 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.setSlotSelection('facet.pane.1', [dirNode]);
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'directories' });
 
-    // Test non-recursive mode (immediate direct children)
+    // Test 1-level mode (tree: false)
     const currentConfig = createFilesPane('facet.pane.2', {
       inputSource: 'previousPane',
       tree: false,
-      recursive: false,
     });
 
     const directFiles = await coordinator.getSlotChildren(currentConfig);
@@ -518,14 +497,13 @@ suite('FacetCoordinator Test Suite', () => {
     assert.ok(directPaths.includes('/workspace/src/utils.ts'));
     assert.ok(!directPaths.includes('/workspace/src/components/button.tsx'));
 
-    // Test recursive mode (traverses and flattens)
-    const flatConfig = createFilesPane('facet.pane.2', {
+    // Test recursive mode (tree: true)
+    const recursiveConfig = createFilesPane('facet.pane.2', {
       inputSource: 'previousPane',
-      tree: false,
-      recursive: true,
+      tree: true,
     });
 
-    const allDescendantFiles = await coordinator.getSlotChildren(flatConfig);
+    const allDescendantFiles = await coordinator.getSlotChildren(recursiveConfig);
     assert.strictEqual(allDescendantFiles.length, 4);
     const recursivePaths = allDescendantFiles.map((u: vscode.Uri) => u.path);
     assert.ok(recursivePaths.includes('/workspace/src/app.ts'));
@@ -572,7 +550,6 @@ suite('FacetCoordinator Test Suite', () => {
       sort: 'name',
       filters: createDefaultFilters(),
       tree: false,
-      recursive: false,
     });
 
     coordinator.setSlotSelection('facet.pane.1', [file1Uri, file2Uri]);
@@ -799,13 +776,13 @@ suite('FacetCoordinator Test Suite', () => {
 
     // 3. Directories with openEditors
     const dirOpen = await coordinator.getSlotChildren(
-      createDirectoriesPane('facet.pane.1', { inputSource: 'openEditors', tree: false, recursive: true }),
+      createDirectoriesPane('facet.pane.1', { inputSource: 'openEditors', tree: false }),
     );
     assert.ok(dirOpen.length >= 2);
 
     // 4. Directories with activeEditor
     const dirActive = await coordinator.getSlotChildren(
-      createDirectoriesPane('facet.pane.1', { inputSource: 'activeEditor', tree: false, recursive: true }),
+      createDirectoriesPane('facet.pane.1', { inputSource: 'activeEditor', tree: false }),
     );
     assert.strictEqual(dirActive.length, 1);
 
@@ -901,7 +878,7 @@ suite('FacetCoordinator Test Suite', () => {
     coordinator.dispose();
   });
 
-  test('coordinator handles combined symbols pane: file input enumerates types, type input enumerates members, with recursive and tree options', async () => {
+  test('coordinator handles combined symbols pane: file input enumerates types, type input enumerates members, with tree and flat options', async () => {
     const resolver = new SymbolResolver();
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
@@ -967,63 +944,53 @@ suite('FacetCoordinator Test Suite', () => {
     // Mock document symbols returned by LSP
     (coordinator as any).resolver.resolveDocumentSymbols = async () => [outerType];
 
-    // --- Scenario 1: Input is files, tree = true, recursive = false ---
+    // --- Scenario 1: Input is files, tree = true ---
     const symbolsPaneFilesTree: SymbolsPaneConfig = createSymbolsPane('facet.pane.3', {
       inputSource: 'previousPane',
       tree: true,
-      recursive: false,
     });
 
     coordinator.setSlotSelection('facet.pane.2', [fileUri]);
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.2', role: 'files' });
 
-    // Root children should be top-level types (OuterType only, non-recursive)
-    const rootTypesNonRecursive = await coordinator.getSlotChildren(symbolsPaneFilesTree);
-    assert.strictEqual(rootTypesNonRecursive.length, 1);
-    assert.strictEqual(rootTypesNonRecursive[0].name, 'OuterType');
+    // Root children should be top-level types (OuterType only)
+    const rootTypesTree = await coordinator.getSlotChildren(symbolsPaneFilesTree);
+    assert.strictEqual(rootTypesTree.length, 1);
+    assert.strictEqual(rootTypesTree[0].name, 'OuterType');
 
     // Tree item for OuterType should be collapsible
-    const treeItem = coordinator.getSlotTreeItem(symbolsPaneFilesTree, rootTypesNonRecursive[0]);
+    const treeItem = coordinator.getSlotTreeItem(symbolsPaneFilesTree, rootTypesTree[0]);
     assert.strictEqual(treeItem.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
 
     // Expanding OuterType in tree returns its members (doWork and innerType)
-    const outerChildren = await coordinator.getSlotChildren(symbolsPaneFilesTree, rootTypesNonRecursive[0]);
+    const outerChildren = await coordinator.getSlotChildren(symbolsPaneFilesTree, rootTypesTree[0]);
     assert.strictEqual(outerChildren.length, 2);
     const childNames = outerChildren.map((c) => c.name);
     assert.ok(childNames.includes('doWork'));
     assert.ok(childNames.includes('InnerType'));
 
-    // Non-recursive: doWork does NOT expand further
-    const doWorkChildren = await coordinator.getSlotChildren(symbolsPaneFilesTree, directMember);
-    assert.strictEqual(doWorkChildren.length, 0);
-
-    // --- Scenario 2: Input is files, tree = false, recursive = true ---
-    const symbolsPaneFilesFlatRecursive: SymbolsPaneConfig = createSymbolsPane('facet.pane.3', {
+    // --- Scenario 2: Input is files, tree = false ---
+    const symbolsPaneFilesFlat: SymbolsPaneConfig = createSymbolsPane('facet.pane.3', {
       inputSource: 'previousPane',
       tree: false,
-      recursive: true,
     });
 
-    const rootTypesRecursive = await coordinator.getSlotChildren(symbolsPaneFilesFlatRecursive);
-    // Recursive: includes OuterType and InnerType
-    assert.strictEqual(rootTypesRecursive.length, 2);
-    const typeNames = rootTypesRecursive.map((t) => t.name);
-    assert.ok(typeNames.includes('OuterType'));
-    assert.ok(typeNames.includes('InnerType'));
+    const rootTypesFlat = await coordinator.getSlotChildren(symbolsPaneFilesFlat);
+    assert.strictEqual(rootTypesFlat.length, 1);
+    assert.strictEqual(rootTypesFlat[0].name, 'OuterType');
 
     // Tree is false: tree item has collapsibleState None
-    const flatItem = coordinator.getSlotTreeItem(symbolsPaneFilesFlatRecursive, rootTypesRecursive[0]);
+    const flatItem = coordinator.getSlotTreeItem(symbolsPaneFilesFlat, rootTypesFlat[0]);
     assert.strictEqual(flatItem.collapsibleState, vscode.TreeItemCollapsibleState.None);
 
     // Tree is false: passing element returns empty array
-    const flatChildren = await coordinator.getSlotChildren(symbolsPaneFilesFlatRecursive, rootTypesRecursive[0]);
+    const flatChildren = await coordinator.getSlotChildren(symbolsPaneFilesFlat, rootTypesFlat[0]);
     assert.strictEqual(flatChildren.length, 0);
 
     // --- Scenario 3: Input is another type (e.g. from previous pane) ---
     const symbolsPaneFromType: SymbolsPaneConfig = createSymbolsPane('facet.pane.4', {
       inputSource: 'previousPane',
       tree: false,
-      recursive: false,
     });
 
     // Upstream pane has OuterType selected
@@ -1031,27 +998,134 @@ suite('FacetCoordinator Test Suite', () => {
     (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.3', role: 'symbols' });
 
     // Since input is a type, it enumerates the type's members!
-    const membersNonRecursive = await coordinator.getSlotChildren(symbolsPaneFromType);
-    assert.strictEqual(membersNonRecursive.length, 2);
-    const memberNames = membersNonRecursive.map((m) => m.name);
+    const members = await coordinator.getSlotChildren(symbolsPaneFromType);
+    assert.strictEqual(members.length, 2);
+    const memberNames = members.map((m) => m.name);
     assert.ok(memberNames.includes('doWork'));
     assert.ok(memberNames.includes('InnerType'));
 
-    // --- Scenario 4: Input is another type, recursive = true (flattens nested descendants in flat mode) ---
-    const symbolsPaneFromTypeRecursive: SymbolsPaneConfig = createSymbolsPane('facet.pane.4', {
-      inputSource: 'previousPane',
-      tree: false,
-      recursive: true,
+    (vscode.workspace as any).openTextDocument = origOpenTextDoc;
+    coordinator.dispose();
+  });
+
+  test('handleSelectionChange preserves multi-selection unless force is specified', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+
+    const { PanePipelineManager } = require('../../coordinator/panePipelineManager');
+    const manager = new PanePipelineManager(coordinator);
+
+    const fileUri = vscode.Uri.file('/workspace/src/test.ts');
+    const testMember: FacetSymbolNode = {
+      name: 'calculate',
+      kind: vscode.SymbolKind.Method,
+      uri: fileUri,
+      range: new vscode.Range(5, 2, 7, 3),
+      selectionRange: new vscode.Range(5, 9, 5, 18),
+      category: MemberCategory.InstanceMethods,
+      isStatic: false,
+      children: [],
+    };
+    const testType: FacetSymbolNode = {
+      name: 'Calculator',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: new vscode.Range(0, 0, 10, 1),
+      selectionRange: new vscode.Range(0, 13, 0, 23),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [testMember],
+    };
+    (coordinator as any).cachedDocumentSymbols = [testType];
+    (coordinator as any).cachedDocumentUri = fileUri.toString();
+
+    const panes = manager.getVisiblePanes();
+    const typesPane = panes[2];
+    typesPane.selectionSource = 'cursor';
+
+    // Simulate user multi-selection of 2 types
+    const dummyTypeA: FacetSymbolNode = { ...testType, name: 'CalculatorA' };
+    const dummyTypeB: FacetSymbolNode = { ...testType, name: 'CalculatorB' };
+    coordinator.setSlotSelection(typesPane.id, [dummyTypeA, dummyTypeB]);
+
+    const mockEditor = {
+      document: { uri: fileUri, version: 1, getText: () => '' },
+      selection: { active: new vscode.Position(6, 4) },
+    };
+
+    // 1. Passive caret move: must NOT overwrite multi-selection!
+    await coordinator.handleSelectionChange(mockEditor as any);
+    const preservedSelection = coordinator.getSlotSelection(typesPane.id);
+    assert.strictEqual(preservedSelection.length, 2);
+    assert.strictEqual(preservedSelection[0].name, 'CalculatorA');
+    assert.strictEqual(preservedSelection[1].name, 'CalculatorB');
+
+    // 2. Forced sync: MUST overwrite multi-selection with cursor element!
+    const targetSlot = await coordinator.handleSelectionChange(mockEditor as any, { force: true });
+    assert.ok(targetSlot);
+    const forcedSelection = coordinator.getSlotSelection(typesPane.id);
+    assert.strictEqual(forcedSelection.length, 1);
+    assert.strictEqual(forcedSelection[0].name, 'Calculator');
+
+    coordinator.dispose();
+  });
+
+  test('handleSelectionChange suppresses redundant updates when selection is unchanged', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+
+    const { PanePipelineManager } = require('../../coordinator/panePipelineManager');
+    const manager = new PanePipelineManager(coordinator);
+
+    const fileUri = vscode.Uri.file('/workspace/src/test.ts');
+    const testMember: FacetSymbolNode = {
+      name: 'calculate',
+      kind: vscode.SymbolKind.Method,
+      uri: fileUri,
+      range: new vscode.Range(5, 2, 7, 3),
+      selectionRange: new vscode.Range(5, 9, 5, 18),
+      category: MemberCategory.InstanceMethods,
+      isStatic: false,
+      children: [],
+    };
+    const testType: FacetSymbolNode = {
+      name: 'Calculator',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: new vscode.Range(0, 0, 10, 1),
+      selectionRange: new vscode.Range(0, 13, 0, 23),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [testMember],
+    };
+    (coordinator as any).cachedDocumentSymbols = [testType];
+    (coordinator as any).cachedDocumentUri = fileUri.toString();
+
+    const panes = manager.getVisiblePanes();
+    panes[2].selectionSource = 'cursor';
+    panes[3].selectionSource = 'cursor';
+
+    let reveals = 0;
+    coordinator.onRevealInView(() => {
+      reveals++;
     });
 
-    const membersRecursive = await coordinator.getSlotChildren(symbolsPaneFromTypeRecursive);
-    assert.strictEqual(membersRecursive.length, 3);
-    const recNames = membersRecursive.map((m) => m.name);
-    assert.ok(recNames.includes('doWork'));
-    assert.ok(recNames.includes('InnerType'));
-    assert.ok(recNames.includes('nestedHelper'));
+    const mockEditor = {
+      document: { uri: fileUri, version: 1, getText: () => '' },
+      selection: { active: new vscode.Position(6, 4) },
+    };
 
-    (vscode.workspace as any).openTextDocument = origOpenTextDoc;
+    // First selection change: reveals Calculator and calculate
+    await coordinator.handleSelectionChange(mockEditor as any);
+    const initialReveals = reveals;
+    assert.ok(initialReveals >= 2);
+
+    // Second selection change at same location: should be a no-op (no extra reveals)
+    await coordinator.handleSelectionChange(mockEditor as any);
+    assert.strictEqual(reveals, initialReveals, 'Redundant reveals should be suppressed');
+
     coordinator.dispose();
   });
 });

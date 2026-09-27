@@ -23,7 +23,6 @@ export interface PaneCapabilities {
   readonly supportedSelections: readonly SelectionSource[];
   readonly supportedSorts: readonly SortOption[];
   readonly hasTreeToggle: boolean;
-  readonly hasRecursiveToggle: boolean;
   readonly hasFilter: boolean;
 }
 

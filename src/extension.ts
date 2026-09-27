@@ -30,6 +30,8 @@ export function activate(context: vscode.ExtensionContext) {
     }
   };
 
+  let lastActiveSlotId: string | undefined = 'facet.pane.1';
+
   for (let i = 1; i <= 6; i++) {
     const slotId = `facet.pane.${i}`;
     const slotProvider = new SlotTreeProvider(slotId, coordinator);
@@ -48,6 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
       treeView.onDidChangeSelection((e) => {
+        lastActiveSlotId = slotId;
         void coordinator.handleSlotSelection(slotId, e.selection);
       }),
       treeView,
@@ -78,7 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
       coordinator.handleEditorChange(editor);
     }),
     vscode.window.onDidChangeTextEditorSelection((e) => {
-      coordinator.handleSelectionChange(e.textEditor);
+      coordinator.scheduleSelectionChange(e.textEditor);
     }),
   );
 
@@ -127,15 +130,6 @@ export function activate(context: vscode.ExtensionContext) {
       }),
       vscode.commands.registerCommand(`${slotId}.toggleTree.off`, async () => {
         await pipelineManager.toggleTreeDisplay(slotId);
-      }),
-      vscode.commands.registerCommand(`${slotId}.toggleRecursive`, async () => {
-        await pipelineManager.toggleRecursive(slotId);
-      }),
-      vscode.commands.registerCommand(`${slotId}.toggleRecursive.on`, async () => {
-        await pipelineManager.toggleRecursive(slotId);
-      }),
-      vscode.commands.registerCommand(`${slotId}.toggleRecursive.off`, async () => {
-        await pipelineManager.toggleRecursive(slotId);
       }),
       vscode.commands.registerCommand(`${slotId}.filter`, async () => {
         await pipelineManager.configureFilter(slotId);
@@ -242,6 +236,28 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('facet.revealRange', (uri: vscode.Uri, range: vscode.Range) => {
       void coordinator.revealRange(uri, range);
+    }),
+    vscode.commands.registerCommand('facet.focus', async () => {
+      const visible = pipelineManager.getVisiblePanes();
+      const targetSlot =
+        lastActiveSlotId && visible.some((p) => p.id === lastActiveSlotId)
+          ? lastActiveSlotId
+          : visible[0]?.id || 'facet.pane.1';
+      await focusPane(targetSlot);
+    }),
+    vscode.commands.registerCommand('facet.syncCursorAndFocus', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        await vscode.commands.executeCommand('facet.focus');
+        return;
+      }
+      const targetSlot = await coordinator.handleSelectionChange(editor, { force: true });
+      if (targetSlot) {
+        lastActiveSlotId = targetSlot;
+        await focusPane(targetSlot);
+      } else {
+        await vscode.commands.executeCommand('facet.focus');
+      }
     }),
   );
 
