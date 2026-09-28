@@ -77,11 +77,15 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
       }
     }
 
-    if (targets.length === 0) {
+    if (context.cancellationToken?.isCancellationRequested || targets.length === 0) {
       return [];
     }
 
-    const raw = await context.coordinator.relationsProvider.fetchRelationsForNodes(targets, this.mode);
+    const raw = await context.coordinator.relationsProvider.fetchRelationsForNodes(
+      targets,
+      this.mode,
+      context.cancellationToken,
+    );
     const filterable = config as FilterableRelationConfig;
     const filters = filterable.filters;
     const filtered = raw.filter((item) => matchesPaneFilters(item, filters));

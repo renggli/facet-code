@@ -98,6 +98,12 @@
         "icon": "$(target)"
       },
       {
+        "command": "facet.selectAtCursorAndFocus",
+        "title": "Facet: Select at Cursor and Focus",
+        "category": "Facet",
+        "icon": "$(target)"
+      },
+      {
         "command": "facet.addPane",
         "title": "Facet: Add Pane",
         "icon": "$(add)"
@@ -111,6 +117,16 @@
         "command": "facet.applyPreset",
         "title": "Facet: Apply Preset...",
         "icon": "$(layers)"
+      },
+      {
+        "command": "facet.pane.presets",
+        "title": "Facet: Apply Preset...",
+        "icon": "$(layers)"
+      },
+      {
+        "command": "facet.pane.configure",
+        "title": "Facet: Configure Pane...",
+        "icon": "$(gear)"
       },
       {
         "command": "facet.savePreset",
@@ -525,6 +541,28 @@
       }
     ],
     "menus": {
+      "viewContainer/title": [
+        {
+          "command": "facet.pane.presets",
+          "when": "viewContainer == facet-container",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.addPane",
+          "when": "viewContainer == facet-container",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.selectAtCursorAndFocus",
+          "when": "viewContainer == facet-container",
+          "group": "navigation@3"
+        },
+        {
+          "command": "facet.focus",
+          "when": "viewContainer == facet-container",
+          "group": "navigation@4"
+        }
+      ],
       "commandPalette": [
         {
           "command": "facet.pane.1.togglePin.on",
@@ -1263,6 +1301,16 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically synchronize Facet pane selections with the active editor cursor position."
+        },
+        "facet.presets.workspace": {
+          "type": "object",
+          "default": {},
+          "description": "Custom Facet pipeline presets saved to the current workspace, mapping preset names to arrays of pane configurations."
+        },
+        "facet.presets.global": {
+          "type": "object",
+          "default": {},
+          "description": "Custom Facet pipeline presets saved globally across workspaces, mapping preset names to arrays of pane configurations."
         }
       }
     }

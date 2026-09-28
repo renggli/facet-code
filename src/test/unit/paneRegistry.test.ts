@@ -1,4 +1,4 @@
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import type { PaneRole } from '../../models/paneConfig';

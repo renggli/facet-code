@@ -1,7 +1,7 @@
-import * as assert from 'assert';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import * as assert from 'node:assert';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
@@ -347,6 +347,97 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(restored[1].role, 'files');
     assert.strictEqual(restored[2].role, 'symbols');
     assert.strictEqual(restored[3].role, 'symbols');
+
+    coordinator.dispose();
+  });
+
+  test('PanePipelineManager strictly accepts 6 official presets and ignores obsolete aliases', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    // 1. Both display names and camelCase keys load successfully
+    const canonicalPresets: [string, string][] = [
+      ['projectBrowser', 'directories'],
+      ['activeEditor', 'symbols'],
+      ['workingChanges', 'changes'],
+      ['problemTriage', 'problems'],
+      ['typeHierarchy', 'hierarchy'],
+      ['openEditors', 'files'],
+    ];
+
+    for (const [presetKey, expectedFirstRole] of canonicalPresets) {
+      await manager.applyPreset(presetKey);
+      const visible = manager.getVisiblePanes();
+      assert.strictEqual(visible[0].role, expectedFirstRole, `Preset ${presetKey} should load`);
+    }
+
+    // 2. Obsolete aliases must not change the current pipeline (no matching preset or saved preset)
+    await manager.applyPreset('Project Browser');
+    const initialSnapshot = manager.getVisiblePanes().map((p) => p.role);
+
+    const obsoleteAliases = [
+      'callers',
+      'implementors',
+      'changes',
+      'problems',
+      'references',
+      'activeeditorinspector',
+      'workingchangesreview',
+    ];
+    for (const alias of obsoleteAliases) {
+      await manager.applyPreset(alias);
+      const currentRoles = manager.getVisiblePanes().map((p) => p.role);
+      assert.deepStrictEqual(
+        currentRoles,
+        initialSnapshot,
+        `Obsolete alias "${alias}" must not load a built-in preset`,
+      );
+    }
+
+    coordinator.dispose();
+  });
+
+  test('loadPresetByName handles prototype keys and non-existent presets gracefully without crashing', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    const initialVisible = manager.getVisiblePanes().map((p) => p.role);
+
+    // Prototype properties must not crash or corrupt visible panes
+    await manager.loadPresetByName('toString');
+    assert.deepStrictEqual(
+      manager.getVisiblePanes().map((p) => p.role),
+      initialVisible,
+    );
+
+    await manager.loadPresetByName('valueOf');
+    assert.deepStrictEqual(
+      manager.getVisiblePanes().map((p) => p.role),
+      initialVisible,
+    );
+
+    await manager.loadPresetByName('constructor');
+    assert.deepStrictEqual(
+      manager.getVisiblePanes().map((p) => p.role),
+      initialVisible,
+    );
+
+    await manager.loadPresetByName('hasOwnProperty');
+    assert.deepStrictEqual(
+      manager.getVisiblePanes().map((p) => p.role),
+      initialVisible,
+    );
+
+    // Non-existent preset names must handle gracefully
+    await manager.loadPresetByName('nonExistentPreset');
+    assert.deepStrictEqual(
+      manager.getVisiblePanes().map((p) => p.role),
+      initialVisible,
+    );
 
     coordinator.dispose();
   });

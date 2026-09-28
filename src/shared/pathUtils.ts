@@ -4,13 +4,21 @@ import * as vscode from 'vscode';
  * Returns the file or directory name from a given URI or path string.
  */
 export function getPathBasename(uriOrPath: vscode.Uri | string): string {
-  const pathStr = typeof uriOrPath === 'string' ? uriOrPath : uriOrPath.path;
+  const pathStr = typeof uriOrPath === 'string' ? uriOrPath : (uriOrPath?.path ?? '');
   const normalized = pathStr.replace(/\\/g, '/');
-  const lastSlash = normalized.lastIndexOf('/');
-  if (lastSlash === -1) {
-    return normalized;
+  if (normalized === '') {
+    return '';
   }
-  return normalized.slice(lastSlash + 1) || normalized;
+  if (/^\/+$/.test(normalized)) {
+    return '/';
+  }
+  const trimmed = normalized.replace(/\/+$/, '');
+  const lastSlash = trimmed.lastIndexOf('/');
+  if (lastSlash === -1) {
+    return trimmed;
+  }
+  const basename = trimmed.slice(lastSlash + 1);
+  return (basename !== '' ? basename : undefined) ?? trimmed;
 }
 
 /**
@@ -26,13 +34,4 @@ export function getRelativePath(uri: vscode.Uri): string {
     // fallback
   }
   return (uri.fsPath ?? uri.path ?? '').replace(/\\/g, '/');
-}
-
-/**
- * Returns parent directory path if present from relative path.
- */
-export function getParentDirectoryPath(relativePath: string): string | undefined {
-  const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-  const lastSlash = normalized.lastIndexOf('/');
-  return lastSlash !== -1 ? normalized.slice(0, lastSlash) : undefined;
 }

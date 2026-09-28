@@ -24,8 +24,8 @@ export class PanePipelineManager {
     initialPanes?: PaneConfig[],
     registry?: PaneRegistry,
   ) {
-    this.registry = registry || coordinator.registry;
-    this.panes = initialPanes || createDefaultPanes();
+    this.registry = registry ?? coordinator.registry;
+    this.panes = initialPanes ?? createDefaultPanes();
     this.coordinator.setPipelineManager(this);
     void this.syncContextKeys();
   }
@@ -109,6 +109,9 @@ export class PanePipelineManager {
   }
 
   public async applyVisiblePanes(newVisible: PaneConfig[], reveal = true): Promise<void> {
+    if (!newVisible || newVisible.length === 0) {
+      return;
+    }
     const totalSlots = 6;
     const clampedVisible = newVisible.slice(0, totalSlots);
 
@@ -162,10 +165,6 @@ export class PanePipelineManager {
     return true;
   }
 
-  public async deletePane(slotId: string): Promise<boolean> {
-    return this.removePane(slotId);
-  }
-
   public async promptAddPane(): Promise<PaneConfig | undefined> {
     return this.addPaneToEnd();
   }
@@ -181,7 +180,7 @@ export class PanePipelineManager {
         const def = this.registry.tryGet(p.role);
         return {
           label: p.title,
-          description: `Role: ${def?.title || p.role}`,
+          description: `Role: ${def?.title ?? p.role}`,
           id: p.id,
         };
       }),
@@ -339,7 +338,7 @@ export class PanePipelineManager {
       placeHolder: `Configure Pane: ${pane.title}`,
     });
 
-    if (!picked || !picked.action) {
+    if (!picked?.action) {
       return;
     }
 
@@ -439,8 +438,8 @@ export class PanePipelineManager {
         continue;
       }
       inputOptions.push({
-        label: labels[src] || src,
-        description: descriptions[src] || src,
+        label: labels[src] ?? src,
+        description: descriptions[src] ?? src,
         source: src,
       });
     }
@@ -655,7 +654,7 @@ export class PanePipelineManager {
       {
         label: '$(layout) Project Browser',
         description: 'Directories (Hierarchy) -> Files -> Definitions (Flat) -> Members (Hierarchy)',
-        preset: 'project',
+        preset: 'projectBrowser',
       },
       {
         label: '$(edit) Active Editor',
@@ -724,219 +723,45 @@ export class PanePipelineManager {
 
   public async loadPresetByName(presetName: string): Promise<void> {
     const norm = presetName.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (norm === 'projectbrowser' || norm === 'project') {
-      await this.loadBuiltinPreset('project');
+    if (norm === 'projectbrowser') {
+      await this.loadBuiltinPreset('projectBrowser');
       return;
     }
-    if (norm === 'activeeditor' || norm === 'activeeditorinspector' || norm === 'callers') {
+    if (norm === 'activeeditor') {
       await this.loadBuiltinPreset('activeEditor');
       return;
     }
-    if (norm === 'workingchanges' || norm === 'workingchangesreview' || norm === 'changes') {
+    if (norm === 'workingchanges') {
       await this.loadBuiltinPreset('workingChanges');
       return;
     }
-    if (norm === 'problemtriage' || norm === 'problems') {
+    if (norm === 'problemtriage') {
       await this.loadBuiltinPreset('problemTriage');
       return;
     }
-    if (norm === 'typehierarchy' || norm === 'hierarchy' || norm === 'implementors') {
+    if (norm === 'typehierarchy') {
       await this.loadBuiltinPreset('typeHierarchy');
       return;
     }
-    if (norm === 'openeditors' || norm === 'references') {
+    if (norm === 'openeditors') {
       await this.loadBuiltinPreset('openEditors');
       return;
     }
     const saved = this.getSavedPresets();
-    if (saved[presetName]) {
+    if (Object.hasOwn(saved, presetName) && Array.isArray(saved[presetName])) {
       await this.applyVisiblePanes(saved[presetName]);
     }
-  }
-
-  private async loadBuiltinPreset(preset: string): Promise<void> {
-    const dirDef = this.registry.get('directories');
-    const filesDef = this.registry.get('files');
-    const symDef = this.registry.get('symbols');
-    const hierDef = this.registry.get('hierarchy');
-    const callersDef = this.registry.get('callers');
-    const changesDef = this.registry.get('changes');
-    const probDef = this.registry.get('problems');
-    const refDef = this.registry.get('references');
-    const implDef = this.registry.get('implementations');
-
-    let newVisible: PaneConfig[];
-    switch (preset) {
-      case 'project':
-      default: {
-        const d = dirDef.defaultConfig('');
-        d.title = 'Directories';
-        d.tree = true;
-        d.inputSource = 'project';
-        d.selectionSource = 'cursor';
-
-        const f = filesDef.defaultConfig('');
-        f.title = 'Files';
-        f.tree = false;
-        f.inputSource = 'previousPane';
-        f.selectionSource = 'cursor';
-
-        const s1 = symDef.defaultConfig('');
-        s1.title = 'Definitions';
-        s1.tree = false;
-        s1.inputSource = 'previousPane';
-        s1.selectionSource = 'cursor';
-
-        const s2 = symDef.defaultConfig('');
-        s2.title = 'Members';
-        s2.tree = true;
-        s2.inputSource = 'previousPane';
-        s2.selectionSource = 'none';
-
-        newVisible = [d, f, s1, s2];
-        break;
-      }
-      case 'activeEditor':
-      case 'callers': {
-        const s1 = symDef.defaultConfig('');
-        s1.title = 'Symbols';
-        s1.tree = true;
-        s1.inputSource = 'activeEditor';
-        s1.selectionSource = 'cursor';
-
-        const s2 = symDef.defaultConfig('');
-        s2.title = 'Members';
-        s2.tree = false;
-        s2.inputSource = 'previousPane';
-        s2.selectionSource = 'cursor';
-
-        const c = callersDef.defaultConfig('');
-        c.title = 'Callers';
-        c.inputSource = 'previousPane';
-        c.selectionSource = 'none';
-
-        newVisible = [s1, s2, c];
-        break;
-      }
-      case 'workingChanges':
-      case 'changes': {
-        const ch = changesDef.defaultConfig('');
-        ch.title = 'Changes';
-        ch.inputSource = 'project';
-        ch.selectionSource = 'cursor';
-
-        const s1 = symDef.defaultConfig('');
-        s1.title = 'Symbols';
-        s1.tree = true;
-        s1.inputSource = 'previousPane';
-        s1.selectionSource = 'cursor';
-
-        const s2 = symDef.defaultConfig('');
-        s2.title = 'Members';
-        s2.tree = false;
-        s2.inputSource = 'previousPane';
-        s2.selectionSource = 'none';
-
-        const pr = probDef.defaultConfig('');
-        pr.title = 'Problems';
-        pr.inputSource = 'previousPane';
-        pr.selectionSource = 'none';
-
-        newVisible = [ch, s1, s2, pr];
-        break;
-      }
-      case 'problemTriage':
-      case 'problems': {
-        const pr = probDef.defaultConfig('');
-        pr.title = 'Problems';
-        pr.inputSource = 'project';
-        pr.selectionSource = 'cursor';
-
-        const s1 = symDef.defaultConfig('');
-        s1.title = 'Symbols';
-        s1.tree = true;
-        s1.inputSource = 'previousPane';
-        s1.selectionSource = 'cursor';
-
-        const s2 = symDef.defaultConfig('');
-        s2.title = 'Members';
-        s2.tree = false;
-        s2.inputSource = 'previousPane';
-        s2.selectionSource = 'cursor';
-
-        const ref = refDef.defaultConfig('');
-        ref.title = 'References';
-        ref.inputSource = 'previousPane';
-        ref.selectionSource = 'none';
-
-        newVisible = [pr, s1, s2, ref];
-        break;
-      }
-      case 'typeHierarchy':
-      case 'hierarchy':
-      case 'implementors': {
-        const h = hierDef.defaultConfig('');
-        h.title = 'Hierarchy';
-        h.tree = true;
-        h.inputSource = 'project';
-        h.selectionSource = 'cursor';
-
-        const s2 = symDef.defaultConfig('');
-        s2.title = 'Members';
-        s2.tree = false;
-        s2.inputSource = 'previousPane';
-        s2.selectionSource = 'cursor';
-
-        const imp = implDef.defaultConfig('');
-        imp.title = 'Implementations';
-        imp.inputSource = 'previousPane';
-        imp.selectionSource = 'none';
-
-        newVisible = [h, s2, imp];
-        break;
-      }
-      case 'openEditors':
-      case 'references': {
-        const f = filesDef.defaultConfig('');
-        f.title = 'Open Files';
-        f.tree = false;
-        f.inputSource = 'openEditors';
-        f.selectionSource = 'cursor';
-
-        const s1 = symDef.defaultConfig('');
-        s1.title = 'Symbols';
-        s1.tree = true;
-        s1.inputSource = 'previousPane';
-        s1.selectionSource = 'cursor';
-
-        const s2 = symDef.defaultConfig('');
-        s2.title = 'Members';
-        s2.tree = false;
-        s2.inputSource = 'previousPane';
-        s2.selectionSource = 'none';
-
-        const ref = refDef.defaultConfig('');
-        ref.title = 'References';
-        ref.inputSource = 'previousPane';
-        ref.selectionSource = 'none';
-
-        newVisible = [f, s1, s2, ref];
-        break;
-      }
-    }
-
-    await this.applyVisiblePanes(newVisible);
   }
 
   public getSavedPresets(scope?: 'workspace' | 'global'): Record<string, PaneConfig[]> {
     const config = vscode.workspace.getConfiguration('facet');
     const presets: Record<string, PaneConfig[]> = {};
     if (!scope || scope === 'global') {
-      const globalPresets = config.get<Record<string, PaneConfig[]>>('presets.global') || {};
+      const globalPresets = config.get<Record<string, PaneConfig[]>>('presets.global') ?? {};
       Object.assign(presets, globalPresets);
     }
     if (!scope || scope === 'workspace') {
-      const wsPresets = config.get<Record<string, PaneConfig[]>>('presets.workspace') || {};
+      const wsPresets = config.get<Record<string, PaneConfig[]>>('presets.workspace') ?? {};
       Object.assign(presets, wsPresets);
     }
     return presets;
@@ -945,7 +770,7 @@ export class PanePipelineManager {
   public async savePreset(name: string, target: 'workspace' | 'global'): Promise<void> {
     const config = vscode.workspace.getConfiguration('facet');
     const key = target === 'workspace' ? 'presets.workspace' : 'presets.global';
-    const existing = config.get<Record<string, PaneConfig[]>>(key) || {};
+    const existing = config.get<Record<string, PaneConfig[]>>(key) ?? {};
     const visiblePanes = this.getVisiblePanes().map((p) => ({ ...p }));
     const updated = { ...existing, [name]: visiblePanes };
     const targetScope =
@@ -956,7 +781,7 @@ export class PanePipelineManager {
   public async deletePreset(name: string, target: 'workspace' | 'global'): Promise<void> {
     const config = vscode.workspace.getConfiguration('facet');
     const key = target === 'workspace' ? 'presets.workspace' : 'presets.global';
-    const existing = config.get<Record<string, PaneConfig[]>>(key) || {};
+    const existing = config.get<Record<string, PaneConfig[]>>(key) ?? {};
     const updated = { ...existing };
     delete updated[name];
     const targetScope =
@@ -969,7 +794,8 @@ export class PanePipelineManager {
       prompt: 'Enter a name for the new preset',
       placeHolder: 'e.g. My Workflow',
     });
-    if (!name || !name.trim()) {
+    const trimmedName = name?.trim();
+    if (!trimmedName) {
       return;
     }
     const scopePick = await vscode.window.showQuickPick(
@@ -982,25 +808,27 @@ export class PanePipelineManager {
     if (!scopePick) {
       return;
     }
-    await this.savePreset(name.trim(), scopePick.target);
-    vscode.window.showInformationMessage(`Preset "${name.trim()}" saved to ${scopePick.label}.`);
+    await this.savePreset(trimmedName, scopePick.target);
+    vscode.window.showInformationMessage(`Preset "${trimmedName}" saved to ${scopePick.label}.`);
   }
 
   public async loadCustomPresetPrompt(): Promise<void> {
     const config = vscode.workspace.getConfiguration('facet');
-    const wsPresets = config.get<Record<string, PaneConfig[]>>('presets.workspace') || {};
-    const globalPresets = config.get<Record<string, PaneConfig[]>>('presets.global') || {};
+    const wsPresets = config.get<Record<string, PaneConfig[]>>('presets.workspace') ?? {};
+    const globalPresets = config.get<Record<string, PaneConfig[]>>('presets.global') ?? {};
 
     const items: (vscode.QuickPickItem & { preset: PaneConfig[] })[] = [];
     for (const [name, panes] of Object.entries(wsPresets)) {
-      items.push({
-        label: name,
-        description: 'Workspace preset',
-        preset: panes,
-      });
+      if (Array.isArray(panes) && panes.length > 0) {
+        items.push({
+          label: name,
+          description: 'Workspace preset',
+          preset: panes,
+        });
+      }
     }
     for (const [name, panes] of Object.entries(globalPresets)) {
-      if (!items.some((i) => i.label === name)) {
+      if (Array.isArray(panes) && panes.length > 0 && !items.some((i) => i.label === name)) {
         items.push({
           label: name,
           description: 'Global preset',
@@ -1024,8 +852,8 @@ export class PanePipelineManager {
 
   public async deleteCustomPresetPrompt(): Promise<void> {
     const config = vscode.workspace.getConfiguration('facet');
-    const wsPresets = config.get<Record<string, PaneConfig[]>>('presets.workspace') || {};
-    const globalPresets = config.get<Record<string, PaneConfig[]>>('presets.global') || {};
+    const wsPresets = config.get<Record<string, PaneConfig[]>>('presets.workspace') ?? {};
+    const globalPresets = config.get<Record<string, PaneConfig[]>>('presets.global') ?? {};
 
     const items: (vscode.QuickPickItem & { name: string; target: 'workspace' | 'global' })[] = [];
     for (const name of Object.keys(wsPresets)) {
@@ -1057,6 +885,175 @@ export class PanePipelineManager {
       await this.deletePreset(picked.name, picked.target);
       vscode.window.showInformationMessage(`Deleted preset "${picked.name}".`);
     }
+  }
+
+  // --- Private Helpers at Bottom ---
+
+  private async loadBuiltinPreset(preset: string): Promise<void> {
+    const dirDef = this.registry.get('directories');
+    const filesDef = this.registry.get('files');
+    const symDef = this.registry.get('symbols');
+    const hierDef = this.registry.get('hierarchy');
+    const callersDef = this.registry.get('callers');
+    const changesDef = this.registry.get('changes');
+    const probDef = this.registry.get('problems');
+    const refDef = this.registry.get('references');
+    const implDef = this.registry.get('implementations');
+
+    let newVisible: PaneConfig[];
+    switch (preset) {
+      case 'activeEditor': {
+        const s1 = symDef.defaultConfig('');
+        s1.title = 'Symbols';
+        s1.tree = true;
+        s1.inputSource = 'activeEditor';
+        s1.selectionSource = 'cursor';
+
+        const s2 = symDef.defaultConfig('');
+        s2.title = 'Members';
+        s2.tree = false;
+        s2.inputSource = 'previousPane';
+        s2.selectionSource = 'cursor';
+
+        const c = callersDef.defaultConfig('');
+        c.title = 'Callers';
+        c.inputSource = 'previousPane';
+        c.selectionSource = 'none';
+
+        newVisible = [s1, s2, c];
+        break;
+      }
+      case 'workingChanges': {
+        const ch = changesDef.defaultConfig('');
+        ch.title = 'Changes';
+        ch.inputSource = 'project';
+        ch.selectionSource = 'cursor';
+
+        const s1 = symDef.defaultConfig('');
+        s1.title = 'Symbols';
+        s1.tree = true;
+        s1.inputSource = 'previousPane';
+        s1.selectionSource = 'cursor';
+
+        const s2 = symDef.defaultConfig('');
+        s2.title = 'Members';
+        s2.tree = false;
+        s2.inputSource = 'previousPane';
+        s2.selectionSource = 'none';
+
+        const pr = probDef.defaultConfig('');
+        pr.title = 'Problems';
+        pr.inputSource = 'previousPane';
+        pr.selectionSource = 'none';
+
+        newVisible = [ch, s1, s2, pr];
+        break;
+      }
+      case 'problemTriage': {
+        const pr = probDef.defaultConfig('');
+        pr.title = 'Problems';
+        pr.inputSource = 'project';
+        pr.selectionSource = 'cursor';
+
+        const s1 = symDef.defaultConfig('');
+        s1.title = 'Symbols';
+        s1.tree = true;
+        s1.inputSource = 'previousPane';
+        s1.selectionSource = 'cursor';
+
+        const s2 = symDef.defaultConfig('');
+        s2.title = 'Members';
+        s2.tree = false;
+        s2.inputSource = 'previousPane';
+        s2.selectionSource = 'cursor';
+
+        const ref = refDef.defaultConfig('');
+        ref.title = 'References';
+        ref.inputSource = 'previousPane';
+        ref.selectionSource = 'none';
+
+        newVisible = [pr, s1, s2, ref];
+        break;
+      }
+      case 'typeHierarchy': {
+        const h = hierDef.defaultConfig('');
+        h.title = 'Hierarchy';
+        h.tree = true;
+        h.inputSource = 'project';
+        h.selectionSource = 'cursor';
+
+        const s2 = symDef.defaultConfig('');
+        s2.title = 'Members';
+        s2.tree = false;
+        s2.inputSource = 'previousPane';
+        s2.selectionSource = 'cursor';
+
+        const imp = implDef.defaultConfig('');
+        imp.title = 'Implementations';
+        imp.inputSource = 'previousPane';
+        imp.selectionSource = 'none';
+
+        newVisible = [h, s2, imp];
+        break;
+      }
+      case 'openEditors': {
+        const f = filesDef.defaultConfig('');
+        f.title = 'Open Files';
+        f.tree = false;
+        f.inputSource = 'openEditors';
+        f.selectionSource = 'cursor';
+
+        const s1 = symDef.defaultConfig('');
+        s1.title = 'Symbols';
+        s1.tree = true;
+        s1.inputSource = 'previousPane';
+        s1.selectionSource = 'cursor';
+
+        const s2 = symDef.defaultConfig('');
+        s2.title = 'Members';
+        s2.tree = false;
+        s2.inputSource = 'previousPane';
+        s2.selectionSource = 'none';
+
+        const ref = refDef.defaultConfig('');
+        ref.title = 'References';
+        ref.inputSource = 'previousPane';
+        ref.selectionSource = 'none';
+
+        newVisible = [f, s1, s2, ref];
+        break;
+      }
+      default: {
+        const d = dirDef.defaultConfig('');
+        d.title = 'Directories';
+        d.tree = true;
+        d.inputSource = 'project';
+        d.selectionSource = 'cursor';
+
+        const f = filesDef.defaultConfig('');
+        f.title = 'Files';
+        f.tree = false;
+        f.inputSource = 'previousPane';
+        f.selectionSource = 'cursor';
+
+        const s1 = symDef.defaultConfig('');
+        s1.title = 'Definitions';
+        s1.tree = false;
+        s1.inputSource = 'previousPane';
+        s1.selectionSource = 'cursor';
+
+        const s2 = symDef.defaultConfig('');
+        s2.title = 'Members';
+        s2.tree = true;
+        s2.inputSource = 'previousPane';
+        s2.selectionSource = 'none';
+
+        newVisible = [d, f, s1, s2];
+        break;
+      }
+    }
+
+    await this.applyVisiblePanes(newVisible);
   }
 
   private async promptRolePicker(placeHolder: string): Promise<{ role: PaneRole; label: string } | undefined> {

@@ -73,69 +73,6 @@ export class WorkbenchLayoutWatcher implements vscode.Disposable {
     this.init();
   }
 
-  private resolveCandidateDirs(): string[] {
-    const dirs = new Set<string>();
-    if (this.storageUri) {
-      dirs.add(path.dirname(this.storageUri.fsPath));
-    }
-    if (this.globalStorageUri) {
-      dirs.add(path.dirname(this.globalStorageUri.fsPath));
-      dirs.add(path.join(path.dirname(this.globalStorageUri.fsPath), '..'));
-    }
-    return Array.from(dirs).filter((d) => {
-      try {
-        return fs.existsSync?.(d);
-      } catch {
-        return false;
-      }
-    });
-  }
-
-  private init(): void {
-    if (this.candidateDirs.length === 0) {
-      return;
-    }
-    try {
-      for (const dir of this.candidateDirs) {
-        if (vscode.workspace.createFileSystemWatcher) {
-          try {
-            const pattern = new vscode.RelativePattern(dir, 'state.vscdb*');
-            const w = vscode.workspace.createFileSystemWatcher(pattern);
-            w.onDidChange(() => this.checkOrder());
-            w.onDidCreate(() => this.checkOrder());
-            this.watcher = w;
-          } catch {
-            // ignore watcher errors
-          }
-        }
-
-        if (fs.watch) {
-          try {
-            const fsw = fs.watch(dir, (_event, filename) => {
-              if (filename && filename.startsWith('state.vscdb')) {
-                this.checkOrder();
-              }
-            });
-            if (fsw.unref) {
-              fsw.unref();
-            }
-            this.fsWatchers.push(fsw);
-          } catch {
-            // ignore fs.watch failure
-          }
-        }
-      }
-
-      this.intervalTimer = setInterval(() => this.checkOrder(), 1500);
-      if (this.intervalTimer.unref) {
-        this.intervalTimer.unref();
-      }
-      this.checkOrder();
-    } catch {
-      // Graceful fallback if storage cannot be watched
-    }
-  }
-
   public checkOrder(): void {
     if (this.candidateDirs.length === 0) {
       return;
@@ -192,6 +129,71 @@ export class WorkbenchLayoutWatcher implements vscode.Disposable {
     if (this.intervalTimer) {
       clearInterval(this.intervalTimer);
       this.intervalTimer = undefined;
+    }
+  }
+
+  // --- Private Helpers at Bottom ---
+
+  private resolveCandidateDirs(): string[] {
+    const dirs = new Set<string>();
+    if (this.storageUri) {
+      dirs.add(path.dirname(this.storageUri.fsPath));
+    }
+    if (this.globalStorageUri) {
+      dirs.add(path.dirname(this.globalStorageUri.fsPath));
+      dirs.add(path.join(path.dirname(this.globalStorageUri.fsPath), '..'));
+    }
+    return Array.from(dirs).filter((d) => {
+      try {
+        return fs.existsSync?.(d);
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  private init(): void {
+    if (this.candidateDirs.length === 0) {
+      return;
+    }
+    try {
+      for (const dir of this.candidateDirs) {
+        if (vscode.workspace.createFileSystemWatcher) {
+          try {
+            const pattern = new vscode.RelativePattern(dir, 'state.vscdb*');
+            const w = vscode.workspace.createFileSystemWatcher(pattern);
+            w.onDidChange(() => this.checkOrder());
+            w.onDidCreate(() => this.checkOrder());
+            this.watcher = w;
+          } catch {
+            // ignore watcher errors
+          }
+        }
+
+        if (fs.watch) {
+          try {
+            const fsw = fs.watch(dir, (_event, filename) => {
+              if (filename?.startsWith('state.vscdb')) {
+                this.checkOrder();
+              }
+            });
+            if (fsw.unref) {
+              fsw.unref();
+            }
+            this.fsWatchers.push(fsw);
+          } catch {
+            // ignore fs.watch failure
+          }
+        }
+      }
+
+      this.intervalTimer = setInterval(() => this.checkOrder(), 1500);
+      if (this.intervalTimer.unref) {
+        this.intervalTimer.unref();
+      }
+      this.checkOrder();
+    } catch {
+      // Graceful fallback if storage cannot be watched
     }
   }
 }

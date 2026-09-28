@@ -25,8 +25,14 @@ export class Range {
       this.end = b as Position;
     }
   }
-  contains(posOrRange: Position | Range): boolean {
+  contains(posOrRange?: Position | Range): boolean {
+    if (!posOrRange) {
+      return false;
+    }
     const pos = 'line' in posOrRange ? posOrRange : posOrRange.start;
+    if (!pos) {
+      return false;
+    }
     if (pos.line < this.start.line || pos.line > this.end.line) {
       return false;
     }
@@ -43,7 +49,22 @@ export class Range {
   }
 }
 
-export class Selection extends Range {}
+export class Selection extends Range {
+  readonly anchor: Position;
+  readonly active: Position;
+  constructor(anchorLine: number, anchorChar: number, activeLine: number, activeChar: number);
+  constructor(anchor: Position, active: Position);
+  constructor(a: number | Position, b: number | Position, c?: number, d?: number) {
+    super(a as any, b as any, c as any, d as any);
+    if (typeof a === 'number') {
+      this.anchor = new Position(a, b as number);
+      this.active = new Position(c as number, d as number);
+    } else {
+      this.anchor = a;
+      this.active = b as Position;
+    }
+  }
+}
 
 export class Uri {
   static file(fsPath: string): Uri {
@@ -51,6 +72,19 @@ export class Uri {
   }
   static parse(val: string): Uri {
     return new Uri('file', val, val);
+  }
+  static joinPath(base: Uri, ...pathSegments: string[]): Uri {
+    const rawBase = (base.fsPath || base.path || '').replace(/\\/g, '/');
+    const isRoot = rawBase === '/';
+    const cleanBase = isRoot ? '' : rawBase.replace(/\/+$/, '');
+    const cleanSegments = pathSegments
+      .map((s) => s.replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''))
+      .filter((s) => s.length > 0);
+    const joined =
+      cleanBase === '' && cleanSegments.length > 0
+        ? `/${cleanSegments.join('/')}`
+        : [cleanBase, ...cleanSegments].join('/');
+    return new Uri(base.scheme ?? 'file', joined || '/', joined || '/');
   }
   constructor(
     public readonly scheme: string,
@@ -102,6 +136,13 @@ export enum ViewColumn {
   Beside = -2,
   One = 1,
   Two = 2,
+}
+
+export enum TextEditorRevealType {
+  Default = 0,
+  InCenter = 1,
+  InCenterIfOutsideViewport = 2,
+  AtTop = 3,
 }
 
 export class TreeItem {
@@ -184,8 +225,20 @@ export function clearMockConfig(): void {
   mockConfigStore.clear();
 }
 
+export function resetMockState(): void {
+  clearMockConfig();
+  window.clearPromptQueues();
+  commands.clearHandlers();
+  extensions.clearExtensions();
+  workspace.textDocuments = [];
+  workspace.workspaceFolders = undefined;
+  window.activeTextEditor = undefined;
+  window.tabGroups = undefined;
+}
+
 export const workspace = {
   textDocuments: [] as any[],
+  workspaceFolders: undefined as any[] | undefined,
   asRelativePath(uriOrPath: any): string {
     const raw = typeof uriOrPath === 'string' ? uriOrPath : uriOrPath.path || uriOrPath.fsPath || '';
     const norm = raw.replace(/\\/g, '/');
@@ -237,6 +290,7 @@ export const workspace = {
 
 export const window = {
   activeTextEditor: undefined as any,
+  tabGroups: undefined as { all: any[] } | undefined,
   showTextDocument: async (docOrUri: any) => ({
     document: docOrUri,
     revealRange: () => {},
@@ -284,8 +338,8 @@ export const window = {
   onDidChangeActiveTextEditor: () => ({ dispose: () => {} }),
   onDidChangeTextEditorSelection: () => ({ dispose: () => {} }),
   onDidChangeWindowState: () => ({ dispose: () => {} }),
-  showWarningMessage: async () => {},
-  showInformationMessage: async () => {},
+  showWarningMessage: async (_message?: string, ..._items: any[]) => undefined as any,
+  showInformationMessage: async (_message?: string, ..._items: any[]) => undefined as any,
 };
 
 export enum DiagnosticSeverity {
@@ -353,6 +407,7 @@ export const mockVscode = {
   Selection,
   Uri,
   ViewColumn,
+  TextEditorRevealType,
   SymbolKind,
   DiagnosticSeverity,
   ConfigurationTarget,
@@ -370,6 +425,7 @@ export const mockVscode = {
   env,
   commands,
   extensions,
+  resetMockState,
 };
 
 const origRequire = Module.prototype.require;

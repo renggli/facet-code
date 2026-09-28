@@ -1,16 +1,10 @@
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import {
-  createCallersPane,
-  createChangesPane,
-  createDeclarationsPane,
   createDefaultPanes,
-  createDefinitionsPane,
   createDirectoriesPane,
   createFilesPane,
-  createHierarchyPane,
   createImplementationsPane,
-  createProblemsPane,
   createReferencesPane,
   createSymbolsPane,
   matchesGlob,
@@ -113,7 +107,7 @@ suite('PaneConfig & Filter Helpers Test Suite', () => {
       assert.strictEqual(panes[5].visible, false);
     });
 
-    test('all pane factory functions create valid pane configurations', () => {
+    test('default pane factory functions create valid pane configurations', () => {
       const symbols = createSymbolsPane('facet.pane.3');
       assert.strictEqual(symbols.role, 'symbols');
       assert.strictEqual(symbols.tree, true);
@@ -126,29 +120,11 @@ suite('PaneConfig & Filter Helpers Test Suite', () => {
       assert.strictEqual(files.role, 'files');
       assert.strictEqual(files.tree, false);
 
-      const defs = createDefinitionsPane('facet.pane.5');
-      assert.strictEqual(defs.role, 'definitions');
-
-      const decls = createDeclarationsPane('facet.pane.5');
-      assert.strictEqual(decls.role, 'declarations');
-
       const impls = createImplementationsPane('facet.pane.5');
       assert.strictEqual(impls.role, 'implementations');
 
       const refs = createReferencesPane('facet.pane.5');
       assert.strictEqual(refs.role, 'references');
-
-      const callers = createCallersPane('facet.pane.5');
-      assert.strictEqual(callers.role, 'callers');
-
-      const hierarchy = createHierarchyPane('facet.pane.5');
-      assert.strictEqual(hierarchy.role, 'hierarchy');
-
-      const problems = createProblemsPane('facet.pane.5');
-      assert.strictEqual(problems.role, 'problems');
-
-      const changes = createChangesPane('facet.pane.5');
-      assert.strictEqual(changes.role, 'changes');
     });
   });
 });

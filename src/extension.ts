@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { FacetCoordinator, type FacetSlotItem } from './coordinator/facetCoordinator';
 import { PanePipelineManager } from './coordinator/panePipelineManager';
@@ -70,7 +70,7 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     coordinator.onRevealInView(({ slotId, node }) => {
       const view = slotViews.get(slotId);
-      if (view && view.visible) {
+      if (view?.visible) {
         void view.reveal(node, { select: true, focus: false, expand: true });
       }
     }),
@@ -319,6 +319,9 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand('facet.focus');
       }
     }),
+    vscode.commands.registerCommand('facet.selectAtCursorAndFocus', async () => {
+      await vscode.commands.executeCommand('facet.syncCursorAndFocus');
+    }),
   );
 
   // 5. Register Standard Context Menu Commands
@@ -389,8 +392,9 @@ export function activate(context: vscode.ExtensionContext) {
       if (uri) {
         const baseDir = isDirectory ? uri : vscode.Uri.file(path.dirname(uri.fsPath));
         const fileName = await vscode.window.showInputBox({ prompt: 'Enter file name' });
-        if (fileName && fileName.trim()) {
-          const fileUri = vscode.Uri.joinPath(baseDir, fileName.trim());
+        const trimmedName = fileName?.trim();
+        if (trimmedName) {
+          const fileUri = vscode.Uri.joinPath(baseDir, trimmedName);
           await vscode.workspace.fs.writeFile(fileUri, new Uint8Array());
           const doc = await vscode.workspace.openTextDocument(fileUri);
           await vscode.window.showTextDocument(doc);
@@ -402,8 +406,9 @@ export function activate(context: vscode.ExtensionContext) {
       if (uri) {
         const baseDir = isDirectory ? uri : vscode.Uri.file(path.dirname(uri.fsPath));
         const folderName = await vscode.window.showInputBox({ prompt: 'Enter folder name' });
-        if (folderName && folderName.trim()) {
-          const folderUri = vscode.Uri.joinPath(baseDir, folderName.trim());
+        const trimmedName = folderName?.trim();
+        if (trimmedName) {
+          const folderUri = vscode.Uri.joinPath(baseDir, trimmedName);
           await vscode.workspace.fs.createDirectory(folderUri);
         }
       }
@@ -430,9 +435,10 @@ export function activate(context: vscode.ExtensionContext) {
           prompt: 'Enter new name',
           value: oldName,
         });
-        if (newName && newName.trim() && newName.trim() !== oldName) {
+        const trimmedName = newName?.trim();
+        if (trimmedName && trimmedName !== oldName) {
           const parentDir = vscode.Uri.file(path.dirname(uri.fsPath));
-          const targetUri = vscode.Uri.joinPath(parentDir, newName.trim());
+          const targetUri = vscode.Uri.joinPath(parentDir, trimmedName);
           await vscode.workspace.fs.rename(uri, targetUri);
         }
       }

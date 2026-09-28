@@ -212,7 +212,7 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
         }
       } else {
         const filters = context.config.filters;
-        hasChildren = Boolean(node.children && node.children.some((c) => matchesPaneFilters(c, filters)));
+        hasChildren = Boolean(node.children?.some((c) => matchesPaneFilters(c, filters)));
       }
     }
 

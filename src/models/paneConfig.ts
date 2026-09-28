@@ -74,8 +74,6 @@ export const ALL_SYMBOL_FILTER_OPTIONS: { key: SymbolKindKey; label: string; kin
   { key: 'variable', label: 'Variable', kind: vscode.SymbolKind.Variable },
 ];
 
-export const TYPE_FILTER_KEYS: SymbolKindKey[] = ['class', 'interface', 'struct', 'enum', 'module', 'namespace'];
-
 export const SYMBOL_KIND_TO_KEY: Record<number, SymbolKindKey> = {
   [vscode.SymbolKind.File]: 'file',
   [vscode.SymbolKind.Module]: 'module',
@@ -314,98 +312,6 @@ export function createImplementationsPane(
   };
 }
 
-export function createCallersPane(id: string, overrides?: Partial<CallersPaneConfig>): CallersPaneConfig {
-  return {
-    id,
-    title: 'Callers',
-    role: 'callers',
-    inputSource: 'previousPane',
-    selectionSource: 'none',
-    sort: 'name',
-    visible: true,
-    pinned: false,
-    ...overrides,
-  };
-}
-
-export function createDefinitionsPane(id: string, overrides?: Partial<DefinitionsPaneConfig>): DefinitionsPaneConfig {
-  return {
-    id,
-    title: 'Definitions',
-    role: 'definitions',
-    inputSource: 'previousPane',
-    selectionSource: 'none',
-    sort: 'name',
-    filters: createDefaultFilters(),
-    visible: true,
-    pinned: false,
-    ...overrides,
-  };
-}
-
-export function createDeclarationsPane(
-  id: string,
-  overrides?: Partial<DeclarationsPaneConfig>,
-): DeclarationsPaneConfig {
-  return {
-    id,
-    title: 'Declarations',
-    role: 'declarations',
-    inputSource: 'previousPane',
-    selectionSource: 'none',
-    sort: 'name',
-    filters: createDefaultFilters(),
-    visible: true,
-    pinned: false,
-    ...overrides,
-  };
-}
-
-export function createProblemsPane(id: string, overrides?: Partial<ProblemsPaneConfig>): ProblemsPaneConfig {
-  return {
-    id,
-    title: 'Problems',
-    role: 'problems',
-    inputSource: 'project',
-    selectionSource: 'none',
-    sort: 'position',
-    visible: true,
-    pinned: false,
-    ...overrides,
-  };
-}
-
-export function createChangesPane(id: string, overrides?: Partial<ChangesPaneConfig>): ChangesPaneConfig {
-  return {
-    id,
-    title: 'Changes',
-    role: 'changes',
-    inputSource: 'project',
-    selectionSource: 'none',
-    sort: 'position',
-    visible: true,
-    pinned: false,
-    ...overrides,
-  };
-}
-
-export function createHierarchyPane(id: string, overrides?: Partial<HierarchyPaneConfig>): HierarchyPaneConfig {
-  return {
-    id,
-    title: 'Hierarchy',
-    role: 'hierarchy',
-    inputSource: 'previousPane',
-    selectionSource: 'cursor',
-    sort: 'name',
-    tree: true,
-    subclassTypes: ['class', 'struct'],
-    filters: createDefaultFilters(TYPE_FILTER_KEYS),
-    visible: true,
-    pinned: false,
-    ...overrides,
-  };
-}
-
 export function createDefaultPanes(): PaneConfig[] {
   return [
     createDirectoriesPane('facet.pane.1', {
@@ -448,7 +354,7 @@ export function createDefaultPanes(): PaneConfig[] {
 }
 
 export function matchesGlob(path: string, pattern?: string): boolean {
-  if (!pattern || !pattern.trim()) {
+  if (!pattern?.trim()) {
     return true;
   }
   const trimmed = pattern.trim();
@@ -503,7 +409,7 @@ export function matchesGlob(path: string, pattern?: string): boolean {
     } else if (c === ',' && inGroup) {
       regexStr += '|';
     } else if (['.', '(', ')', '+', '^', '$', '[', ']', '|'].includes(c)) {
-      regexStr += '\\' + c;
+      regexStr += `\\${c}`;
     } else {
       regexStr += c;
     }
@@ -511,9 +417,9 @@ export function matchesGlob(path: string, pattern?: string): boolean {
 
   // If glob has no slashes, match against either full path or basename
   if (!glob.includes('/')) {
-    regexStr = '(?:^|.*/)' + regexStr + '$';
+    regexStr = `(?:^|.*/)${regexStr}$`;
   } else {
-    regexStr = '^' + regexStr + '$';
+    regexStr = `^${regexStr}$`;
   }
 
   try {

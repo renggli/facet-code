@@ -1,4 +1,4 @@
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import { activate, deactivate } from '../../extension';
 
@@ -84,6 +84,7 @@ suite('Extension Lifecycle Test Suite', () => {
     // Execute global palette commands
     await vscode.commands.executeCommand('facet.focus');
     await vscode.commands.executeCommand('facet.syncCursorAndFocus');
+    await vscode.commands.executeCommand('facet.selectAtCursorAndFocus');
     await vscode.commands.executeCommand('facet.addPane');
     await vscode.commands.executeCommand('facet.removePane');
     await vscode.commands.executeCommand('facet.applyPreset');

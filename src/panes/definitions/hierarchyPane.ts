@@ -477,7 +477,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
   private findSubclasses(target: FacetSymbolNode, knownMap: Map<string, FacetSymbolNode>): FacetSymbolNode[] {
     const result: FacetSymbolNode[] = target.subTypes ? [...target.subTypes] : [];
     for (const node of knownMap.values()) {
-      if (node.superTypes && node.superTypes.includes(target.name)) {
+      if (node.superTypes?.includes(target.name)) {
         if (!result.some((r) => r.name === node.name)) {
           result.push(node);
         }

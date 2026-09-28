@@ -1,4 +1,4 @@
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import {
   type DirectoryNode,
@@ -8,19 +8,15 @@ import {
 } from '../../coordinator/facetCoordinator';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import {
-  createCallersPane,
-  createChangesPane,
-  createDeclarationsPane,
+  type ChangesPaneConfig,
   createDefaultFilters,
-  createDefinitionsPane,
   createDirectoriesPane,
   createFilesPane,
-  createHierarchyPane,
   createImplementationsPane,
-  createProblemsPane,
   createReferencesPane,
   createSymbolsPane,
   type HierarchyPaneConfig,
+  type ProblemsPaneConfig,
   type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
@@ -200,10 +196,11 @@ suite('FacetCoordinator Test Suite', () => {
     ];
     (vscode.languages as any).getDiagnostics = () => mockDiags;
 
-    const probConfig = createProblemsPane('facet.pane.5', {
+    const probConfig: ProblemsPaneConfig = {
+      ...coordinator.registry.get('problems').defaultConfig('facet.pane.5'),
       inputSource: 'project',
       sort: 'category',
-    });
+    };
 
     const problems = await coordinator.getSlotChildren<ProblemItem>(probConfig);
     assert.strictEqual(problems.length, 2);
@@ -312,7 +309,8 @@ suite('FacetCoordinator Test Suite', () => {
 
     (coordinator as any).cachedWorkspaceTypes = [baseClass, subClass];
 
-    const typesPaneConfig: HierarchyPaneConfig = createHierarchyPane('facet.pane.1', {
+    const typesPaneConfig: HierarchyPaneConfig = {
+      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
       title: 'Hierarchy',
       inputSource: 'project',
       selectionSource: 'cursor',
@@ -320,7 +318,7 @@ suite('FacetCoordinator Test Suite', () => {
       tree: true,
       filters: createDefaultFilters(),
       visible: true,
-    });
+    };
 
     // Root children: only BaseClass should be returned! SubClass is omitted from root
     const rootChildren = await coordinator.getSlotChildren<FacetSymbolNode>(typesPaneConfig);
@@ -400,14 +398,15 @@ suite('FacetCoordinator Test Suite', () => {
 
     (coordinator as any).cachedWorkspaceTypes = [petNode, animalNode, dogNode];
 
-    const hierarchyPaneConfig: HierarchyPaneConfig = createHierarchyPane('facet.pane.1', {
+    const hierarchyPaneConfig: HierarchyPaneConfig = {
+      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
       title: 'Hierarchy',
       inputSource: 'project',
       selectionSource: 'cursor',
       sort: 'name',
       filters: createDefaultFilters(),
       tree: true,
-    });
+    };
 
     const roots = await coordinator.getSlotChildren(hierarchyPaneConfig);
     assert.strictEqual(roots.length, 2);
@@ -671,10 +670,11 @@ suite('FacetCoordinator Test Suite', () => {
       },
     });
 
-    const changesConfig = createChangesPane('facet.pane.5', {
+    const changesConfig: ChangesPaneConfig = {
+      ...coordinator.registry.get('changes').defaultConfig('facet.pane.5'),
       inputSource: 'project',
       sort: 'name',
-    });
+    };
 
     const children = await coordinator.getSlotChildren<vscode.Uri>(changesConfig);
     assert.strictEqual(children.length, 2);
@@ -723,11 +723,15 @@ suite('FacetCoordinator Test Suite', () => {
       },
     ];
 
-    const defs = await coordinator.getSlotChildren<RelationItem>(createDefinitionsPane('facet.pane.5'));
+    const defs = await coordinator.getSlotChildren<RelationItem>(
+      coordinator.registry.get('definitions').defaultConfig('facet.pane.5'),
+    );
     assert.strictEqual(defs.length, 1);
     assert.strictEqual(defs[0].label, 'preview for definitions');
 
-    const decls = await coordinator.getSlotChildren<RelationItem>(createDeclarationsPane('facet.pane.5'));
+    const decls = await coordinator.getSlotChildren<RelationItem>(
+      coordinator.registry.get('declarations').defaultConfig('facet.pane.5'),
+    );
     assert.strictEqual(decls.length, 1);
     assert.strictEqual(decls[0].label, 'preview for declarations');
 
@@ -739,7 +743,9 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(refs.length, 1);
     assert.strictEqual(refs[0].label, 'preview for references');
 
-    const callers = await coordinator.getSlotChildren<RelationItem>(createCallersPane('facet.pane.5'));
+    const callers = await coordinator.getSlotChildren<RelationItem>(
+      coordinator.registry.get('callers').defaultConfig('facet.pane.5'),
+    );
     assert.strictEqual(callers.length, 1);
     assert.strictEqual(callers[0].label, 'preview for callers');
 
@@ -852,7 +858,7 @@ suite('FacetCoordinator Test Suite', () => {
     const parentOfDir = coordinator.getSlotParent(dirsPane, dirNode);
     assert.strictEqual(parentOfDir, undefined);
 
-    const problemsPane = createProblemsPane('facet.pane.5');
+    const problemsPane = coordinator.registry.get('problems').defaultConfig('facet.pane.5');
     assert.strictEqual(coordinator.getSlotParent(problemsPane, problemItem), undefined);
 
     // Test handleSlotSelection
@@ -1159,7 +1165,7 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(dirTreeItem.contextValue, 'facetDirectory');
 
     // 3. Changes pane
-    const changesCfg = createChangesPane('facet.pane.1');
+    const changesCfg = coordinator.registry.get('changes').defaultConfig('facet.pane.1');
     const changeTreeItem = coordinator.getSlotTreeItem(changesCfg, testUri);
     assert.strictEqual(changeTreeItem.resourceUri?.toString(), testUri.toString());
     assert.strictEqual(changeTreeItem.contextValue, 'facetFile');
@@ -1181,13 +1187,13 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(symTreeItem.contextValue, 'facetSymbol');
 
     // 5. Hierarchy pane
-    const hierCfg = createHierarchyPane('facet.pane.3');
+    const hierCfg = coordinator.registry.get('hierarchy').defaultConfig('facet.pane.3');
     const hierTreeItem = coordinator.getSlotTreeItem(hierCfg, symNode);
     assert.strictEqual(hierTreeItem.resourceUri?.toString(), testUri.toString());
     assert.strictEqual(hierTreeItem.contextValue, 'facetSymbol');
 
     // 6. Problems pane
-    const probCfg = createProblemsPane('facet.pane.4');
+    const probCfg = coordinator.registry.get('problems').defaultConfig('facet.pane.4');
     const probItem = {
       uri: testUri,
       range: new vscode.Range(1, 0, 1, 10),
@@ -1285,7 +1291,10 @@ suite('FacetCoordinator Test Suite', () => {
       },
     ]);
 
-    const hierConfig = createHierarchyPane('facet.pane.1', { tree: true });
+    const hierConfig: HierarchyPaneConfig = {
+      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
+      tree: true,
+    };
     const subtypes = await coordinator.getSlotChildren<FacetSymbolNode>(hierConfig, baseNode);
     assert.strictEqual(subtypes.length, 1);
     assert.strictEqual(subtypes[0].name, 'CustomService');
@@ -1371,12 +1380,13 @@ suite('FacetCoordinator Test Suite', () => {
     (coordinator as any).cachedDocumentSymbols = [grandParentNode, parentNode, currentNode, childNode, siblingNode];
 
     // 1. List View (tree: false)
-    const listViewConfig = createHierarchyPane('facet.pane.1', {
+    const listViewConfig: HierarchyPaneConfig = {
+      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
       tree: false,
       inputSource: 'activeEditor',
       selectionSource: 'cursor',
       filters: createDefaultFilters(),
-    });
+    };
 
     const listChildren = await coordinator.getSlotChildren<FacetSymbolNode>(listViewConfig);
     // Flat view should include all super classes (GrandParent, Parent), current class (CurrentClass), and all subclasses (SiblingClass, ChildClass)
@@ -1385,12 +1395,13 @@ suite('FacetCoordinator Test Suite', () => {
     assert.deepStrictEqual(listNames, ['GrandParent', 'Parent', 'CurrentClass', 'SiblingClass', 'ChildClass']);
 
     // 2. Tree View (tree: true - default)
-    const treeViewConfig = createHierarchyPane('facet.pane.2', {
+    const treeViewConfig: HierarchyPaneConfig = {
+      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.2'),
       tree: true,
       inputSource: 'activeEditor',
       selectionSource: 'cursor',
       filters: createDefaultFilters(),
-    });
+    };
 
     const treeRoots = await coordinator.getSlotChildren<FacetSymbolNode>(treeViewConfig);
     // Top-most superclass should be root: GrandParent
@@ -1564,5 +1575,34 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(childrenUnpinned[0].name, 'ClassInB');
 
     coordinator.dispose();
+  });
+
+  test('FacetCoordinator dispose clears all debounce timers and prevents delayed callbacks', async () => {
+    const resolver = new SymbolResolver();
+    const coordinator = new FacetCoordinator(resolver);
+    const testDoc = {
+      uri: vscode.Uri.file('/workspace/src/sample.ts'),
+      version: 1,
+      getText: () => 'export class Sample {}',
+    };
+
+    let refreshFired = false;
+    coordinator.onDidRefreshSlot(() => {
+      refreshFired = true;
+    });
+
+    coordinator.handleDocumentChange(testDoc as any);
+    assert.ok((coordinator as any).documentChangeDebounceTimer !== undefined);
+
+    coordinator.dispose();
+
+    assert.strictEqual((coordinator as any).documentChangeDebounceTimer, undefined);
+    assert.strictEqual((coordinator as any).debounceTimer, undefined);
+    assert.strictEqual((coordinator as any).selectionDebounceTimer, undefined);
+    assert.strictEqual((coordinator as any).cancellationSource, undefined);
+
+    // Wait past the 250ms debounce delay to verify no delayed execution
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.strictEqual(refreshFired, false);
   });
 });

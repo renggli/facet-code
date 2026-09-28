@@ -405,7 +405,7 @@ export class FacetCoordinator implements vscode.Disposable {
     }, 150);
   }
 
-  public async sync(): Promise<void> {
+  public async sync(externalToken?: vscode.CancellationToken): Promise<void> {
     if (this.cancellationSource) {
       this.cancellationSource.cancel();
       this.cancellationSource.dispose();
@@ -413,14 +413,21 @@ export class FacetCoordinator implements vscode.Disposable {
     this.cancellationSource = new vscode.CancellationTokenSource();
     const token = this.cancellationSource.token;
 
+    if (externalToken?.isCancellationRequested) {
+      return;
+    }
+
     try {
       this.cachedWorkspaceFiles = [];
       this.cachedWorkspaceTypes = [];
       this.cachedDocumentSymbols = [];
 
-      if (this.currentEditor && !token.isCancellationRequested) {
+      if (this.currentEditor && !token.isCancellationRequested && !externalToken?.isCancellationRequested) {
         try {
-          this.cachedDocumentSymbols = await this.resolver.resolveDocumentSymbols(this.currentEditor.document, token);
+          this.cachedDocumentSymbols = await this.resolver.resolveDocumentSymbols(
+            this.currentEditor.document,
+            externalToken ?? token,
+          );
           this.cachedDocumentUri = this.currentEditor.document.uri.toString();
           this.cachedDocumentVersion = this.currentEditor.document.version;
         } catch {
@@ -428,7 +435,7 @@ export class FacetCoordinator implements vscode.Disposable {
         }
       }
 
-      if (token.isCancellationRequested) {
+      if (token.isCancellationRequested || externalToken?.isCancellationRequested) {
         return;
       }
 
@@ -438,10 +445,14 @@ export class FacetCoordinator implements vscode.Disposable {
         void this.handleSelectionChange(this.currentEditor);
       }
     } catch (err) {
-      if (!token.isCancellationRequested) {
+      if (!token.isCancellationRequested && !externalToken?.isCancellationRequested) {
         console.error('Facet sync error:', err);
       }
     }
+  }
+
+  public async refresh(token?: vscode.CancellationToken): Promise<void> {
+    return this.sync(token);
   }
 
   public async handleSlotSelection(slotId: string, selection: readonly FacetSlotItem[]): Promise<void> {
@@ -541,7 +552,11 @@ export class FacetCoordinator implements vscode.Disposable {
     return def.getOutput(items, context);
   }
 
-  public async getSlotChildren<T = FacetSlotItem>(config: PaneConfig, element?: unknown): Promise<T[]> {
+  public async getSlotChildren<T = FacetSlotItem>(
+    config: PaneConfig,
+    element?: unknown,
+    token?: vscode.CancellationToken,
+  ): Promise<T[]> {
     const def = this.registry.get(config.role);
     const upstreamOutput = await this.getUpstreamOutput(config.id);
 
@@ -551,7 +566,7 @@ export class FacetCoordinator implements vscode.Disposable {
       coordinator: this,
       upstreamOutput,
       activeEditor: this.currentEditor,
-      cancellationToken: this.cancellationSource?.token,
+      cancellationToken: token ?? this.cancellationSource?.token,
     };
 
     return (await def.getChildren(context, element)) as T[];
@@ -750,13 +765,20 @@ export class FacetCoordinator implements vscode.Disposable {
   public dispose(): void {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
+      this.debounceTimer = undefined;
     }
     if (this.selectionDebounceTimer) {
       clearTimeout(this.selectionDebounceTimer);
+      this.selectionDebounceTimer = undefined;
+    }
+    if (this.documentChangeDebounceTimer) {
+      clearTimeout(this.documentChangeDebounceTimer);
+      this.documentChangeDebounceTimer = undefined;
     }
     if (this.cancellationSource) {
       this.cancellationSource.cancel();
       this.cancellationSource.dispose();
+      this.cancellationSource = undefined;
     }
     this._onDidRefreshSlot.dispose?.();
     this._onDidRefreshAll.dispose?.();

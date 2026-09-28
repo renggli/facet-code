@@ -61,7 +61,7 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
             }
           } else if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             const root = vscode.workspace.workspaceFolders[0].uri.fsPath.replace(/\\/g, '/').replace(/\/+$/, '');
-            if (rel.startsWith(root + '/')) {
+            if (rel.startsWith(`${root}/`)) {
               rel = rel.slice(root.length + 1);
             }
           }
@@ -110,7 +110,7 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
           return dirPaths.some((dir) => {
             const normDir = dir.replace(/\\/g, '/').replace(/\/+$/, '');
             if (isRecursive) {
-              return normFile.startsWith(normDir + '/');
+              return normFile.startsWith(`${normDir}/`);
             }
             const lastSlash = normFile.lastIndexOf('/');
             const fileDir = lastSlash !== -1 ? normFile.slice(0, lastSlash) : '';

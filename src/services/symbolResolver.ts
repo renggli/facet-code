@@ -118,6 +118,9 @@ export class SymbolResolver {
     document: vscode.TextDocument,
     token?: vscode.CancellationToken,
   ): Promise<FacetSymbolNode[]> {
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const key = document.uri.toString();
     const cached = this.cache.get(key);
     if (cached && cached.version === document.version) {
@@ -158,6 +161,9 @@ export class SymbolResolver {
   }
 
   async resolveWorkspaceTypes(query = '', token?: vscode.CancellationToken): Promise<FacetSymbolNode[]> {
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     let rawSymbols: vscode.SymbolInformation[] | undefined;
 
     try {
@@ -243,28 +249,6 @@ export class SymbolResolver {
     };
     walk(nodes);
     return result;
-  }
-
-  async hydrateTypeNode(typeNode: FacetSymbolNode, token?: vscode.CancellationToken): Promise<FacetSymbolNode> {
-    if (typeNode.children && typeNode.children.length > 0) {
-      return typeNode;
-    }
-
-    try {
-      const doc = await vscode.workspace.openTextDocument(typeNode.uri);
-      const allDocSymbols = await this.resolveDocumentSymbols(doc, token);
-      const match = allDocSymbols.find((s) => s.name === typeNode.name && isTypeKind(s.kind));
-      if (match) {
-        typeNode.children = match.children;
-        for (const child of typeNode.children) {
-          child.parent = typeNode;
-        }
-      }
-    } catch (err) {
-      console.error('Error hydrating workspace type node:', err);
-    }
-
-    return typeNode;
   }
 
   public fromDocumentSymbol(
@@ -394,10 +378,10 @@ export class SymbolResolver {
         }
 
         const memberMatch = memberRegex.exec(line);
-        if (memberMatch && memberMatch[4] && !['if', 'for', 'while', 'switch', 'return'].includes(memberMatch[4])) {
+        const memberName = memberMatch?.[4];
+        if (memberName && !['if', 'for', 'while', 'switch', 'return'].includes(memberName)) {
           const isStatic = Boolean(memberMatch[2]);
           const isAccessor = Boolean(memberMatch[3]);
-          const memberName = memberMatch[4];
           const isMethod = memberMatch[5] !== undefined;
 
           let category = MemberCategory.Fields;

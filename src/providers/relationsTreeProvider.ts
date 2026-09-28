@@ -13,58 +13,44 @@ export interface RelationItem {
   kind?: vscode.SymbolKind;
 }
 
-async function getLineSnippet(uri: vscode.Uri, lineIndex: number, fallback: string): Promise<string> {
-  const openDoc = (vscode.workspace.textDocuments || []).find((d) => d.uri.toString() === uri.toString());
-  if (openDoc && lineIndex >= 0 && lineIndex < openDoc.lineCount) {
-    const text = openDoc.lineAt(lineIndex).text.trim();
-    if (text) {
-      return text;
-    }
-  }
-
-  try {
-    const doc = await vscode.workspace.openTextDocument(uri);
-    if (lineIndex >= 0 && lineIndex < doc.lineCount) {
-      const text = doc.lineAt(lineIndex).text.trim();
-      if (text) {
-        return text;
-      }
-    }
-  } catch {
-    // Fall back to provided label if file cannot be read
-  }
-
-  return fallback;
-}
-
 export class RelationsTreeProvider {
-  async fetchRelationsForNodes(nodes: readonly FacetSymbolNode[], mode: RelationsMode): Promise<RelationItem[]> {
+  async fetchRelationsForNodes(
+    nodes: readonly FacetSymbolNode[],
+    mode: RelationsMode,
+    token?: vscode.CancellationToken,
+  ): Promise<RelationItem[]> {
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const allResults: RelationItem[] = [];
 
     for (const node of nodes) {
+      if (token?.isCancellationRequested) {
+        break;
+      }
       switch (mode) {
         case 'references': {
-          const refs = await this.fetchReferencesForNode(node);
+          const refs = await this.fetchReferencesForNode(node, token);
           allResults.push(...refs);
           break;
         }
         case 'callers': {
-          const callers = await this.fetchCallersForNode(node);
+          const callers = await this.fetchCallersForNode(node, token);
           allResults.push(...callers);
           break;
         }
         case 'implementations': {
-          const impls = await this.fetchImplementationsForNode(node);
+          const impls = await this.fetchImplementationsForNode(node, token);
           allResults.push(...impls);
           break;
         }
         case 'definitions': {
-          const defs = await this.fetchDefinitionsForNode(node);
+          const defs = await this.fetchDefinitionsForNode(node, token);
           allResults.push(...defs);
           break;
         }
         case 'declarations': {
-          const decls = await this.fetchDeclarationsForNode(node);
+          const decls = await this.fetchDeclarationsForNode(node, token);
           allResults.push(...decls);
           break;
         }
@@ -74,15 +60,21 @@ export class RelationsTreeProvider {
     return allResults;
   }
 
-  async fetchReferencesForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+  async fetchReferencesForNode(node: FacetSymbolNode, token?: vscode.CancellationToken): Promise<RelationItem[]> {
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const pos = await resolveExactSymbolPosition(node);
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
       'vscode.executeReferenceProvider',
       node.uri,
       pos,
     );
 
-    if (!locations || locations.length === 0) {
+    if (token?.isCancellationRequested || !locations || locations.length === 0) {
       return [];
     }
 
@@ -106,8 +98,14 @@ export class RelationsTreeProvider {
     return items;
   }
 
-  async fetchCallersForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+  async fetchCallersForNode(node: FacetSymbolNode, token?: vscode.CancellationToken): Promise<RelationItem[]> {
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const pos = await resolveExactSymbolPosition(node);
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     let items: vscode.CallHierarchyItem[] | undefined;
     try {
       items = await vscode.commands.executeCommand<vscode.CallHierarchyItem[]>(
@@ -119,12 +117,20 @@ export class RelationsTreeProvider {
       items = undefined;
     }
 
+    if (token?.isCancellationRequested) {
+      return [];
+    }
+
     if (items && items.length > 0) {
       try {
         const calls = await vscode.commands.executeCommand<vscode.CallHierarchyIncomingCall[]>(
           'vscode.provideIncomingCalls',
           items[0],
         );
+
+        if (token?.isCancellationRequested) {
+          return [];
+        }
 
         if (calls && calls.length > 0) {
           return calls.map((call) => {
@@ -149,18 +155,24 @@ export class RelationsTreeProvider {
       }
     }
 
-    return this.fetchCallersViaReferences(node, pos);
+    return this.fetchCallersViaReferences(node, pos, token);
   }
 
-  async fetchImplementationsForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+  async fetchImplementationsForNode(node: FacetSymbolNode, token?: vscode.CancellationToken): Promise<RelationItem[]> {
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const pos = await resolveExactSymbolPosition(node);
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
       'vscode.executeImplementationProvider',
       node.uri,
       pos,
     );
 
-    if (!locations || locations.length === 0) {
+    if (token?.isCancellationRequested || !locations || locations.length === 0) {
       return [];
     }
 
@@ -184,15 +196,21 @@ export class RelationsTreeProvider {
     return items;
   }
 
-  async fetchDefinitionsForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+  async fetchDefinitionsForNode(node: FacetSymbolNode, token?: vscode.CancellationToken): Promise<RelationItem[]> {
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const pos = await resolveExactSymbolPosition(node);
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const locations = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
       'vscode.executeDefinitionProvider',
       node.uri,
       pos,
     );
 
-    if (!locations || locations.length === 0) {
+    if (token?.isCancellationRequested || !locations || locations.length === 0) {
       return [];
     }
 
@@ -218,15 +236,21 @@ export class RelationsTreeProvider {
     return items;
   }
 
-  async fetchDeclarationsForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+  async fetchDeclarationsForNode(node: FacetSymbolNode, token?: vscode.CancellationToken): Promise<RelationItem[]> {
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const pos = await resolveExactSymbolPosition(node);
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     const locations = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
       'vscode.executeDeclarationProvider',
       node.uri,
       pos,
     );
 
-    if (!locations || locations.length === 0) {
+    if (token?.isCancellationRequested || !locations || locations.length === 0) {
       return [];
     }
 
@@ -267,7 +291,14 @@ export class RelationsTreeProvider {
     return item;
   }
 
-  private async fetchCallersViaReferences(node: FacetSymbolNode, pos: vscode.Position): Promise<RelationItem[]> {
+  private async fetchCallersViaReferences(
+    node: FacetSymbolNode,
+    pos: vscode.Position,
+    token?: vscode.CancellationToken,
+  ): Promise<RelationItem[]> {
+    if (token?.isCancellationRequested) {
+      return [];
+    }
     let locations: vscode.Location[] | undefined;
     try {
       locations = await vscode.commands.executeCommand<vscode.Location[]>(
@@ -279,7 +310,7 @@ export class RelationsTreeProvider {
       locations = undefined;
     }
 
-    if (!locations || locations.length === 0) {
+    if (token?.isCancellationRequested || !locations || locations.length === 0) {
       return [];
     }
 
@@ -307,4 +338,30 @@ export class RelationsTreeProvider {
 
     return items;
   }
+}
+
+// --- Internal Utility Functions at Bottom ---
+
+async function getLineSnippet(uri: vscode.Uri, lineIndex: number, fallback: string): Promise<string> {
+  const openDoc = (vscode.workspace.textDocuments ?? []).find((d) => d.uri.toString() === uri.toString());
+  if (openDoc && lineIndex >= 0 && lineIndex < openDoc.lineCount) {
+    const text = openDoc.lineAt(lineIndex).text.trim();
+    if (text) {
+      return text;
+    }
+  }
+
+  try {
+    const doc = await vscode.workspace.openTextDocument(uri);
+    if (lineIndex >= 0 && lineIndex < doc.lineCount) {
+      const text = doc.lineAt(lineIndex).text.trim();
+      if (text) {
+        return text;
+      }
+    }
+  } catch {
+    // Fall back to provided label if file cannot be read
+  }
+
+  return fallback;
 }
