@@ -67,6 +67,14 @@ export class SymbolResolver {
     node: FacetSymbolNode,
     token?: vscode.CancellationToken,
   ): Promise<string[]> {
+    const nodes = await this.resolveTypeHierarchySupertypeNodes(node, token);
+    return nodes.map((s) => s.name);
+  }
+
+  public async resolveTypeHierarchySupertypeNodes(
+    node: FacetSymbolNode,
+    token?: vscode.CancellationToken,
+  ): Promise<FacetSymbolNode[]> {
     if (!node.uri) {
       return [];
     }
@@ -90,7 +98,17 @@ export class SymbolResolver {
       if (token?.isCancellationRequested || !supertypes || supertypes.length === 0) {
         return [];
       }
-      return supertypes.map((s) => s.name);
+      return supertypes.map((sup) => ({
+        name: sup.name,
+        detail: sup.detail,
+        kind: sup.kind,
+        uri: sup.uri,
+        range: sup.range,
+        selectionRange: sup.selectionRange,
+        category: MemberCategory.All,
+        isStatic: false,
+        children: [],
+      }));
     } catch {
       return [];
     }

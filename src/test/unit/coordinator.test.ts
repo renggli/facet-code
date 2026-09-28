@@ -1293,4 +1293,128 @@ suite('FacetCoordinator Test Suite', () => {
     commands.clearHandlers();
     coordinator.dispose();
   });
+
+  test('hierarchy pane in list view shows all super classes and then current class, and in tree view shows all super classes and subclasses', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+
+    const testUri = vscode.Uri.file('/workspace/src/hierarchy.ts');
+
+    const grandParentNode: FacetSymbolNode = {
+      name: 'GrandParent',
+      kind: vscode.SymbolKind.Class,
+      uri: testUri,
+      range: new vscode.Range(0, 0, 5, 0),
+      selectionRange: new vscode.Range(0, 6, 0, 17),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: [],
+    };
+
+    const parentNode: FacetSymbolNode = {
+      name: 'Parent',
+      kind: vscode.SymbolKind.Class,
+      uri: testUri,
+      range: new vscode.Range(6, 0, 11, 0),
+      selectionRange: new vscode.Range(6, 6, 6, 12),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['GrandParent'],
+    };
+
+    const currentNode: FacetSymbolNode = {
+      name: 'CurrentClass',
+      kind: vscode.SymbolKind.Class,
+      uri: testUri,
+      range: new vscode.Range(12, 0, 17, 0),
+      selectionRange: new vscode.Range(12, 6, 12, 18),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['Parent'],
+    };
+
+    const childNode: FacetSymbolNode = {
+      name: 'ChildClass',
+      kind: vscode.SymbolKind.Class,
+      uri: testUri,
+      range: new vscode.Range(18, 0, 23, 0),
+      selectionRange: new vscode.Range(18, 6, 18, 16),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['CurrentClass'],
+    };
+
+    const siblingNode: FacetSymbolNode = {
+      name: 'SiblingClass',
+      kind: vscode.SymbolKind.Class,
+      uri: testUri,
+      range: new vscode.Range(24, 0, 29, 0),
+      selectionRange: new vscode.Range(24, 6, 24, 18),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+      superTypes: ['Parent'],
+    };
+
+    (coordinator as any).cachedWorkspaceTypes = [grandParentNode, parentNode, currentNode, childNode, siblingNode];
+
+    // Simulate active editor with cursor on CurrentClass
+    (coordinator as any).currentEditor = {
+      document: { uri: testUri, version: 1 },
+      selection: { active: new vscode.Position(13, 2) },
+    };
+    (coordinator as any).cachedDocumentSymbols = [grandParentNode, parentNode, currentNode, childNode, siblingNode];
+
+    // 1. List View (tree: false)
+    const listViewConfig = createHierarchyPane('facet.pane.1', {
+      tree: false,
+      inputSource: 'activeEditor',
+      selectionSource: 'cursor',
+      filters: createDefaultFilters(),
+    });
+
+    const listChildren = await coordinator.getSlotChildren<FacetSymbolNode>(listViewConfig);
+    // Flat view should include all super classes (GrandParent, Parent), current class (CurrentClass), and all subclasses (SiblingClass, ChildClass)
+    assert.strictEqual(listChildren.length, 5);
+    const listNames = listChildren.map((c) => c.name);
+    assert.deepStrictEqual(listNames, ['GrandParent', 'Parent', 'CurrentClass', 'SiblingClass', 'ChildClass']);
+
+    // 2. Tree View (tree: true - default)
+    const treeViewConfig = createHierarchyPane('facet.pane.2', {
+      tree: true,
+      inputSource: 'activeEditor',
+      selectionSource: 'cursor',
+      filters: createDefaultFilters(),
+    });
+
+    const treeRoots = await coordinator.getSlotChildren<FacetSymbolNode>(treeViewConfig);
+    // Top-most superclass should be root: GrandParent
+    assert.strictEqual(treeRoots.length, 1);
+    assert.strictEqual(treeRoots[0].name, 'GrandParent');
+
+    // Expanding GrandParent reveals Parent
+    const parentChildren = await coordinator.getSlotChildren<FacetSymbolNode>(treeViewConfig, treeRoots[0]);
+    assert.strictEqual(parentChildren.length, 1);
+    assert.strictEqual(parentChildren[0].name, 'Parent');
+
+    // Expanding Parent reveals CurrentClass AND its sibling subclass (subclass of parent)
+    const currentAndSibling = await coordinator.getSlotChildren<FacetSymbolNode>(treeViewConfig, parentChildren[0]);
+    assert.strictEqual(currentAndSibling.length, 2);
+    const parentSubNames = currentAndSibling.map((c) => c.name);
+    assert.ok(parentSubNames.includes('CurrentClass'));
+    assert.ok(parentSubNames.includes('SiblingClass'));
+
+    // Expanding CurrentClass reveals ChildClass
+    const currentMatch = currentAndSibling.find((c) => c.name === 'CurrentClass')!;
+    const childChildren = await coordinator.getSlotChildren<FacetSymbolNode>(treeViewConfig, currentMatch);
+    assert.strictEqual(childChildren.length, 1);
+    assert.strictEqual(childChildren[0].name, 'ChildClass');
+
+    coordinator.dispose();
+  });
 });
