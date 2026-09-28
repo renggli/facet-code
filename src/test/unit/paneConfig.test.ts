@@ -15,6 +15,7 @@ import {
   createSymbolsPane,
   matchesGlob,
   matchesPaneFilters,
+  type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 
 suite('PaneConfig & Filter Helpers Test Suite', () => {
@@ -100,11 +101,11 @@ suite('PaneConfig & Filter Helpers Test Suite', () => {
       assert.strictEqual(panes[1].visible, true);
       assert.strictEqual(panes[2].role, 'symbols');
       assert.strictEqual(panes[2].title, 'Definitions');
-      assert.strictEqual((panes[2] as any).tree, false);
+      assert.strictEqual((panes[2] as SymbolsPaneConfig).tree, false);
       assert.strictEqual(panes[2].visible, true);
       assert.strictEqual(panes[3].role, 'symbols');
       assert.strictEqual(panes[3].title, 'Members');
-      assert.strictEqual((panes[3] as any).tree, true);
+      assert.strictEqual((panes[3] as SymbolsPaneConfig).tree, true);
       assert.strictEqual(panes[3].visible, true);
       assert.strictEqual(panes[4].role, 'references');
       assert.strictEqual(panes[4].visible, false);

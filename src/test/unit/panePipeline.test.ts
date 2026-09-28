@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import { parseSlotOrderFromBuffer, WorkbenchLayoutWatcher } from '../../coordinator/workbenchLayoutWatcher';
+import type { SymbolsPaneConfig } from '../../models/paneConfig';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { SlotTreeProvider } from '../../providers/slotTreeProvider';
 import { SymbolResolver } from '../../services/symbolResolver';
@@ -33,10 +34,10 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(manager.getVisiblePanes()[1].role, 'files');
     assert.strictEqual(manager.getVisiblePanes()[2].role, 'symbols');
     assert.strictEqual(manager.getVisiblePanes()[2].title, 'Definitions');
-    assert.strictEqual((manager.getVisiblePanes()[2] as any).tree, false);
+    assert.strictEqual((manager.getVisiblePanes()[2] as SymbolsPaneConfig).tree, false);
     assert.strictEqual(manager.getVisiblePanes()[3].role, 'symbols');
     assert.strictEqual(manager.getVisiblePanes()[3].title, 'Members');
-    assert.strictEqual((manager.getVisiblePanes()[3] as any).tree, true);
+    assert.strictEqual((manager.getVisiblePanes()[3] as SymbolsPaneConfig).tree, true);
 
     coordinator.dispose();
   });

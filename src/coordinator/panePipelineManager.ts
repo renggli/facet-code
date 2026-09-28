@@ -574,7 +574,7 @@ export class PanePipelineManager {
       { label: 'Built-in Presets', kind: vscode.QuickPickItemKind.Separator },
       {
         label: '$(layout) Project Browser',
-        description: 'Directories (Hierarchy) -> Files -> Symbols (Hierarchy) -> Members',
+        description: 'Directories (Hierarchy) -> Files -> Definitions (Flat) -> Members (Hierarchy)',
         preset: 'project',
       },
       {
