@@ -541,28 +541,6 @@
       }
     ],
     "menus": {
-      "viewContainer/title": [
-        {
-          "command": "facet.pane.presets",
-          "when": "viewContainer == facet-container",
-          "group": "navigation@1"
-        },
-        {
-          "command": "facet.addPane",
-          "when": "viewContainer == facet-container",
-          "group": "navigation@2"
-        },
-        {
-          "command": "facet.selectAtCursorAndFocus",
-          "when": "viewContainer == facet-container",
-          "group": "navigation@3"
-        },
-        {
-          "command": "facet.focus",
-          "when": "viewContainer == facet-container",
-          "group": "navigation@4"
-        }
-      ],
       "commandPalette": [
         {
           "command": "facet.pane.1.togglePin.on",

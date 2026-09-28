@@ -159,12 +159,12 @@ Each slot `facet.pane.{N}` publishes contextual header buttons controlled by pub
 - `$(sign-in)` (`facet.pane.{N}.input`): Switches input source (`project`, `openEditors`, `activeEditor`, `previousPane`).
 - `$(sort-precedence)` (`facet.pane.{N}.sort`): Changes sort ordering (`position`, `name`, `category`).
 
-### View Container Header Controls (`viewContainer/title`)
-The `facet-container` Activity Bar view container title exposes primary deck navigation actions:
-- `$(layers)` (`facet.pane.presets`, group: `navigation@1`): Apply Preset...
-- `$(add)` (`facet.addPane`, group: `navigation@2`): Add Pane
-- `$(target)` (`facet.selectAtCursorAndFocus`, group: `navigation@3`): Select at Cursor and Focus
-- `$(layout-sidebar-left)` (`facet.focus`, group: `navigation@4`): Focus Deck
+### Deck Navigation & Commands
+Primary deck actions are accessible via the Command Palette, keybindings, and pane menus:
+- `facet.applyPreset` / `facet.pane.presets`: Apply Preset...
+- `facet.addPane`: Add Pane
+- `facet.syncCursorAndFocus` / `facet.selectAtCursorAndFocus`: Select at Cursor and Focus (`Cmd+K Shift+F` / `Ctrl+K Shift+F`)
+- `facet.focus`: Focus Deck (`Cmd+K F` / `Ctrl+K F`)
 
 ### Published Context Keys
 Synchronized on every state change via `syncContextKeys()`:
