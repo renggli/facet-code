@@ -1131,4 +1131,166 @@ suite('FacetCoordinator Test Suite', () => {
 
     coordinator.dispose();
   });
+
+  test('all pane tree items have contextValue and resourceUri set for standard context menus', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+
+    const testUri = vscode.Uri.file('/workspace/src/example.ts');
+
+    // 1. Files pane
+    const filesCfg = createFilesPane('facet.pane.2');
+    const fileTreeItem = coordinator.getSlotTreeItem(filesCfg, testUri);
+    assert.strictEqual(fileTreeItem.resourceUri?.toString(), testUri.toString());
+    assert.strictEqual(fileTreeItem.contextValue, 'facetFile');
+
+    // 2. Directories pane
+    const dirCfg = createDirectoriesPane('facet.pane.1');
+    const dirNode = {
+      name: 'src',
+      uri: vscode.Uri.file('/workspace/src'),
+      relativePath: 'src',
+      type: 'directory' as const,
+      children: [],
+    };
+    const dirTreeItem = coordinator.getSlotTreeItem(dirCfg, dirNode);
+    assert.strictEqual(dirTreeItem.resourceUri?.toString(), dirNode.uri.toString());
+    assert.strictEqual(dirTreeItem.contextValue, 'facetDirectory');
+
+    // 3. Changes pane
+    const changesCfg = createChangesPane('facet.pane.1');
+    const changeTreeItem = coordinator.getSlotTreeItem(changesCfg, testUri);
+    assert.strictEqual(changeTreeItem.resourceUri?.toString(), testUri.toString());
+    assert.strictEqual(changeTreeItem.contextValue, 'facetFile');
+
+    // 4. Symbols pane
+    const symCfg = createSymbolsPane('facet.pane.3');
+    const symNode: FacetSymbolNode = {
+      name: 'MyClass',
+      kind: vscode.SymbolKind.Class,
+      uri: testUri,
+      range: new vscode.Range(0, 0, 5, 0),
+      selectionRange: new vscode.Range(0, 6, 0, 13),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+    };
+    const symTreeItem = coordinator.getSlotTreeItem(symCfg, symNode);
+    assert.strictEqual(symTreeItem.resourceUri?.toString(), testUri.toString());
+    assert.strictEqual(symTreeItem.contextValue, 'facetSymbol');
+
+    // 5. Hierarchy pane
+    const hierCfg = createHierarchyPane('facet.pane.3');
+    const hierTreeItem = coordinator.getSlotTreeItem(hierCfg, symNode);
+    assert.strictEqual(hierTreeItem.resourceUri?.toString(), testUri.toString());
+    assert.strictEqual(hierTreeItem.contextValue, 'facetSymbol');
+
+    // 6. Problems pane
+    const probCfg = createProblemsPane('facet.pane.4');
+    const probItem = {
+      uri: testUri,
+      range: new vscode.Range(1, 0, 1, 10),
+      message: 'Syntax error',
+      severity: vscode.DiagnosticSeverity.Error,
+      label: 'Syntax error',
+      description: 'example.ts:2',
+      type: 'problem' as const,
+    };
+    const probTreeItem = coordinator.getSlotTreeItem(probCfg, probItem);
+    assert.strictEqual(probTreeItem.resourceUri?.toString(), testUri.toString());
+    assert.strictEqual(probTreeItem.contextValue, 'facetProblem');
+
+    coordinator.dispose();
+  });
+
+  test('coordinator handles document, diagnostics, and file system change events', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    let refreshedSlots: string[] = [];
+    coordinator.onDidRefreshSlot((slotId) => {
+      refreshedSlots.push(slotId);
+    });
+
+    let refreshedAll = 0;
+    coordinator.onDidRefreshAll(() => {
+      refreshedAll++;
+    });
+
+    // 1. Diagnostics change refreshes problems pane
+    const p4 = manager.getPane('facet.pane.4');
+    if (p4) {
+      p4.role = 'problems';
+    }
+    coordinator.handleDiagnosticsChange([vscode.Uri.file('/workspace/src/test.ts')]);
+    assert.ok(refreshedSlots.includes('facet.pane.4'));
+
+    // 2. File system change clears caches and refreshes all
+    coordinator.setCachedWorkspaceFiles([vscode.Uri.file('/workspace/src/test.ts')]);
+    coordinator.handleFileSystemChange();
+    assert.strictEqual(coordinator.getCachedWorkspaceFiles().length, 0);
+    assert.strictEqual(refreshedAll, 1);
+
+    // 3. Document change invalidates symbol cache and schedules affected panes refresh
+    refreshedSlots = [];
+    const testDoc = {
+      uri: vscode.Uri.file('/workspace/src/active.ts'),
+      version: 2,
+      getText: () => 'export class Active {}',
+    };
+    coordinator.handleDocumentChange(testDoc as any);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.ok(refreshedSlots.length > 0);
+
+    coordinator.dispose();
+  });
+
+  test('hierarchy pane dynamically queries LSP subtypes when expanding elements', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+
+    const baseUri = vscode.Uri.file('/workspace/src/base.ts');
+    const baseNode: FacetSymbolNode = {
+      name: 'BaseService',
+      kind: vscode.SymbolKind.Class,
+      uri: baseUri,
+      range: new vscode.Range(0, 0, 10, 0),
+      selectionRange: new vscode.Range(0, 6, 0, 17),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+    };
+
+    commands.setHandler('vscode.prepareTypeHierarchy', () => [
+      {
+        name: 'BaseService',
+        kind: vscode.SymbolKind.Class,
+        uri: baseUri,
+        range: baseNode.range,
+        selectionRange: baseNode.selectionRange,
+      },
+    ]);
+
+    commands.setHandler('vscode.provideSubtypes', () => [
+      {
+        name: 'CustomService',
+        kind: vscode.SymbolKind.Class,
+        uri: baseUri,
+        range: new vscode.Range(12, 0, 20, 0),
+        selectionRange: new vscode.Range(12, 6, 12, 19),
+      },
+    ]);
+
+    const hierConfig = createHierarchyPane('facet.pane.1', { tree: true });
+    const subtypes = await coordinator.getSlotChildren<FacetSymbolNode>(hierConfig, baseNode);
+    assert.strictEqual(subtypes.length, 1);
+    assert.strictEqual(subtypes[0].name, 'CustomService');
+
+    commands.clearHandlers();
+    coordinator.dispose();
+  });
 });

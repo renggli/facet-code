@@ -286,6 +286,8 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
       item.name,
       isTree && hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
     );
+    treeItem.resourceUri = item.uri;
+    treeItem.contextValue = 'facetDirectory';
     if (!isTree && item.relativePath) {
       treeItem.description = item.relativePath;
     }

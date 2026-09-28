@@ -180,16 +180,21 @@ export function buildTypeHierarchy(
   filters?: PaneFilters,
 ): FacetSymbolNode[] {
   const typeMap = new Map<string, FacetSymbolNode[]>();
+  const childKeys = new Set<string>();
+  const childNames = new Set<string>();
+
   for (const t of types) {
     const list = typeMap.get(t.name) ?? [];
     list.push(t);
     typeMap.set(t.name, list);
-    t.subTypes = [];
+    t.subTypes = t.subTypes && t.subTypes.length > 0 ? [...t.subTypes] : [];
     t.parent = undefined;
+    for (const sub of t.subTypes) {
+      sub.parent = t;
+      childKeys.add(`${sub.name}::${sub.uri?.toString() ?? ''}`);
+      childNames.add(sub.name);
+    }
   }
-
-  const childKeys = new Set<string>();
-  const childNames = new Set<string>();
 
   for (const t of types) {
     if (allowedSubclassKinds && !allowedSubclassKinds.includes(t.kind)) {
@@ -226,7 +231,7 @@ export function buildTypeHierarchy(
             if (!parent.subTypes) {
               parent.subTypes = [];
             }
-            if (!parent.subTypes.some((sub) => sub.name === t.name)) {
+            if (!parent.subTypes.some((sub: FacetSymbolNode) => sub.name === t.name)) {
               t.parent = parent;
               parent.subTypes.push(t);
             }
@@ -338,4 +343,32 @@ export function sortSymbolNodes<T extends FacetSymbolNode>(
     }
     return charDiff;
   });
+}
+
+export async function resolveExactSymbolPosition(node: FacetSymbolNode): Promise<vscode.Position> {
+  if (node.selectionRange && !node.selectionRange.start.isEqual(node.range.start)) {
+    return node.selectionRange.start;
+  }
+  if (!node.uri) {
+    return node.selectionRange?.start ?? node.range.start;
+  }
+  try {
+    const textDocs = vscode.workspace.textDocuments ?? [];
+    const openDoc = textDocs.find((d) => d.uri.toString() === node.uri.toString());
+    const doc = openDoc ?? (await vscode.workspace.openTextDocument(node.uri));
+    if (doc) {
+      const startLine = node.range.start.line;
+      const endLine = Math.min(node.range.end.line, startLine + 5, doc.lineCount - 1);
+      for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+        const lineText = doc.lineAt(lineNum).text;
+        const idx = lineText.indexOf(node.name);
+        if (idx !== -1) {
+          return new vscode.Position(lineNum, idx);
+        }
+      }
+    }
+  } catch {
+    // Fall back to selectionRange or range start
+  }
+  return node.selectionRange?.start ?? node.range.start;
 }

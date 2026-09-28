@@ -172,6 +172,8 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
     const fileName = getPathBasename(item);
     const relPath = getRelativePath(item);
     const treeItem = new vscode.TreeItem(fileName, vscode.TreeItemCollapsibleState.None);
+    treeItem.resourceUri = item;
+    treeItem.contextValue = 'facetFile';
     if (relPath) {
       const lastSlash = relPath.lastIndexOf('/');
       treeItem.description = lastSlash !== -1 ? relPath.slice(0, lastSlash) : undefined;

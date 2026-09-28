@@ -55,6 +55,15 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
 
     if (element) {
       if (isTree) {
+        if (!element.subTypes || element.subTypes.length === 0) {
+          const lspSubtypes = await context.coordinator.resolver.resolveTypeHierarchySubtypes(
+            element,
+            context.cancellationToken,
+          );
+          if (lspSubtypes.length > 0) {
+            element.subTypes = lspSubtypes;
+          }
+        }
         const subTypes = element.subTypes ?? [];
         const filtered = subTypes.filter((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters));
         return sortSymbolNodes(filtered, config.sort);
@@ -155,6 +164,8 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
       node.name,
       hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
     );
+    item.resourceUri = node.uri;
+    item.contextValue = 'facetSymbol';
 
     let desc = node.detail ?? '';
     if (node.isStatic) {

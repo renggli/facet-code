@@ -97,10 +97,20 @@ export enum TreeItemCollapsibleState {
   Expanded = 2,
 }
 
+export enum ViewColumn {
+  Active = -1,
+  Beside = -2,
+  One = 1,
+  Two = 2,
+}
+
 export class TreeItem {
   description?: string;
   iconPath?: any;
   command?: any;
+  resourceUri?: Uri;
+  contextValue?: string;
+  tooltip?: string;
   constructor(
     public label: string,
     public collapsibleState: TreeItemCollapsibleState = TreeItemCollapsibleState.None,
@@ -200,8 +210,16 @@ export const workspace = {
     dispose: () => {},
   }),
   onDidSaveTextDocument: () => ({ dispose: () => {} }),
+  onDidChangeTextDocument: () => ({ dispose: () => {} }),
+  onDidCreateFiles: () => ({ dispose: () => {} }),
+  onDidDeleteFiles: () => ({ dispose: () => {} }),
+  onDidRenameFiles: () => ({ dispose: () => {} }),
   fs: {
     readFile: async () => Buffer.from('', 'utf8'),
+    writeFile: async () => {},
+    createDirectory: async () => {},
+    delete: async () => {},
+    rename: async () => {},
   },
   getConfiguration: (section?: string) => {
     return {
@@ -284,6 +302,14 @@ export enum ConfigurationTarget {
 
 export const languages = {
   getDiagnostics: (_uri?: any): any[] => [],
+  onDidChangeDiagnostics: () => ({ dispose: () => {} }),
+};
+
+export const env = {
+  clipboard: {
+    writeText: async (_text: string) => {},
+    readText: async () => '',
+  },
 };
 
 export const commands = {
@@ -325,6 +351,7 @@ export const mockVscode = {
   Range,
   Selection,
   Uri,
+  ViewColumn,
   SymbolKind,
   DiagnosticSeverity,
   ConfigurationTarget,
@@ -339,6 +366,7 @@ export const mockVscode = {
   workspace,
   window,
   languages,
+  env,
   commands,
   extensions,
 };

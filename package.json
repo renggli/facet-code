@@ -336,6 +336,117 @@
         "command": "facet.pane.6.sort",
         "title": "Sort...",
         "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "facet.openToSide",
+        "title": "Open to the Side",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "facet.revealInSidebar",
+        "title": "Reveal in Explorer View",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "facet.revealInOS",
+        "title": "Reveal in File Explorer",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "facet.openInTerminal",
+        "title": "Open in Integrated Terminal",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "facet.copyPath",
+        "title": "Copy Path",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "facet.copyRelativePath",
+        "title": "Copy Relative Path",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "facet.newFile",
+        "title": "New File...",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "facet.newFolder",
+        "title": "New Folder...",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "facet.deleteFile",
+        "title": "Delete",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "facet.renameFile",
+        "title": "Rename...",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "facet.findInFolder",
+        "title": "Find in Folder...",
+        "icon": "$(search)"
+      },
+      {
+        "command": "facet.selectForCompare",
+        "title": "Select for Compare"
+      },
+      {
+        "command": "facet.compareWithSelected",
+        "title": "Compare with Selected"
+      },
+      {
+        "command": "facet.symbol.goToDefinition",
+        "title": "Go to Definition"
+      },
+      {
+        "command": "facet.symbol.peekDefinition",
+        "title": "Peek Definition"
+      },
+      {
+        "command": "facet.symbol.goToDeclaration",
+        "title": "Go to Declaration"
+      },
+      {
+        "command": "facet.symbol.goToTypeDefinition",
+        "title": "Go to Type Definition"
+      },
+      {
+        "command": "facet.symbol.goToImplementations",
+        "title": "Go to Implementations"
+      },
+      {
+        "command": "facet.symbol.peekImplementations",
+        "title": "Peek Implementations"
+      },
+      {
+        "command": "facet.symbol.findReferences",
+        "title": "Find All References"
+      },
+      {
+        "command": "facet.symbol.showCallHierarchy",
+        "title": "Peek Call Hierarchy"
+      },
+      {
+        "command": "facet.symbol.showTypeHierarchy",
+        "title": "Peek Type Hierarchy"
+      },
+      {
+        "command": "facet.symbol.rename",
+        "title": "Rename Symbol"
+      },
+      {
+        "command": "facet.symbol.copyName",
+        "title": "Copy Symbol Name"
+      },
+      {
+        "command": "facet.problem.copyMessage",
+        "title": "Copy Problem Message"
       }
     ],
     "menus": {
@@ -506,6 +617,106 @@
         },
         {
           "command": "facet.pane.6.sort",
+          "when": "false"
+        },
+        {
+          "command": "facet.openToSide",
+          "when": "false"
+        },
+        {
+          "command": "facet.revealInSidebar",
+          "when": "false"
+        },
+        {
+          "command": "facet.revealInOS",
+          "when": "false"
+        },
+        {
+          "command": "facet.openInTerminal",
+          "when": "false"
+        },
+        {
+          "command": "facet.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "facet.copyRelativePath",
+          "when": "false"
+        },
+        {
+          "command": "facet.newFile",
+          "when": "false"
+        },
+        {
+          "command": "facet.newFolder",
+          "when": "false"
+        },
+        {
+          "command": "facet.deleteFile",
+          "when": "false"
+        },
+        {
+          "command": "facet.renameFile",
+          "when": "false"
+        },
+        {
+          "command": "facet.findInFolder",
+          "when": "false"
+        },
+        {
+          "command": "facet.selectForCompare",
+          "when": "false"
+        },
+        {
+          "command": "facet.compareWithSelected",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.goToDefinition",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.peekDefinition",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.goToDeclaration",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.goToTypeDefinition",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.goToImplementations",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.peekImplementations",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.findReferences",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.showCallHierarchy",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.showTypeHierarchy",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.rename",
+          "when": "false"
+        },
+        {
+          "command": "facet.symbol.copyName",
+          "when": "false"
+        },
+        {
+          "command": "facet.problem.copyMessage",
           "when": "false"
         }
       ],
@@ -719,6 +930,133 @@
           "command": "facet.pane.6.sort",
           "when": "view == facet.pane.6",
           "group": "1_settings@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "facet.openToSide",
+          "when": "viewItem == facetFile || viewItem == facetDirectory || viewItem == facetSymbol || viewItem == facetProblem || viewItem == facetRelation",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.revealInSidebar",
+          "when": "viewItem == facetFile || viewItem == facetDirectory",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.revealInOS",
+          "when": "viewItem == facetFile || viewItem == facetDirectory || viewItem == facetSymbol || viewItem == facetProblem || viewItem == facetRelation",
+          "group": "navigation@3"
+        },
+        {
+          "command": "facet.openInTerminal",
+          "when": "viewItem == facetFile || viewItem == facetDirectory",
+          "group": "navigation@4"
+        },
+        {
+          "command": "facet.newFile",
+          "when": "viewItem == facetDirectory",
+          "group": "1_new@1"
+        },
+        {
+          "command": "facet.newFolder",
+          "when": "viewItem == facetDirectory",
+          "group": "1_new@2"
+        },
+        {
+          "command": "facet.findInFolder",
+          "when": "viewItem == facetDirectory",
+          "group": "2_search@1"
+        },
+        {
+          "command": "facet.symbol.goToDefinition",
+          "when": "viewItem == facetSymbol",
+          "group": "2_goto@1"
+        },
+        {
+          "command": "facet.symbol.peekDefinition",
+          "when": "viewItem == facetSymbol",
+          "group": "2_goto@2"
+        },
+        {
+          "command": "facet.symbol.goToDeclaration",
+          "when": "viewItem == facetSymbol",
+          "group": "2_goto@3"
+        },
+        {
+          "command": "facet.symbol.goToTypeDefinition",
+          "when": "viewItem == facetSymbol",
+          "group": "2_goto@4"
+        },
+        {
+          "command": "facet.symbol.goToImplementations",
+          "when": "viewItem == facetSymbol",
+          "group": "2_goto@5"
+        },
+        {
+          "command": "facet.symbol.peekImplementations",
+          "when": "viewItem == facetSymbol",
+          "group": "2_goto@6"
+        },
+        {
+          "command": "facet.symbol.findReferences",
+          "when": "viewItem == facetSymbol",
+          "group": "3_references@1"
+        },
+        {
+          "command": "facet.symbol.showCallHierarchy",
+          "when": "viewItem == facetSymbol",
+          "group": "3_references@2"
+        },
+        {
+          "command": "facet.symbol.showTypeHierarchy",
+          "when": "viewItem == facetSymbol",
+          "group": "3_references@3"
+        },
+        {
+          "command": "facet.selectForCompare",
+          "when": "viewItem == facetFile",
+          "group": "3_compare@1"
+        },
+        {
+          "command": "facet.compareWithSelected",
+          "when": "viewItem == facetFile",
+          "group": "3_compare@2"
+        },
+        {
+          "command": "facet.symbol.rename",
+          "when": "viewItem == facetSymbol",
+          "group": "5_refactor@1"
+        },
+        {
+          "command": "facet.renameFile",
+          "when": "viewItem == facetFile || viewItem == facetDirectory",
+          "group": "5_refactor@2"
+        },
+        {
+          "command": "facet.symbol.copyName",
+          "when": "viewItem == facetSymbol",
+          "group": "6_copy@1"
+        },
+        {
+          "command": "facet.problem.copyMessage",
+          "when": "viewItem == facetProblem",
+          "group": "6_copy@1"
+        },
+        {
+          "command": "facet.copyPath",
+          "when": "viewItem == facetFile || viewItem == facetDirectory || viewItem == facetSymbol || viewItem == facetProblem || viewItem == facetRelation",
+          "group": "6_copy@2"
+        },
+        {
+          "command": "facet.copyRelativePath",
+          "when": "viewItem == facetFile || viewItem == facetDirectory || viewItem == facetSymbol || viewItem == facetProblem || viewItem == facetRelation",
+          "group": "6_copy@3"
+        },
+        {
+          "command": "facet.deleteFile",
+          "when": "viewItem == facetFile || viewItem == facetDirectory",
+          "group": "7_delete@1"
         }
       ]
     },

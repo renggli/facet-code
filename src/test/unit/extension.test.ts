@@ -90,5 +90,50 @@ suite('Extension Lifecycle Test Suite', () => {
     await vscode.commands.executeCommand('facet.savePreset');
     await vscode.commands.executeCommand('facet.loadPreset');
     await vscode.commands.executeCommand('facet.deletePreset');
+
+    // Execute context menu commands with various item types
+    const fileArg = vscode.Uri.file('/fake/test.ts');
+    await vscode.commands.executeCommand('facet.openToSide', fileArg);
+    await vscode.commands.executeCommand('facet.revealInOS', fileArg);
+    await vscode.commands.executeCommand('facet.revealInSidebar', fileArg);
+    await vscode.commands.executeCommand('facet.openInTerminal', fileArg);
+    await vscode.commands.executeCommand('facet.copyPath', fileArg);
+    await vscode.commands.executeCommand('facet.copyRelativePath', fileArg);
+    await vscode.commands.executeCommand('facet.findInFolder', fileArg);
+    await vscode.commands.executeCommand('facet.selectForCompare', fileArg);
+    await vscode.commands.executeCommand('facet.compareWithSelected', fileArg);
+
+    // Test prompt-based file actions with cancelled input
+    await vscode.commands.executeCommand('facet.newFile', fileArg);
+    await vscode.commands.executeCommand('facet.newFolder', fileArg);
+    await vscode.commands.executeCommand('facet.deleteFile', fileArg);
+    await vscode.commands.executeCommand('facet.renameFile', fileArg);
+
+    // Symbol context commands
+    const symbolArg = {
+      name: 'testSym',
+      uri: fileArg,
+      range: dummyRange,
+      selectionRange: dummyRange,
+    };
+    await vscode.commands.executeCommand('facet.symbol.goToDefinition', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.peekDefinition', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.goToDeclaration', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.goToTypeDefinition', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.goToImplementations', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.peekImplementations', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.findReferences', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.showCallHierarchy', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.showTypeHierarchy', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.rename', symbolArg);
+    await vscode.commands.executeCommand('facet.symbol.copyName', symbolArg);
+
+    // Problem context commands
+    const problemArg = {
+      uri: fileArg,
+      message: 'test error',
+      type: 'problem',
+    };
+    await vscode.commands.executeCommand('facet.problem.copyMessage', problemArg);
   });
 });

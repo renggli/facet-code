@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { FacetSymbolNode } from '../models/symbolNode';
+import { type FacetSymbolNode, resolveExactSymbolPosition } from '../models/symbolNode';
 
 export type RelationsMode = 'references' | 'callers' | 'implementations' | 'definitions' | 'declarations';
 
@@ -75,10 +75,11 @@ export class RelationsTreeProvider {
   }
 
   async fetchReferencesForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+    const pos = await resolveExactSymbolPosition(node);
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
       'vscode.executeReferenceProvider',
       node.uri,
-      node.selectionRange.start,
+      pos,
     );
 
     if (!locations || locations.length === 0) {
@@ -106,47 +107,57 @@ export class RelationsTreeProvider {
   }
 
   async fetchCallersForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
-    const items = await vscode.commands.executeCommand<vscode.CallHierarchyItem[]>(
-      'vscode.prepareCallHierarchy',
-      node.uri,
-      node.selectionRange.start,
-    );
-
-    if (!items || items.length === 0) {
-      return [];
+    const pos = await resolveExactSymbolPosition(node);
+    let items: vscode.CallHierarchyItem[] | undefined;
+    try {
+      items = await vscode.commands.executeCommand<vscode.CallHierarchyItem[]>(
+        'vscode.prepareCallHierarchy',
+        node.uri,
+        pos,
+      );
+    } catch {
+      items = undefined;
     }
 
-    const calls = await vscode.commands.executeCommand<vscode.CallHierarchyIncomingCall[]>(
-      'vscode.provideIncomingCalls',
-      items[0],
-    );
+    if (items && items.length > 0) {
+      try {
+        const calls = await vscode.commands.executeCommand<vscode.CallHierarchyIncomingCall[]>(
+          'vscode.provideIncomingCalls',
+          items[0],
+        );
 
-    if (!calls || calls.length === 0) {
-      return [];
+        if (calls && calls.length > 0) {
+          return calls.map((call) => {
+            const from = call.from;
+            const relPath = vscode.workspace.asRelativePath(from.uri);
+            const lineNum = from.range.start.line + 1;
+            const container = from.detail ? `${from.detail}.` : '';
+
+            return {
+              label: `${container}${from.name}()`,
+              description: `${relPath}:${lineNum}`,
+              tooltip: `Called from ${container}${from.name}() in ${from.uri.fsPath}:${lineNum}`,
+              iconPath: new vscode.ThemeIcon('call-incoming'),
+              uri: from.uri,
+              range: from.selectionRange,
+              kind: from.kind,
+            };
+          });
+        }
+      } catch {
+        // Fall back to reference-based caller discovery
+      }
     }
 
-    return calls.map((call) => {
-      const from = call.from;
-      const relPath = vscode.workspace.asRelativePath(from.uri);
-      const lineNum = from.range.start.line + 1;
-      const container = from.detail ? `${from.detail}.` : '';
-
-      return {
-        label: `${container}${from.name}()`,
-        description: `${relPath}:${lineNum}`,
-        tooltip: `Called from ${container}${from.name}() in ${from.uri.fsPath}:${lineNum}`,
-        iconPath: new vscode.ThemeIcon('call-incoming'),
-        uri: from.uri,
-        range: from.selectionRange,
-      };
-    });
+    return this.fetchCallersViaReferences(node, pos);
   }
 
   async fetchImplementationsForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+    const pos = await resolveExactSymbolPosition(node);
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
       'vscode.executeImplementationProvider',
       node.uri,
-      node.selectionRange.start,
+      pos,
     );
 
     if (!locations || locations.length === 0) {
@@ -174,10 +185,11 @@ export class RelationsTreeProvider {
   }
 
   async fetchDefinitionsForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+    const pos = await resolveExactSymbolPosition(node);
     const locations = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
       'vscode.executeDefinitionProvider',
       node.uri,
-      node.selectionRange.start,
+      pos,
     );
 
     if (!locations || locations.length === 0) {
@@ -207,10 +219,11 @@ export class RelationsTreeProvider {
   }
 
   async fetchDeclarationsForNode(node: FacetSymbolNode): Promise<RelationItem[]> {
+    const pos = await resolveExactSymbolPosition(node);
     const locations = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
       'vscode.executeDeclarationProvider',
       node.uri,
-      node.selectionRange.start,
+      pos,
     );
 
     if (!locations || locations.length === 0) {
@@ -243,12 +256,55 @@ export class RelationsTreeProvider {
     const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
     item.description = element.description;
     item.tooltip = element.tooltip;
-    item.iconPath = element.iconPath || new vscode.ThemeIcon('references');
+    item.iconPath = element.iconPath ?? new vscode.ThemeIcon('references');
+    item.resourceUri = element.uri;
+    item.contextValue = 'facetRelation';
     item.command = {
       command: 'facet.revealRange',
       title: 'Reveal in Editor',
       arguments: [element.uri, element.range],
     };
     return item;
+  }
+
+  private async fetchCallersViaReferences(node: FacetSymbolNode, pos: vscode.Position): Promise<RelationItem[]> {
+    let locations: vscode.Location[] | undefined;
+    try {
+      locations = await vscode.commands.executeCommand<vscode.Location[]>(
+        'vscode.executeReferenceProvider',
+        node.uri,
+        pos,
+      );
+    } catch {
+      locations = undefined;
+    }
+
+    if (!locations || locations.length === 0) {
+      return [];
+    }
+
+    const items: RelationItem[] = [];
+    for (const loc of locations) {
+      const isSelf = loc.uri.toString() === node.uri.toString() && loc.range.contains(pos);
+      if (isSelf) {
+        continue;
+      }
+
+      const relPath = vscode.workspace.asRelativePath(loc.uri);
+      const lineNum = loc.range.start.line + 1;
+      const snippet = await getLineSnippet(loc.uri, loc.range.start.line, `${node.name}()`);
+
+      items.push({
+        label: snippet,
+        description: `${relPath}:${lineNum}`,
+        tooltip: `Call site in ${loc.uri.fsPath}:${lineNum}\n${snippet}`,
+        iconPath: new vscode.ThemeIcon('call-incoming'),
+        uri: loc.uri,
+        range: loc.range,
+        kind: node.kind,
+      });
+    }
+
+    return items;
   }
 }

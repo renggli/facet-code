@@ -5,7 +5,7 @@ import type { DirectoryNode } from '../panes/definitions/directoriesPane';
 import type { ProblemItem, ProblemsPaneDefinition } from '../panes/definitions/problemsPane';
 import type { PaneExecutionContext, PaneOutput } from '../panes/paneDefinition';
 import { createDefaultPaneRegistry, type PaneRegistry } from '../panes/paneRegistry';
-import { RelationsTreeProvider, type RelationItem } from '../providers/relationsTreeProvider';
+import { type RelationItem, RelationsTreeProvider } from '../providers/relationsTreeProvider';
 import type { SymbolResolver } from '../services/symbolResolver';
 import type { PanePipelineManager } from './panePipelineManager';
 
@@ -22,9 +22,11 @@ export class FacetCoordinator implements vscode.Disposable {
   private cachedWorkspaceFiles: vscode.Uri[] = [];
   private cachedDocumentSymbols: FacetSymbolNode[] = [];
   private cachedDocumentUri?: string;
+  private cachedDocumentVersion?: number;
   private isInternalSelection = false;
   private slotSelections = new Map<string, readonly FacetSlotItem[]>();
   private pipelineManager?: PanePipelineManager;
+  private documentChangeDebounceTimer?: NodeJS.Timeout;
 
   private _onDidRefreshSlot = new vscode.EventEmitter<string>();
   readonly onDidRefreshSlot = this._onDidRefreshSlot.event;
@@ -93,6 +95,54 @@ export class FacetCoordinator implements vscode.Disposable {
     this._onDidRefreshAll.fire();
   }
 
+  public refreshAffectedPanes(roles: readonly string[]): void {
+    if (!this.pipelineManager) {
+      return;
+    }
+    const visible = this.pipelineManager.getVisiblePanes();
+    for (const pane of visible) {
+      if (roles.includes(pane.role)) {
+        this.refreshSlot(pane.id);
+      }
+    }
+  }
+
+  public handleDocumentChange(document: vscode.TextDocument): void {
+    if (this.currentEditor?.document.uri.toString() === document.uri.toString()) {
+      this.cachedDocumentSymbols = [];
+      this.cachedDocumentUri = undefined;
+      this.cachedDocumentVersion = undefined;
+    }
+    this.resolver.invalidateCache(document.uri);
+
+    if (this.documentChangeDebounceTimer) {
+      clearTimeout(this.documentChangeDebounceTimer);
+    }
+    this.documentChangeDebounceTimer = setTimeout(() => {
+      this.refreshAffectedPanes([
+        'symbols',
+        'hierarchy',
+        'callers',
+        'references',
+        'definitions',
+        'declarations',
+        'implementations',
+        'changes',
+      ]);
+    }, 250);
+  }
+
+  public handleDiagnosticsChange(_uris?: readonly vscode.Uri[]): void {
+    this.refreshAffectedPanes(['problems']);
+  }
+
+  public handleFileSystemChange(): void {
+    this.cachedWorkspaceFiles = [];
+    this.cachedWorkspaceTypes = [];
+    this.resolver.clearCache();
+    this.refreshAll();
+  }
+
   public handleEditorChange(editor: vscode.TextEditor | undefined): void {
     this.currentEditor = editor;
     this.scheduleSync();
@@ -123,14 +173,17 @@ export class FacetCoordinator implements vscode.Disposable {
     }
     this.currentEditor = editor;
 
+    const currentVersion = editor.document.version;
     if (
       !this.cachedDocumentSymbols ||
       this.cachedDocumentSymbols.length === 0 ||
-      this.cachedDocumentUri !== editor.document.uri.toString()
+      this.cachedDocumentUri !== editor.document.uri.toString() ||
+      (this.cachedDocumentVersion !== undefined && this.cachedDocumentVersion !== currentVersion)
     ) {
       try {
         this.cachedDocumentSymbols = await this.resolver.resolveDocumentSymbols(editor.document);
         this.cachedDocumentUri = editor.document.uri.toString();
+        this.cachedDocumentVersion = currentVersion;
       } catch {
         // ignore
       }
@@ -362,6 +415,7 @@ export class FacetCoordinator implements vscode.Disposable {
         try {
           this.cachedDocumentSymbols = await this.resolver.resolveDocumentSymbols(this.currentEditor.document, token);
           this.cachedDocumentUri = this.currentEditor.document.uri.toString();
+          this.cachedDocumentVersion = this.currentEditor.document.version;
         } catch {
           this.cachedDocumentSymbols = [];
         }
@@ -559,8 +613,22 @@ export class FacetCoordinator implements vscode.Disposable {
       return;
     }
 
-    const byUri = new Map<string, FacetSymbolNode[]>();
+    // Tier 1: Try LSP Type Hierarchy supertypes
     for (const t of missing) {
+      const lspSupertypes = await this.resolver.resolveTypeHierarchySupertypes(t, this.cancellationSource?.token);
+      if (lspSupertypes && lspSupertypes.length > 0) {
+        t.superTypes = lspSupertypes;
+      }
+    }
+
+    const stillMissing = missing.filter((t) => t.superTypes === undefined);
+    if (stillMissing.length === 0) {
+      return;
+    }
+
+    // Tier 2: Text / regex AST extraction
+    const byUri = new Map<string, FacetSymbolNode[]>();
+    for (const t of stillMissing) {
       const uriStr = t.uri.toString();
       const list = byUri.get(uriStr) ?? [];
       list.push(t);

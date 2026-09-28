@@ -552,4 +552,60 @@ export class Calculator {
     assert.strictEqual(roots[0].subTypes![0].subTypes?.length, 1);
     assert.strictEqual(roots[0].subTypes![0].subTypes![0].name, 'LeafClass');
   });
+
+  test('SymbolResolver resolves LSP type hierarchy supertypes and subtypes', async () => {
+    const testResolver = new SymbolResolver();
+    const testNode: FacetSymbolNode = {
+      name: 'Derived',
+      kind: vscode.SymbolKind.Class,
+      uri: dummyUri,
+      range: new vscode.Range(0, 0, 10, 0),
+      selectionRange: new vscode.Range(0, 13, 0, 20),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+    };
+
+    commands.setHandler('vscode.prepareTypeHierarchy', () => [
+      {
+        name: 'Derived',
+        kind: vscode.SymbolKind.Class,
+        uri: dummyUri,
+        range: testNode.range,
+        selectionRange: testNode.selectionRange,
+      },
+    ]);
+
+    commands.setHandler('vscode.provideSupertypes', () => [
+      {
+        name: 'Base',
+        kind: vscode.SymbolKind.Class,
+        uri: dummyUri,
+        range: testNode.range,
+        selectionRange: testNode.selectionRange,
+      },
+    ]);
+
+    commands.setHandler('vscode.provideSubtypes', () => [
+      {
+        name: 'SubDerived',
+        kind: vscode.SymbolKind.Class,
+        uri: dummyUri,
+        range: testNode.range,
+        selectionRange: testNode.selectionRange,
+      },
+    ]);
+
+    const supertypes = await testResolver.resolveTypeHierarchySupertypes(testNode);
+    assert.deepStrictEqual(supertypes, ['Base']);
+
+    const subtypes = await testResolver.resolveTypeHierarchySubtypes(testNode);
+    assert.strictEqual(subtypes.length, 1);
+    assert.strictEqual(subtypes[0].name, 'SubDerived');
+    assert.strictEqual(subtypes[0].parent, testNode);
+
+    // Invalidate cache
+    testResolver.invalidateCache(dummyUri);
+    testResolver.clearCache();
+  });
 });

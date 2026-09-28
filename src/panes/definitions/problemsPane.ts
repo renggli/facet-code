@@ -107,6 +107,8 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
 
   public getTreeItem(item: ProblemItem): vscode.TreeItem {
     const treeItem = new vscode.TreeItem(item.label, vscode.TreeItemCollapsibleState.None);
+    treeItem.resourceUri = item.uri;
+    treeItem.contextValue = 'facetProblem';
     treeItem.description = item.description;
     treeItem.tooltip = item.tooltip;
     treeItem.iconPath = item.iconPath;

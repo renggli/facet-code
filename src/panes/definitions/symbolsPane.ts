@@ -185,7 +185,7 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
         }
       }
 
-      let rawMembers = unionMembers(targetTypes);
+      const rawMembers = unionMembers(targetTypes);
       const filtered = rawMembers.filter((m) => matchesPaneFilters(m, filters));
       return sortSymbolNodes(filtered, config.sort);
     }
@@ -217,6 +217,8 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
       node.name,
       hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
     );
+    item.resourceUri = node.uri;
+    item.contextValue = 'facetSymbol';
 
     let desc = node.detail ?? '';
     if (node.isStatic) {

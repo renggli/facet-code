@@ -108,6 +108,29 @@ suite('Providers Test Suite', () => {
     const emptyDefs = await provider.fetchRelationsForNodes([mockType.children[0]], 'definitions');
     assert.strictEqual(emptyDefs.length, 0);
 
+    // Callers fallback to references when prepareCallHierarchy returns empty
+    const otherUri = vscode.Uri.file('/workspace/src/caller_file.ts');
+    commands.setHandler('vscode.prepareCallHierarchy', () => []);
+    commands.setHandler('vscode.executeReferenceProvider', () => [
+      { uri: otherUri, range: new vscode.Range(10, 0, 10, 15) },
+    ]);
+    const fallbackCallers = await provider.fetchRelationsForNodes([mockType.children[0]], 'callers');
+    assert.strictEqual(fallbackCallers.length, 1);
+    assert.strictEqual(fallbackCallers[0].uri.toString(), otherUri.toString());
+    assert.strictEqual(fallbackCallers[0].description, 'src/caller_file.ts:11');
+
     commands.clearHandlers();
+  });
+
+  test('RelationsTreeProvider sets resourceUri and contextValue on TreeItems', () => {
+    const provider = new RelationsTreeProvider();
+    const item: RelationItem = {
+      label: 'test()',
+      uri: dummyUri,
+      range: dummyRange,
+    };
+    const treeItem = provider.getTreeItem(item);
+    assert.strictEqual(treeItem.resourceUri?.toString(), dummyUri.toString());
+    assert.strictEqual(treeItem.contextValue, 'facetRelation');
   });
 });

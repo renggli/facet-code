@@ -5,6 +5,7 @@ import {
   type FacetSymbolNode,
   isTypeKind,
   MemberCategory,
+  resolveExactSymbolPosition,
 } from '../models/symbolNode';
 
 export class SymbolResolver {
@@ -12,6 +13,87 @@ export class SymbolResolver {
 
   public clearCache(): void {
     this.cache.clear();
+  }
+
+  public invalidateCache(uri: vscode.Uri): void {
+    this.cache.delete(uri.toString());
+  }
+
+  public async resolveTypeHierarchySubtypes(
+    node: FacetSymbolNode,
+    token?: vscode.CancellationToken,
+  ): Promise<FacetSymbolNode[]> {
+    if (!node.uri) {
+      return [];
+    }
+    const pos = await resolveExactSymbolPosition(node);
+    if (token?.isCancellationRequested) {
+      return [];
+    }
+    try {
+      const items = await vscode.commands.executeCommand<vscode.TypeHierarchyItem[]>(
+        'vscode.prepareTypeHierarchy',
+        node.uri,
+        pos,
+      );
+      if (token?.isCancellationRequested || !items || items.length === 0) {
+        return [];
+      }
+      const subtypes = await vscode.commands.executeCommand<vscode.TypeHierarchyItem[]>(
+        'vscode.provideSubtypes',
+        items[0],
+      );
+      if (token?.isCancellationRequested || !subtypes || subtypes.length === 0) {
+        return [];
+      }
+      return subtypes.map((sub) => ({
+        name: sub.name,
+        detail: sub.detail,
+        kind: sub.kind,
+        uri: sub.uri,
+        range: sub.range,
+        selectionRange: sub.selectionRange,
+        category: MemberCategory.All,
+        isStatic: false,
+        children: [],
+        parent: node,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  public async resolveTypeHierarchySupertypes(
+    node: FacetSymbolNode,
+    token?: vscode.CancellationToken,
+  ): Promise<string[]> {
+    if (!node.uri) {
+      return [];
+    }
+    const pos = await resolveExactSymbolPosition(node);
+    if (token?.isCancellationRequested) {
+      return [];
+    }
+    try {
+      const items = await vscode.commands.executeCommand<vscode.TypeHierarchyItem[]>(
+        'vscode.prepareTypeHierarchy',
+        node.uri,
+        pos,
+      );
+      if (token?.isCancellationRequested || !items || items.length === 0) {
+        return [];
+      }
+      const supertypes = await vscode.commands.executeCommand<vscode.TypeHierarchyItem[]>(
+        'vscode.provideSupertypes',
+        items[0],
+      );
+      if (token?.isCancellationRequested || !supertypes || supertypes.length === 0) {
+        return [];
+      }
+      return supertypes.map((s) => s.name);
+    } catch {
+      return [];
+    }
   }
 
   async resolveDocumentSymbols(
