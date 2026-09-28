@@ -72,7 +72,10 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
     } else if (config.inputSource === 'openEditors') {
       files = context.coordinator.getOpenEditorUris();
     } else if (config.inputSource === 'activeEditor') {
-      const activeUri = context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri;
+      const activeUri =
+        config.pinned && config.pinnedUri
+          ? vscode.Uri.parse(config.pinnedUri)
+          : (context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri);
       if (activeUri) {
         files = [activeUri];
       }

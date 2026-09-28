@@ -80,7 +80,10 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
     let files = Array.from(changedUris.values());
 
     if (config.inputSource === 'activeEditor') {
-      const activeUri = context.activeEditor?.document.uri;
+      const activeUri =
+        config.pinned && config.pinnedUri
+          ? vscode.Uri.parse(config.pinnedUri)
+          : (context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri);
       files = activeUri && changedUris.has(activeUri.fsPath) ? [activeUri] : [];
     } else if (config.inputSource === 'openEditors') {
       const openUris = new Set(context.coordinator.getOpenEditorUris().map((u) => u.fsPath));

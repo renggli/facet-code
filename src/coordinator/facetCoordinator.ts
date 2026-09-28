@@ -51,6 +51,10 @@ export class FacetCoordinator implements vscode.Disposable {
     return this.pipelineManager;
   }
 
+  public getCurrentEditor(): vscode.TextEditor | undefined {
+    return this.currentEditor;
+  }
+
   public getCachedWorkspaceFiles(): vscode.Uri[] {
     return this.cachedWorkspaceFiles;
   }
@@ -194,21 +198,21 @@ export class FacetCoordinator implements vscode.Disposable {
     }
 
     const visible = this.pipelineManager.getVisiblePanes();
-    const hasCursorPane = visible.some((p) => p.selectionSource === 'cursor');
+    const hasCursorPane = visible.some((p) => p.selectionSource === 'cursor' && (!p.pinned || force));
     if (!hasCursorPane && !force) {
       return undefined;
     }
 
     let lastCursorIdx = -1;
     for (let i = visible.length - 1; i >= 0; i--) {
-      if (visible[i].selectionSource === 'cursor') {
+      if (visible[i].selectionSource === 'cursor' && (!visible[i].pinned || force)) {
         lastCursorIdx = i;
         break;
       }
     }
     if (lastCursorIdx === -1) {
       for (let i = 0; i < visible.length; i++) {
-        if (visible[i].inputSource === 'previousPane') {
+        if (visible[i].inputSource === 'previousPane' && (!visible[i].pinned || force)) {
           lastCursorIdx = Math.max(0, i - 1);
           break;
         }
@@ -225,6 +229,9 @@ export class FacetCoordinator implements vscode.Disposable {
 
     for (let i = 0; i <= lastCursorIdx; i++) {
       const pane = visible[i];
+      if (pane.pinned && !force) {
+        continue;
+      }
       const shouldUpdate = force || pane.selectionSource === 'cursor' || i < lastCursorIdx;
       if (!shouldUpdate) {
         continue;
@@ -279,7 +286,7 @@ export class FacetCoordinator implements vscode.Disposable {
       targetSlotId = pane.id;
 
       for (const other of visible) {
-        if (other.id !== pane.id && other.inputSource === 'previousPane') {
+        if (other.id !== pane.id && other.inputSource === 'previousPane' && (!other.pinned || force)) {
           const upstream = this.getPreviousPane(other.id);
           if (upstream && upstream.id === pane.id) {
             this.refreshSlot(other.id);

@@ -147,7 +147,10 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
         }
       }
     } else if (config.inputSource === 'activeEditor') {
-      const activeUri = context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri;
+      const activeUri =
+        config.pinned && config.pinnedUri
+          ? vscode.Uri.parse(config.pinnedUri)
+          : (context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri);
       if (activeUri) {
         targetTypes = await this.resolveTypesFromFiles([activeUri], context);
       }

@@ -592,4 +592,80 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
 
     coordinator.dispose();
   });
+
+  test('getDependentPanes correctly chains previousPane dependencies', () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    // Default: P1 (project), P2 (previousPane), P3 (previousPane), P4 (previousPane)
+    const depP1 = manager.getDependentPanes('facet.pane.1');
+    assert.strictEqual(depP1.length, 3);
+    assert.strictEqual(depP1[0].id, 'facet.pane.2');
+    assert.strictEqual(depP1[1].id, 'facet.pane.3');
+    assert.strictEqual(depP1[2].id, 'facet.pane.4');
+
+    const depP2 = manager.getDependentPanes('facet.pane.2');
+    assert.strictEqual(depP2.length, 2);
+    assert.strictEqual(depP2[0].id, 'facet.pane.3');
+    assert.strictEqual(depP2[1].id, 'facet.pane.4');
+
+    const depP3 = manager.getDependentPanes('facet.pane.3');
+    assert.strictEqual(depP3.length, 1);
+    assert.strictEqual(depP3[0].id, 'facet.pane.4');
+
+    const depP4 = manager.getDependentPanes('facet.pane.4');
+    assert.strictEqual(depP4.length, 0);
+
+    // Break the chain: set P3 inputSource to 'project'
+    const p3 = manager.getPane('facet.pane.3');
+    if (p3) {
+      p3.inputSource = 'project';
+    }
+
+    const depP1Broken = manager.getDependentPanes('facet.pane.1');
+    assert.strictEqual(depP1Broken.length, 1);
+    assert.strictEqual(depP1Broken[0].id, 'facet.pane.2');
+
+    const depP3After = manager.getDependentPanes('facet.pane.3');
+    assert.strictEqual(depP3After.length, 1);
+    assert.strictEqual(depP3After[0].id, 'facet.pane.4');
+
+    coordinator.dispose();
+  });
+
+  test('setPinned and togglePin cascade to dependent panes and unpin cascades', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    // Pinning pane 2 should pin pane 2, pane 3, and pane 4
+    await manager.setPinned('facet.pane.2', true);
+    assert.strictEqual(manager.getPane('facet.pane.1')?.pinned, false);
+    assert.strictEqual(manager.getPane('facet.pane.2')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, true);
+
+    // Unpinning leaf pane 4 should unpin only pane 4
+    await manager.togglePin('facet.pane.4');
+    assert.strictEqual(manager.getPane('facet.pane.2')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, false);
+
+    // Unpinning pane 2 should unpin pane 2 and its remaining dependent pane 3
+    await manager.togglePin('facet.pane.2');
+    assert.strictEqual(manager.getPane('facet.pane.2')?.pinned, false);
+    assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, false);
+    assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, false);
+
+    // configurePane with pin action
+    window.pushQuickPick({ action: 'pin' });
+    await manager.configurePane('facet.pane.3');
+    assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, true);
+
+    coordinator.dispose();
+  });
 });

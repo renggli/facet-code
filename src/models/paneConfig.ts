@@ -114,6 +114,8 @@ export interface BasePaneConfig {
   inputSource: PaneInputSource;
   selectionSource: SelectionSource;
   sort: SortOption;
+  pinned?: boolean;
+  pinnedUri?: string;
 }
 
 export interface FilesPaneConfig extends BasePaneConfig {
@@ -243,6 +245,7 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
     sort: 'name',
     tree: false,
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -257,6 +260,7 @@ export function createDirectoriesPane(id: string, overrides?: Partial<Directorie
     sort: 'name',
     tree: true,
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -272,6 +276,7 @@ export function createSymbolsPane(id: string, overrides?: Partial<SymbolsPaneCon
     tree: true,
     filters: createDefaultFilters(),
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -286,6 +291,7 @@ export function createReferencesPane(id: string, overrides?: Partial<ReferencesP
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -303,6 +309,7 @@ export function createImplementationsPane(
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -316,6 +323,7 @@ export function createCallersPane(id: string, overrides?: Partial<CallersPaneCon
     selectionSource: 'none',
     sort: 'name',
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -330,6 +338,7 @@ export function createDefinitionsPane(id: string, overrides?: Partial<Definition
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -347,6 +356,7 @@ export function createDeclarationsPane(
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -360,6 +370,7 @@ export function createProblemsPane(id: string, overrides?: Partial<ProblemsPaneC
     selectionSource: 'none',
     sort: 'position',
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -373,6 +384,7 @@ export function createChangesPane(id: string, overrides?: Partial<ChangesPaneCon
     selectionSource: 'none',
     sort: 'position',
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }
@@ -389,6 +401,7 @@ export function createHierarchyPane(id: string, overrides?: Partial<HierarchyPan
     subclassTypes: ['class', 'struct'],
     filters: createDefaultFilters(TYPE_FILTER_KEYS),
     visible: true,
+    pinned: false,
     ...overrides,
   };
 }

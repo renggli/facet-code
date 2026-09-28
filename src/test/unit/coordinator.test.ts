@@ -1417,4 +1417,152 @@ suite('FacetCoordinator Test Suite', () => {
 
     coordinator.dispose();
   });
+
+  test('cursor selection changes ignore pinned panes and their dependent panes', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    const revealed: { slotId: string; node: unknown }[] = [];
+    coordinator.onRevealInView((event) => {
+      revealed.push(event);
+    });
+
+    const fileUri = vscode.Uri.file('/workspace/src/test.ts');
+    const testMember: FacetSymbolNode = {
+      name: 'calculate',
+      kind: vscode.SymbolKind.Method,
+      uri: fileUri,
+      range: new vscode.Range(5, 2, 7, 3),
+      selectionRange: new vscode.Range(5, 9, 5, 18),
+      category: MemberCategory.InstanceMethods,
+      isStatic: false,
+      children: [],
+    };
+
+    const testType: FacetSymbolNode = {
+      name: 'Calculator',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: new vscode.Range(0, 0, 10, 1),
+      selectionRange: new vscode.Range(0, 13, 0, 23),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [testMember],
+    };
+
+    (coordinator as unknown as { cachedDocumentSymbols: FacetSymbolNode[] }).cachedDocumentSymbols = [testType];
+    (coordinator as unknown as { cachedDocumentUri: string }).cachedDocumentUri = fileUri.toString();
+
+    const panes = manager.getVisiblePanes();
+    panes[2].selectionSource = 'cursor';
+    panes[3].selectionSource = 'cursor';
+
+    // Pin pane 3 (Definitions), which also cascades to pane 4 (Members)
+    await manager.setPinned(panes[2].id, true);
+
+    const mockEditor = {
+      document: {
+        uri: fileUri,
+        version: 1,
+        getText: () => '',
+      },
+      selection: {
+        active: new vscode.Position(6, 4),
+      },
+    };
+
+    // Selection change should NOT reveal or update pinned pane 3 or dependent pane 4
+    await coordinator.handleSelectionChange(mockEditor as unknown as vscode.TextEditor);
+
+    const slotTypesReveal = revealed.find((r) => r.slotId === panes[2].id);
+    const slotMembersReveal = revealed.find((r) => r.slotId === panes[3].id);
+    assert.strictEqual(slotTypesReveal, undefined);
+    assert.strictEqual(slotMembersReveal, undefined);
+    assert.strictEqual(coordinator.getSlotSelection(panes[2].id).length, 0);
+    assert.strictEqual(coordinator.getSlotSelection(panes[3].id).length, 0);
+
+    // However, when force is true, it overrides pin
+    await coordinator.handleSelectionChange(mockEditor as unknown as vscode.TextEditor, { force: true });
+    assert.ok(coordinator.getSlotSelection(panes[2].id).length > 0);
+
+    coordinator.dispose();
+  });
+
+  test('pinned pane with inputSource activeEditor preserves pinnedUri and does not switch documents', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    const fileA = vscode.Uri.file('/workspace/src/fileA.ts');
+    const fileB = vscode.Uri.file('/workspace/src/fileB.ts');
+
+    const typeA: FacetSymbolNode = {
+      name: 'ClassInA',
+      kind: vscode.SymbolKind.Class,
+      uri: fileA,
+      range: dummyRange,
+      selectionRange: dummyRange,
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+    };
+    const typeB: FacetSymbolNode = {
+      name: 'ClassInB',
+      kind: vscode.SymbolKind.Class,
+      uri: fileB,
+      range: dummyRange,
+      selectionRange: dummyRange,
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+    };
+
+    // Setup resolver mocks
+    resolver.resolveDocumentSymbols = async (doc: vscode.TextDocument) => {
+      if (doc.uri.fsPath === fileA.fsPath) {
+        return [typeA];
+      }
+      return [typeB];
+    };
+
+    // Configure pane 1 as Symbols with inputSource: activeEditor
+    const p1 = manager.getVisiblePanes()[0];
+    p1.role = 'symbols';
+    p1.inputSource = 'activeEditor';
+
+    // Mock active editor fileA
+    const mockEditorA = {
+      document: { uri: fileA, version: 1, getText: () => '' } as vscode.TextDocument,
+    } as vscode.TextEditor;
+    (coordinator as unknown as { currentEditor?: vscode.TextEditor }).currentEditor = mockEditorA;
+
+    // Pin pane 1 while on fileA
+    await manager.setPinned(p1.id, true);
+    assert.strictEqual(p1.pinnedUri, fileA.toString());
+
+    // Switch active editor to fileB
+    const mockEditorB = {
+      document: { uri: fileB, version: 1, getText: () => '' } as vscode.TextDocument,
+    } as vscode.TextEditor;
+    (coordinator as unknown as { currentEditor?: vscode.TextEditor }).currentEditor = mockEditorB;
+
+    // Children of pane 1 should still be from pinned fileA (ClassInA), not fileB
+    const childrenPinned = await coordinator.getSlotChildren<FacetSymbolNode>(p1);
+    assert.strictEqual(childrenPinned.length, 1);
+    assert.strictEqual(childrenPinned[0].name, 'ClassInA');
+
+    // Unpin pane 1
+    await manager.setPinned(p1.id, false);
+    assert.strictEqual(p1.pinnedUri, undefined);
+
+    // Children of pane 1 should now reflect active editor fileB
+    const childrenUnpinned = await coordinator.getSlotChildren<FacetSymbolNode>(p1);
+    assert.strictEqual(childrenUnpinned.length, 1);
+    assert.strictEqual(childrenUnpinned[0].name, 'ClassInB');
+
+    coordinator.dispose();
+  });
 });

@@ -128,6 +128,31 @@
         "icon": "$(trash)"
       },
       {
+        "command": "facet.togglePin",
+        "title": "Facet: Toggle Pin",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "facet.pinPane",
+        "title": "Facet: Pin Pane...",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "facet.unpinPane",
+        "title": "Facet: Unpin Pane...",
+        "icon": "$(pinned)"
+      },
+      {
+        "command": "facet.pane.1.togglePin.on",
+        "title": "Pin",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "facet.pane.1.togglePin.off",
+        "title": "Unpin",
+        "icon": "$(pinned)"
+      },
+      {
         "command": "facet.pane.1.toggleTree.on",
         "title": "View as List",
         "icon": "$(list-flat)"
@@ -161,6 +186,16 @@
         "command": "facet.pane.1.sort",
         "title": "Sort...",
         "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "facet.pane.2.togglePin.on",
+        "title": "Pin",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "facet.pane.2.togglePin.off",
+        "title": "Unpin",
+        "icon": "$(pinned)"
       },
       {
         "command": "facet.pane.2.toggleTree.on",
@@ -198,6 +233,16 @@
         "icon": "$(sort-precedence)"
       },
       {
+        "command": "facet.pane.3.togglePin.on",
+        "title": "Pin",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "facet.pane.3.togglePin.off",
+        "title": "Unpin",
+        "icon": "$(pinned)"
+      },
+      {
         "command": "facet.pane.3.toggleTree.on",
         "title": "View as List",
         "icon": "$(list-flat)"
@@ -231,6 +276,16 @@
         "command": "facet.pane.3.sort",
         "title": "Sort...",
         "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "facet.pane.4.togglePin.on",
+        "title": "Pin",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "facet.pane.4.togglePin.off",
+        "title": "Unpin",
+        "icon": "$(pinned)"
       },
       {
         "command": "facet.pane.4.toggleTree.on",
@@ -268,6 +323,16 @@
         "icon": "$(sort-precedence)"
       },
       {
+        "command": "facet.pane.5.togglePin.on",
+        "title": "Pin",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "facet.pane.5.togglePin.off",
+        "title": "Unpin",
+        "icon": "$(pinned)"
+      },
+      {
         "command": "facet.pane.5.toggleTree.on",
         "title": "View as List",
         "icon": "$(list-flat)"
@@ -301,6 +366,16 @@
         "command": "facet.pane.5.sort",
         "title": "Sort...",
         "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "facet.pane.6.togglePin.on",
+        "title": "Pin",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "facet.pane.6.togglePin.off",
+        "title": "Unpin",
+        "icon": "$(pinned)"
       },
       {
         "command": "facet.pane.6.toggleTree.on",
@@ -452,6 +527,14 @@
     "menus": {
       "commandPalette": [
         {
+          "command": "facet.pane.1.togglePin.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.1.togglePin.off",
+          "when": "false"
+        },
+        {
           "command": "facet.pane.1.toggleTree.on",
           "when": "false"
         },
@@ -477,6 +560,14 @@
         },
         {
           "command": "facet.pane.1.sort",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.togglePin.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.2.togglePin.off",
           "when": "false"
         },
         {
@@ -508,6 +599,14 @@
           "when": "false"
         },
         {
+          "command": "facet.pane.3.togglePin.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.3.togglePin.off",
+          "when": "false"
+        },
+        {
           "command": "facet.pane.3.toggleTree.on",
           "when": "false"
         },
@@ -533,6 +632,14 @@
         },
         {
           "command": "facet.pane.3.sort",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.togglePin.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.4.togglePin.off",
           "when": "false"
         },
         {
@@ -564,6 +671,14 @@
           "when": "false"
         },
         {
+          "command": "facet.pane.5.togglePin.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.5.togglePin.off",
+          "when": "false"
+        },
+        {
           "command": "facet.pane.5.toggleTree.on",
           "when": "false"
         },
@@ -589,6 +704,14 @@
         },
         {
           "command": "facet.pane.5.sort",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.togglePin.on",
+          "when": "false"
+        },
+        {
+          "command": "facet.pane.6.togglePin.off",
           "when": "false"
         },
         {
@@ -732,6 +855,16 @@
           "group": "navigation@1"
         },
         {
+          "command": "facet.pane.1.togglePin.on",
+          "when": "view == facet.pane.1 && !facet.pane.1.isPinned",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.1.togglePin.off",
+          "when": "view == facet.pane.1 && facet.pane.1.isPinned",
+          "group": "navigation@2"
+        },
+        {
           "command": "facet.pane.1.filter",
           "when": "view == facet.pane.1 && facet.pane.1.hasFilter",
           "group": "navigation@3"
@@ -765,6 +898,16 @@
           "command": "facet.pane.2.toggleTree.off",
           "when": "view == facet.pane.2 && facet.pane.2.hasTree && !facet.pane.2.isTree",
           "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.2.togglePin.on",
+          "when": "view == facet.pane.2 && !facet.pane.2.isPinned",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.2.togglePin.off",
+          "when": "view == facet.pane.2 && facet.pane.2.isPinned",
+          "group": "navigation@2"
         },
         {
           "command": "facet.pane.2.filter",
@@ -802,6 +945,16 @@
           "group": "navigation@1"
         },
         {
+          "command": "facet.pane.3.togglePin.on",
+          "when": "view == facet.pane.3 && !facet.pane.3.isPinned",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.3.togglePin.off",
+          "when": "view == facet.pane.3 && facet.pane.3.isPinned",
+          "group": "navigation@2"
+        },
+        {
           "command": "facet.pane.3.filter",
           "when": "view == facet.pane.3 && facet.pane.3.hasFilter",
           "group": "navigation@3"
@@ -835,6 +988,16 @@
           "command": "facet.pane.4.toggleTree.off",
           "when": "view == facet.pane.4 && facet.pane.4.hasTree && !facet.pane.4.isTree",
           "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.4.togglePin.on",
+          "when": "view == facet.pane.4 && !facet.pane.4.isPinned",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.4.togglePin.off",
+          "when": "view == facet.pane.4 && facet.pane.4.isPinned",
+          "group": "navigation@2"
         },
         {
           "command": "facet.pane.4.filter",
@@ -872,6 +1035,16 @@
           "group": "navigation@1"
         },
         {
+          "command": "facet.pane.5.togglePin.on",
+          "when": "view == facet.pane.5 && !facet.pane.5.isPinned",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.5.togglePin.off",
+          "when": "view == facet.pane.5 && facet.pane.5.isPinned",
+          "group": "navigation@2"
+        },
+        {
           "command": "facet.pane.5.filter",
           "when": "view == facet.pane.5 && facet.pane.5.hasFilter",
           "group": "navigation@3"
@@ -905,6 +1078,16 @@
           "command": "facet.pane.6.toggleTree.off",
           "when": "view == facet.pane.6 && facet.pane.6.hasTree && !facet.pane.6.isTree",
           "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.6.togglePin.on",
+          "when": "view == facet.pane.6 && !facet.pane.6.isPinned",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.6.togglePin.off",
+          "when": "view == facet.pane.6 && facet.pane.6.isPinned",
+          "group": "navigation@2"
         },
         {
           "command": "facet.pane.6.filter",

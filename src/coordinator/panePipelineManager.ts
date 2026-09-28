@@ -65,11 +65,13 @@ export class PanePipelineManager {
       const hasTree = Boolean(def?.capabilities.hasTreeToggle);
       const isTree = hasTree && hasTreeProperty(pane) ? Boolean(pane.tree) : false;
       const hasFilter = Boolean(def?.capabilities.hasFilter);
+      const isPinned = Boolean(pane.pinned);
 
       contextPromises.push(
         vscode.commands.executeCommand('setContext', `${pane.id}.hasTree`, hasTree),
         vscode.commands.executeCommand('setContext', `${pane.id}.isTree`, isTree),
         vscode.commands.executeCommand('setContext', `${pane.id}.hasFilter`, hasFilter),
+        vscode.commands.executeCommand('setContext', `${pane.id}.isPinned`, isPinned),
       );
     }
 
@@ -324,6 +326,15 @@ export class PanePipelineManager {
       });
     }
 
+    const isPinned = Boolean(pane.pinned);
+    items.push({
+      label: isPinned ? '$(pinned) Unpin Pane' : '$(pin) Pin Pane',
+      description: isPinned
+        ? 'Allow selection changes to affect this pane'
+        : 'Prevent selection changes from affecting this pane',
+      action: 'pin',
+    });
+
     const picked = await vscode.window.showQuickPick(items, {
       placeHolder: `Configure Pane: ${pane.title}`,
     });
@@ -355,6 +366,9 @@ export class PanePipelineManager {
         break;
       case 'tree':
         await this.configureTreeDisplay(slotId);
+        break;
+      case 'pin':
+        await this.togglePin(slotId);
         break;
     }
   }
@@ -562,6 +576,72 @@ export class PanePipelineManager {
       this._onDidUpdatePanes.fire();
       await this.coordinator.sync();
     }
+  }
+
+  public getDependentPanes(slotId: string): PaneConfig[] {
+    const visible = this.getVisiblePanes();
+    const idx = visible.findIndex((p) => p.id === slotId);
+    if (idx === -1) {
+      return [];
+    }
+    const dependents: PaneConfig[] = [];
+    for (let i = idx + 1; i < visible.length; i++) {
+      if (visible[i].inputSource === 'previousPane') {
+        dependents.push(visible[i]);
+      } else {
+        break;
+      }
+    }
+    return dependents;
+  }
+
+  public async setPinned(slotId: string, pinned: boolean, cascade = true): Promise<void> {
+    const pane = this.getPane(slotId);
+    if (!pane) {
+      return;
+    }
+    pane.pinned = pinned;
+    if (pinned) {
+      if (pane.inputSource === 'activeEditor') {
+        const curUri = this.coordinator.getCurrentEditor()?.document.uri.toString();
+        if (curUri) {
+          pane.pinnedUri = curUri;
+        }
+      }
+    } else {
+      pane.pinnedUri = undefined;
+    }
+
+    if (cascade) {
+      const dependents = this.getDependentPanes(slotId);
+      for (const dep of dependents) {
+        dep.pinned = pinned;
+        if (pinned) {
+          if (dep.inputSource === 'activeEditor') {
+            const curUri = this.coordinator.getCurrentEditor()?.document.uri.toString();
+            if (curUri) {
+              dep.pinnedUri = curUri;
+            }
+          }
+        } else {
+          dep.pinnedUri = undefined;
+        }
+      }
+    }
+
+    await this.syncContextKeys();
+    this._onDidUpdatePanes.fire();
+    if (!pinned) {
+      await this.coordinator.sync();
+    }
+  }
+
+  public async togglePin(slotId: string): Promise<void> {
+    const pane = this.getPane(slotId);
+    if (!pane) {
+      return;
+    }
+    await this.setPinned(slotId, !pane.pinned);
   }
 
   public async applyPreset(presetName?: string): Promise<void> {

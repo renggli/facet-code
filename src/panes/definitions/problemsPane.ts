@@ -59,8 +59,12 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
     if (config.inputSource === 'openEditors') {
       candidateUris = context.coordinator.getOpenEditorUris();
     } else if (config.inputSource === 'activeEditor') {
-      if (context.activeEditor?.document.uri) {
-        candidateUris = [context.activeEditor.document.uri];
+      const activeUri =
+        config.pinned && config.pinnedUri
+          ? vscode.Uri.parse(config.pinnedUri)
+          : (context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri);
+      if (activeUri) {
+        candidateUris = [activeUri];
       }
     } else if (config.inputSource === 'previousPane') {
       const prevItems = context.upstreamOutput.items ?? [];

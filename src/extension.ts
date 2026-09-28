@@ -26,6 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
       const view = slotViews.get(slotId);
       if (view && pane) {
         view.title = pane.title;
+        view.description = pane.pinned ? 'Pinned' : '';
       }
       slotProviders.get(slotId)?.refresh();
     }
@@ -46,6 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
     const pane = pipelineManager.getPane(slotId);
     if (pane) {
       treeView.title = pane.title;
+      treeView.description = pane.pinned ? 'Pinned' : '';
     }
     slotViews.set(slotId, treeView);
 
@@ -156,6 +158,21 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(`${slotId}.toggleTree.off`, async () => {
         await pipelineManager.toggleTreeDisplay(slotId);
       }),
+      vscode.commands.registerCommand(`${slotId}.togglePin`, async () => {
+        await pipelineManager.togglePin(slotId);
+      }),
+      vscode.commands.registerCommand(`${slotId}.togglePin.on`, async () => {
+        await pipelineManager.setPinned(slotId, true);
+      }),
+      vscode.commands.registerCommand(`${slotId}.togglePin.off`, async () => {
+        await pipelineManager.setPinned(slotId, false);
+      }),
+      vscode.commands.registerCommand(`${slotId}.pin`, async () => {
+        await pipelineManager.setPinned(slotId, true);
+      }),
+      vscode.commands.registerCommand(`${slotId}.unpin`, async () => {
+        await pipelineManager.setPinned(slotId, false);
+      }),
       vscode.commands.registerCommand(`${slotId}.filter`, async () => {
         await pipelineManager.configureFilter(slotId);
       }),
@@ -231,6 +248,24 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('facet.removePane', async () => {
       await pipelineManager.promptRemovePane();
+    }),
+    vscode.commands.registerCommand('facet.togglePin', async (arg?: unknown) => {
+      const slotId = await resolveSlotId(arg, 'Select pane to toggle pin');
+      if (slotId) {
+        await pipelineManager.togglePin(slotId);
+      }
+    }),
+    vscode.commands.registerCommand('facet.pinPane', async (arg?: unknown) => {
+      const slotId = await resolveSlotId(arg, 'Select pane to pin');
+      if (slotId) {
+        await pipelineManager.setPinned(slotId, true);
+      }
+    }),
+    vscode.commands.registerCommand('facet.unpinPane', async (arg?: unknown) => {
+      const slotId = await resolveSlotId(arg, 'Select pane to unpin');
+      if (slotId) {
+        await pipelineManager.setPinned(slotId, false);
+      }
     }),
     vscode.commands.registerCommand('facet.applyPreset', async () => {
       await pipelineManager.applyPreset();

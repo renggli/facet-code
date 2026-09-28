@@ -82,7 +82,17 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
       }
       rawTypes = workspaceTypes;
     } else if (config.inputSource === 'activeEditor') {
-      rawTypes = context.coordinator.getCachedDocumentSymbols().filter((s) => isTypeKind(s.kind));
+      if (config.pinned && config.pinnedUri) {
+        try {
+          const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(config.pinnedUri));
+          const symbols = await context.coordinator.resolver.resolveDocumentSymbols(doc);
+          rawTypes = context.coordinator.resolver.extractTypesOnly(symbols);
+        } catch {
+          rawTypes = [];
+        }
+      } else {
+        rawTypes = context.coordinator.getCachedDocumentSymbols().filter((s) => isTypeKind(s.kind));
+      }
     } else if (config.inputSource === 'openEditors') {
       const openUris = context.coordinator.getOpenEditorUris();
       for (const uri of openUris) {
