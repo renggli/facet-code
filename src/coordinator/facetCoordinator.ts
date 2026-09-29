@@ -287,7 +287,7 @@ export class FacetCoordinator implements vscode.Disposable {
         const upstream = this.getPreviousPane(pane.id);
         const upstreamIsType = upstream && upstream.role === 'symbols';
         if (pane.inputSource === 'previousPane' && upstreamIsType) {
-          rawTarget = memberAtCursor ?? enclosingType;
+          rawTarget = memberAtCursor;
         } else {
           rawTarget = enclosingType ?? memberAtCursor;
         }
@@ -583,13 +583,16 @@ export class FacetCoordinator implements vscode.Disposable {
       this.isInternalSelection = false;
     }
 
-    if (selection.length === 1 && selection[0] instanceof vscode.Uri) {
-      const openedUri = selection[0] as vscode.Uri;
-      setTimeout(() => {
-        if (this.currentEditor && this.currentEditor.document.uri.fsPath === openedUri.fsPath) {
-          void this.handleSelectionChange(this.currentEditor);
-        }
-      }, 50);
+    if (selection.length === 1) {
+      const first = selection[0];
+      const targetUri = first instanceof vscode.Uri ? first : (first as { uri?: vscode.Uri })?.uri;
+      if (targetUri) {
+        setTimeout(() => {
+          if (this.currentEditor && this.currentEditor.document.uri.fsPath === targetUri.fsPath) {
+            void this.handleSelectionChange(this.currentEditor);
+          }
+        }, 50);
+      }
     }
   }
 
@@ -806,7 +809,21 @@ export class FacetCoordinator implements vscode.Disposable {
       return undefined;
     }
     const pos = this.currentEditor.selection.active;
-    return parentType.children.find((c) => c.range.contains(pos));
+    const findDeep = (nodes: FacetSymbolNode[]): FacetSymbolNode | undefined => {
+      for (const node of nodes) {
+        if (node.range.contains(pos)) {
+          if (node.children && node.children.length > 0) {
+            const deeper = findDeep(node.children);
+            if (deeper) {
+              return deeper;
+            }
+          }
+          return node;
+        }
+      }
+      return undefined;
+    };
+    return findDeep(parentType.children);
   }
 
   public async revealRange(uri: vscode.Uri, range: vscode.Range): Promise<void> {

@@ -610,8 +610,6 @@ suite('FacetCoordinator Test Suite', () => {
 
     // Default visible: [pane.1 (directories), pane.2 (files), pane.3 (types), pane.4 (members)]
     const panes = manager.getVisiblePanes();
-    panes[2].selectionSource = 'cursor'; // types
-    panes[3].selectionSource = 'cursor'; // members
 
     const mockEditor = {
       document: {
@@ -635,6 +633,76 @@ suite('FacetCoordinator Test Suite', () => {
 
     assert.ok(slotMembersReveal);
     assert.strictEqual(slotMembersReveal.node.name, 'calculate');
+
+    coordinator.dispose();
+  });
+
+  test('Project Browser default preset updates members pane selection at cursor without manual configuration', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    const revealed: { slotId: string; node: any }[] = [];
+    coordinator.onRevealInView((event) => {
+      revealed.push(event);
+    });
+
+    const fileUri = vscode.Uri.file('/workspace/src/test.ts');
+    const testMember: FacetSymbolNode = {
+      name: 'calculate',
+      kind: vscode.SymbolKind.Method,
+      uri: fileUri,
+      range: new vscode.Range(5, 2, 7, 3),
+      selectionRange: new vscode.Range(5, 9, 5, 18),
+      category: MemberCategory.InstanceMethods,
+      isStatic: false,
+      children: [],
+    };
+
+    const testType: FacetSymbolNode = {
+      name: 'Calculator',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: new vscode.Range(0, 0, 10, 1),
+      selectionRange: new vscode.Range(0, 13, 0, 23),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [testMember],
+    };
+
+    (coordinator as any).cachedDocumentSymbols = [testType];
+    (coordinator as any).cachedDocumentUri = fileUri.toString();
+
+    const panes = manager.getVisiblePanes();
+    assert.strictEqual(panes[2].selectionSource, 'cursor');
+    assert.strictEqual(panes[3].selectionSource, 'cursor');
+
+    const mockEditor = {
+      document: {
+        uri: fileUri,
+        version: 1,
+        getText: () => '',
+      },
+      selection: {
+        active: new vscode.Position(6, 4),
+      },
+    };
+
+    await coordinator.handleSelectionChange(mockEditor as any);
+
+    const slotTypesReveal = revealed.find((r) => r.slotId === panes[2].id);
+    const slotMembersReveal = revealed.find((r) => r.slotId === panes[3].id);
+
+    assert.ok(slotTypesReveal);
+    assert.strictEqual(slotTypesReveal.node.name, 'Calculator');
+
+    assert.ok(slotMembersReveal);
+    assert.strictEqual(slotMembersReveal.node.name, 'calculate');
+
+    const membersSel = coordinator.getSlotSelection<FacetSymbolNode>(panes[3].id);
+    assert.strictEqual(membersSel.length, 1);
+    assert.strictEqual(membersSel[0].name, 'calculate');
 
     coordinator.dispose();
   });

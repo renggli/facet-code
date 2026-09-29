@@ -120,7 +120,7 @@ All panes implement the strongly typed `PaneDefinition` contract in `src/panes/p
 
 ### Architectural Clarification: `'symbols'` vs `'definitions'`
 
-- **`role: 'symbols'` (Structural Outline):** Extracts the structural AST hierarchy declared inside the source file (e.g., classes, interfaces, enums, methods, properties). In standard presets (such as `Project Browser`), the pane titled "Definitions" runs `role: 'symbols'` with `tree: false` to list top-level types.
+- **`role: 'symbols'` (Structural Outline):** Extracts the structural AST hierarchy declared inside the source file (e.g., classes, interfaces, enums, methods, properties). In standard presets (such as `Workspace Explorer`), the pane titled "Definitions" runs `role: 'symbols'` with `tree: false` to list top-level types.
 - **`role: 'definitions'` (Relation Target Finder):** Executes an LSP Go to Definition query (`vscode.executeDefinitionProvider`) on the upstream selected symbol, locating where that symbol is defined across the entire workspace and rendering code snippet previews with `path:line` locations.
 
 ---
@@ -131,7 +131,7 @@ All panes implement the strongly typed `PaneDefinition` contract in `src/panes/p
 
 Facet provides 6 official built-in workflow presets:
 
-1. **Project Browser:** `Directories (tree: true)` ➔ `Files (tree: false)` ➔ `Definitions (symbols, tree: false)` ➔ `Members (symbols, tree: true)`
+1. **Workspace Explorer:** `Directories (tree: true)` ➔ `Files (tree: false)` ➔ `Definitions (symbols, tree: false)` ➔ `Members (symbols, tree: true)`
 2. **Active Editor:** `Symbols (activeEditor, tree: true)` ➔ `Members (symbols, previousPane, tree: false)` ➔ `Callers (previousPane)`
 3. **Working Changes:** `Changes (project)` ➔ `Symbols (tree: true)` ➔ `Members (symbols, tree: false)` ➔ `Problems (project)`
 4. **Problem Triage:** `Problems (project)` ➔ `Symbols (tree: true)` ➔ `Members (symbols, tree: false)` ➔ `References (previousPane)`

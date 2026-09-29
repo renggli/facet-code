@@ -283,14 +283,31 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(visible[2].role, 'symbols');
     assert.strictEqual(visible[3].role, 'references');
 
-    // Apply Project Browser preset
+    // Apply Workspace Explorer preset (formerly Project Browser)
+    await manager.applyPreset('Workspace Explorer');
+    visible = manager.getVisiblePanes();
+    assert.strictEqual(visible.length, 4);
+    assert.strictEqual(visible[0].role, 'directories');
+    assert.strictEqual(visible[0].sort, 'name');
+    assert.strictEqual(visible[1].role, 'files');
+    assert.strictEqual(visible[1].sort, 'name');
+    assert.strictEqual(visible[2].role, 'symbols');
+    assert.strictEqual(visible[2].sort, 'category');
+    assert.strictEqual(visible[3].role, 'symbols');
+    assert.strictEqual(visible[3].sort, 'category');
+
+    // Backward compatibility: 'Project Browser' alias loads the same preset
     await manager.applyPreset('Project Browser');
     visible = manager.getVisiblePanes();
     assert.strictEqual(visible.length, 4);
     assert.strictEqual(visible[0].role, 'directories');
+    assert.strictEqual(visible[0].sort, 'name');
     assert.strictEqual(visible[1].role, 'files');
+    assert.strictEqual(visible[1].sort, 'name');
     assert.strictEqual(visible[2].role, 'symbols');
+    assert.strictEqual(visible[2].sort, 'category');
     assert.strictEqual(visible[3].role, 'symbols');
+    assert.strictEqual(visible[3].sort, 'category');
 
     // Save current preset to workspace and global
     await manager.savePreset('MyCustomPreset', 'workspace');
@@ -353,6 +370,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
 
     // 1. Both display names and camelCase keys load successfully
     const canonicalPresets: [string, string][] = [
+      ['workspaceExplorer', 'directories'],
       ['projectBrowser', 'directories'],
       ['activeEditor', 'symbols'],
       ['workingChanges', 'changes'],
@@ -657,6 +675,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const manager = new PanePipelineManager(coordinator);
 
     const presetNames = [
+      'Workspace Explorer',
       'Project Browser',
       'Active Editor',
       'Working Changes',

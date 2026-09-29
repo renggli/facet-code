@@ -319,12 +319,14 @@ export function createDefaultPanes(): PaneConfig[] {
       tree: true,
       inputSource: 'project',
       selectionSource: 'cursor',
+      sort: 'name',
     }),
     createFilesPane('facet.pane.2', {
       visible: true,
       tree: false,
       inputSource: 'previousPane',
       selectionSource: 'cursor',
+      sort: 'name',
     }),
     createSymbolsPane('facet.pane.3', {
       visible: true,
@@ -332,13 +334,15 @@ export function createDefaultPanes(): PaneConfig[] {
       tree: false,
       inputSource: 'previousPane',
       selectionSource: 'cursor',
+      sort: 'category',
     }),
     createSymbolsPane('facet.pane.4', {
       visible: true,
       title: 'Members',
       tree: true,
       inputSource: 'previousPane',
-      selectionSource: 'none',
+      selectionSource: 'cursor',
+      sort: 'category',
     }),
     createReferencesPane('facet.pane.5', {
       visible: false,

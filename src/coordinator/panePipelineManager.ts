@@ -663,9 +663,9 @@ export class PanePipelineManager {
     const items: (vscode.QuickPickItem & { action?: string; preset?: string })[] = [
       { label: 'Built-in Presets', kind: vscode.QuickPickItemKind.Separator },
       {
-        label: '$(layout) Project Browser',
+        label: '$(layout) Workspace Explorer',
         description: 'Directories (Hierarchy) -> Files -> Definitions (Flat) -> Members (Hierarchy)',
-        preset: 'projectBrowser',
+        preset: 'workspaceExplorer',
       },
       {
         label: '$(edit) Active Editor',
@@ -734,8 +734,8 @@ export class PanePipelineManager {
 
   public async loadPresetByName(presetName: string): Promise<void> {
     const norm = presetName.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (norm === 'projectbrowser') {
-      await this.loadBuiltinPreset('projectBrowser');
+    if (norm === 'workspaceexplorer' || norm === 'projectbrowser') {
+      await this.loadBuiltinPreset('workspaceExplorer');
       return;
     }
     if (norm === 'activeeditor') {
@@ -950,7 +950,7 @@ export class PanePipelineManager {
         s2.title = 'Members';
         s2.tree = false;
         s2.inputSource = 'previousPane';
-        s2.selectionSource = 'none';
+        s2.selectionSource = 'cursor';
 
         const pr = probDef.defaultConfig('');
         pr.title = 'Problems';
@@ -1024,7 +1024,7 @@ export class PanePipelineManager {
         s2.title = 'Members';
         s2.tree = true;
         s2.inputSource = 'previousPane';
-        s2.selectionSource = 'none';
+        s2.selectionSource = 'cursor';
 
         const ref = refDef.defaultConfig('');
         ref.title = 'References';
@@ -1035,29 +1035,34 @@ export class PanePipelineManager {
         break;
       }
       default: {
+        // workspaceExplorer (default preset, formerly projectBrowser)
         const d = dirDef.defaultConfig('');
         d.title = 'Directories';
         d.tree = true;
         d.inputSource = 'project';
         d.selectionSource = 'cursor';
+        d.sort = 'name';
 
         const f = filesDef.defaultConfig('');
         f.title = 'Files';
         f.tree = false;
         f.inputSource = 'previousPane';
         f.selectionSource = 'cursor';
+        f.sort = 'name';
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Definitions';
         s1.tree = false;
         s1.inputSource = 'previousPane';
         s1.selectionSource = 'cursor';
+        s1.sort = 'category';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = true;
         s2.inputSource = 'previousPane';
-        s2.selectionSource = 'none';
+        s2.selectionSource = 'cursor';
+        s2.sort = 'category';
 
         newVisible = [d, f, s1, s2];
         break;

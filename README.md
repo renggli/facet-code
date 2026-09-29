@@ -47,7 +47,7 @@ ext install facet-code
 
 Facet includes 6 production-ready pipeline presets out of the box:
 
-### 1. Project Browser
+### 1. Workspace Explorer
 Top-down workspace navigation from root folders down to nested member declarations.
 ```text
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -254,7 +254,7 @@ Located on the header of each individual pane slot:
 | **Changes** | `project`, `openEditors`, `activeEditor`, `previousPane` | Flat | Changed files inspector showing dirty in-memory editor buffers and Git working tree / index modifications. |
 
 > **Note on Symbols vs. Definitions:**  
-> - **Symbols (`role: 'symbols'`):** Extracts the structural AST outline of declarations inside a file (used for the "Definitions" and "Members" views in Project Browser).  
+> - **Symbols (`role: 'symbols'`):** Extracts the structural AST outline of declarations inside a file (used for the "Definitions" and "Members" views in Workspace Explorer).  
 > - **Definitions (`role: 'definitions'`):** Executes a Go to Definition relation search to find where a selected symbol is defined across the entire workspace.
 
 ---
