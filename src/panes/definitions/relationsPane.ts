@@ -26,7 +26,6 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
 
   public readonly capabilities: PaneCapabilities = {
     supportedInputs: ['previousPane'],
-    supportedSelections: ['all', 'none'],
     supportedSorts: ['position', 'name'],
     hasTreeToggle: false,
     hasFilter: true,
@@ -39,7 +38,6 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
       title: this.title,
       visible: true,
       inputSource: 'previousPane',
-      selectionSource: 'all',
       sort: 'position',
       filters: createDefaultFilters(),
     } as PaneConfig;

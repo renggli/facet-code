@@ -20,7 +20,6 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
 
   public readonly capabilities: PaneCapabilities = {
     supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name'],
     hasTreeToggle: true,
     hasFilter: true,
@@ -33,7 +32,6 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
       title: 'Directories',
       visible: true,
       inputSource: 'project',
-      selectionSource: 'cursor',
       sort: 'name',
       tree: true,
     };

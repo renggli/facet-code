@@ -14,7 +14,6 @@ export type PaneRole =
   | 'hierarchy';
 
 export type PaneInputSource = 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
-export type SelectionSource = 'none' | 'all' | 'cursor';
 export type SortOption = 'position' | 'name' | 'category';
 
 export type SymbolKindKey =
@@ -110,7 +109,6 @@ export interface BasePaneConfig {
   title: string;
   visible: boolean;
   inputSource: PaneInputSource;
-  selectionSource: SelectionSource;
   sort: SortOption;
   pinned?: boolean;
   pinnedUri?: string;
@@ -133,7 +131,6 @@ export interface DirectoriesPaneConfig extends BasePaneConfig {
 export interface DefinitionsPaneConfig extends BasePaneConfig {
   role: 'definitions';
   inputSource: 'previousPane';
-  selectionSource: 'all' | 'none';
   sort: 'position' | 'name';
   filters: PaneFilters;
 }
@@ -141,7 +138,6 @@ export interface DefinitionsPaneConfig extends BasePaneConfig {
 export interface DeclarationsPaneConfig extends BasePaneConfig {
   role: 'declarations';
   inputSource: 'previousPane';
-  selectionSource: 'all' | 'none';
   sort: 'position' | 'name';
   filters: PaneFilters;
 }
@@ -149,7 +145,6 @@ export interface DeclarationsPaneConfig extends BasePaneConfig {
 export interface ImplementationsPaneConfig extends BasePaneConfig {
   role: 'implementations';
   inputSource: 'previousPane';
-  selectionSource: 'all' | 'none';
   sort: 'position' | 'name';
   filters: PaneFilters;
 }
@@ -157,7 +152,6 @@ export interface ImplementationsPaneConfig extends BasePaneConfig {
 export interface ReferencesPaneConfig extends BasePaneConfig {
   role: 'references';
   inputSource: 'previousPane';
-  selectionSource: 'all' | 'none';
   sort: 'position' | 'name';
   filters: PaneFilters;
 }
@@ -165,7 +159,6 @@ export interface ReferencesPaneConfig extends BasePaneConfig {
 export interface CallersPaneConfig extends BasePaneConfig {
   role: 'callers';
   inputSource: 'previousPane';
-  selectionSource: 'all' | 'none';
   sort: 'position' | 'name';
 }
 
@@ -239,7 +232,6 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
     title: 'Files',
     role: 'files',
     inputSource: 'project',
-    selectionSource: 'none',
     sort: 'name',
     tree: false,
     visible: true,
@@ -254,7 +246,6 @@ export function createDirectoriesPane(id: string, overrides?: Partial<Directorie
     title: 'Directories',
     role: 'directories',
     inputSource: 'project',
-    selectionSource: 'none',
     sort: 'name',
     tree: true,
     visible: true,
@@ -269,7 +260,6 @@ export function createSymbolsPane(id: string, overrides?: Partial<SymbolsPaneCon
     title: 'Symbols',
     role: 'symbols',
     inputSource: 'previousPane',
-    selectionSource: 'cursor',
     sort: 'name',
     tree: true,
     filters: createDefaultFilters(),
@@ -285,7 +275,6 @@ export function createReferencesPane(id: string, overrides?: Partial<ReferencesP
     title: 'References',
     role: 'references',
     inputSource: 'previousPane',
-    selectionSource: 'none',
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
@@ -303,7 +292,6 @@ export function createImplementationsPane(
     title: 'Implementations',
     role: 'implementations',
     inputSource: 'previousPane',
-    selectionSource: 'none',
     sort: 'name',
     filters: createDefaultFilters(),
     visible: true,
@@ -318,14 +306,12 @@ export function createDefaultPanes(): PaneConfig[] {
       visible: true,
       tree: true,
       inputSource: 'project',
-      selectionSource: 'cursor',
       sort: 'name',
     }),
     createFilesPane('facet.pane.2', {
       visible: true,
       tree: false,
       inputSource: 'previousPane',
-      selectionSource: 'cursor',
       sort: 'name',
     }),
     createSymbolsPane('facet.pane.3', {
@@ -333,7 +319,6 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Definitions',
       tree: false,
       inputSource: 'previousPane',
-      selectionSource: 'cursor',
       sort: 'category',
     }),
     createSymbolsPane('facet.pane.4', {
@@ -341,18 +326,15 @@ export function createDefaultPanes(): PaneConfig[] {
       title: 'Members',
       tree: true,
       inputSource: 'previousPane',
-      selectionSource: 'cursor',
       sort: 'category',
     }),
     createReferencesPane('facet.pane.5', {
       visible: false,
       inputSource: 'previousPane',
-      selectionSource: 'none',
     }),
     createImplementationsPane('facet.pane.6', {
       visible: false,
       inputSource: 'previousPane',
-      selectionSource: 'none',
     }),
   ];
 }

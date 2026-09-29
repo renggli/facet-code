@@ -12,7 +12,6 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
 
   public readonly capabilities: PaneCapabilities = {
     supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name'],
     hasTreeToggle: true,
     hasFilter: true,
@@ -25,7 +24,6 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
       title: 'Files',
       visible: true,
       inputSource: 'previousPane',
-      selectionSource: 'cursor',
       sort: 'name',
       tree: false,
     };

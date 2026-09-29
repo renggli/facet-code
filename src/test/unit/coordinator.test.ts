@@ -224,7 +224,6 @@ suite('FacetCoordinator Test Suite', () => {
     const membersPaneConfig: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
       title: 'Members',
       inputSource: 'previousPane',
-      selectionSource: 'none',
       sort: 'name',
       filters: { ...createDefaultFilters(), constant: false },
       tree: false,
@@ -262,7 +261,6 @@ suite('FacetCoordinator Test Suite', () => {
     const config: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
       title: 'Members',
       inputSource: 'previousPane',
-      selectionSource: 'none',
       sort: 'name',
       filters: createDefaultFilters(),
       tree: false,
@@ -313,7 +311,6 @@ suite('FacetCoordinator Test Suite', () => {
       ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
       title: 'Hierarchy',
       inputSource: 'project',
-      selectionSource: 'cursor',
       sort: 'name',
       tree: true,
       filters: createDefaultFilters(),
@@ -402,7 +399,6 @@ suite('FacetCoordinator Test Suite', () => {
       ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
       title: 'Hierarchy',
       inputSource: 'project',
-      selectionSource: 'cursor',
       sort: 'name',
       filters: createDefaultFilters(),
       tree: true,
@@ -551,7 +547,6 @@ suite('FacetCoordinator Test Suite', () => {
     const symbolsPaneConfig: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
       title: 'Symbols',
       inputSource: 'previousPane',
-      selectionSource: 'none',
       sort: 'name',
       filters: createDefaultFilters(),
       tree: false,
@@ -675,8 +670,6 @@ suite('FacetCoordinator Test Suite', () => {
     (coordinator as any).cachedDocumentUri = fileUri.toString();
 
     const panes = manager.getVisiblePanes();
-    assert.strictEqual(panes[2].selectionSource, 'cursor');
-    assert.strictEqual(panes[3].selectionSource, 'cursor');
 
     const mockEditor = {
       document: {
@@ -1120,7 +1113,6 @@ suite('FacetCoordinator Test Suite', () => {
 
     const panes = manager.getVisiblePanes();
     const typesPane = panes[2];
-    typesPane.selectionSource = 'cursor';
 
     // Simulate user multi-selection of 2 types
     const dummyTypeA: FacetSymbolNode = { ...testType, name: 'CalculatorA' };
@@ -1154,7 +1146,7 @@ suite('FacetCoordinator Test Suite', () => {
     const relationsProvider = new RelationsTreeProvider();
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
 
-    const manager = new PanePipelineManager(coordinator);
+    new PanePipelineManager(coordinator);
 
     const fileUri = vscode.Uri.file('/workspace/src/test.ts');
     const testMember: FacetSymbolNode = {
@@ -1179,10 +1171,6 @@ suite('FacetCoordinator Test Suite', () => {
     };
     (coordinator as any).cachedDocumentSymbols = [testType];
     (coordinator as any).cachedDocumentUri = fileUri.toString();
-
-    const panes = manager.getVisiblePanes();
-    panes[2].selectionSource = 'cursor';
-    panes[3].selectionSource = 'cursor';
 
     let reveals = 0;
     coordinator.onRevealInView(() => {
@@ -1452,7 +1440,6 @@ suite('FacetCoordinator Test Suite', () => {
       ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
       tree: false,
       inputSource: 'activeEditor',
-      selectionSource: 'cursor',
       filters: createDefaultFilters(),
     };
 
@@ -1467,7 +1454,6 @@ suite('FacetCoordinator Test Suite', () => {
       ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.2'),
       tree: true,
       inputSource: 'activeEditor',
-      selectionSource: 'cursor',
       filters: createDefaultFilters(),
     };
 
@@ -1535,8 +1521,6 @@ suite('FacetCoordinator Test Suite', () => {
     (coordinator as unknown as { cachedDocumentUri: string }).cachedDocumentUri = fileUri.toString();
 
     const panes = manager.getVisiblePanes();
-    panes[2].selectionSource = 'cursor';
-    panes[3].selectionSource = 'cursor';
 
     // Pin pane 4 (Members), which cascades upwards to pane 3 (Definitions), pane 2, and pane 1
     await manager.setPinned(panes[3].id, true);

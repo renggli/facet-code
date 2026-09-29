@@ -289,7 +289,6 @@ suite('Cancellation Tokens & Abort Handling Test Suite', () => {
         title: 'References',
         visible: true,
         inputSource: 'previousPane',
-        selectionSource: 'all',
         sort: 'position',
         filters: createDefaultFilters(),
       };
@@ -300,7 +299,6 @@ suite('Cancellation Tokens & Abort Handling Test Suite', () => {
         title: 'Implementations',
         visible: true,
         inputSource: 'previousPane',
-        selectionSource: 'all',
         sort: 'position',
         filters: createDefaultFilters(),
       };
@@ -311,7 +309,6 @@ suite('Cancellation Tokens & Abort Handling Test Suite', () => {
         title: 'Definitions',
         visible: true,
         inputSource: 'previousPane',
-        selectionSource: 'all',
         sort: 'position',
         filters: createDefaultFilters(),
       };
@@ -323,7 +320,6 @@ suite('Cancellation Tokens & Abort Handling Test Suite', () => {
         title: 'Members',
         visible: true,
         inputSource: 'previousPane',
-        selectionSource: 'cursor',
         sort: 'name',
         filters: createDefaultFilters(),
         tree: false,

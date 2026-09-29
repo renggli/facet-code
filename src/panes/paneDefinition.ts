@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode';
 import type { FacetCoordinator } from '../coordinator/facetCoordinator';
-import type { PaneConfig, PaneInputSource, PaneRole, SelectionSource, SortOption } from '../models/paneConfig';
+import type { PaneConfig, PaneInputSource, PaneRole, SortOption } from '../models/paneConfig';
 import type { FacetSymbolNode } from '../models/symbolNode';
 
 export interface PaneOutput {
@@ -20,7 +20,6 @@ export interface PaneExecutionContext<TConfig extends PaneConfig = PaneConfig> {
 
 export interface PaneCapabilities {
   readonly supportedInputs: readonly PaneInputSource[];
-  readonly supportedSelections: readonly SelectionSource[];
   readonly supportedSorts: readonly SortOption[];
   readonly hasTreeToggle: boolean;
   readonly hasFilter: boolean;

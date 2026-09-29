@@ -636,12 +636,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     await manager.configureInputSource('facet.pane.1');
     assert.strictEqual(manager.getPane('facet.pane.1')?.inputSource, 'activeEditor');
 
-    // 3. configureSelectionSource
-    window.pushQuickPick({ source: 'all' });
-    await manager.configureSelectionSource('facet.pane.1');
-    assert.strictEqual(manager.getPane('facet.pane.1')?.selectionSource, 'all');
-
-    // 4. configureSort
+    // 3. configureSort
     window.pushQuickPick({ sort: 'name' });
     await manager.configureSort('facet.pane.1');
     assert.strictEqual(manager.getPane('facet.pane.1')?.sort, 'name');

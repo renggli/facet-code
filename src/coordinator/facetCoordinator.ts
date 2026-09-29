@@ -214,14 +214,14 @@ export class FacetCoordinator implements vscode.Disposable {
     }
 
     const visible = this.pipelineManager.getVisiblePanes();
-    const hasCursorPane = visible.some((p) => p.selectionSource === 'cursor' && (!p.pinned || force));
+    const hasCursorPane = visible.some((p) => !p.pinned || force);
     if (!hasCursorPane && !force) {
       return undefined;
     }
 
     let lastCursorIdx = -1;
     for (let i = visible.length - 1; i >= 0; i--) {
-      if (visible[i].selectionSource === 'cursor' && (!visible[i].pinned || force)) {
+      if (!visible[i].pinned || force) {
         lastCursorIdx = i;
         break;
       }
@@ -267,7 +267,7 @@ export class FacetCoordinator implements vscode.Disposable {
       if (pane.pinned && !force) {
         continue;
       }
-      const shouldUpdate = force || pane.selectionSource === 'cursor' || i < lastCursorIdx;
+      const shouldUpdate = force || !pane.pinned || i < lastCursorIdx;
       if (!shouldUpdate) {
         continue;
       }
@@ -301,6 +301,23 @@ export class FacetCoordinator implements vscode.Disposable {
           const probDef = this.registry.get('problems') as ProblemsPaneDefinition;
           rawTarget = probDef.createProblemItem ? probDef.createProblemItem(docUri, matchDiag) : undefined;
         }
+      } else if (
+        pane.role === 'definitions' ||
+        pane.role === 'declarations' ||
+        pane.role === 'implementations' ||
+        pane.role === 'references' ||
+        pane.role === 'callers'
+      ) {
+        const pos = this.currentEditor.selection.active;
+        const items = await this.getSlotChildren(pane);
+        const matchRel = items.find((item) => {
+          if (item && typeof item === 'object' && 'uri' in item && 'range' in item) {
+            const rel = item as { uri?: vscode.Uri; range?: vscode.Range };
+            return rel.uri?.fsPath === docUri.fsPath && rel.range?.contains(pos);
+          }
+          return false;
+        });
+        rawTarget = matchRel;
       }
 
       if (!rawTarget) {
@@ -431,29 +448,21 @@ export class FacetCoordinator implements vscode.Disposable {
       };
       return search(items);
     }
+    if (
+      (pane.role === 'definitions' ||
+        pane.role === 'declarations' ||
+        pane.role === 'implementations' ||
+        pane.role === 'references' ||
+        pane.role === 'callers') &&
+      target &&
+      typeof target === 'object' &&
+      'uri' in target &&
+      'range' in target
+    ) {
+      const items = await this.getSlotChildren(pane);
+      return items.find((item) => this.isSameSlotItem(item, target));
+    }
     return undefined;
-  }
-
-  public handlePaneSelectionSourceChange(slotId: string): void {
-    if (!this.pipelineManager) {
-      return;
-    }
-    const pane = this.pipelineManager.getPane(slotId);
-    if (!pane) {
-      return;
-    }
-
-    if (pane.selectionSource === 'none') {
-      this.setSlotSelection(slotId, []);
-      this.refreshSlot(slotId);
-    } else if (pane.selectionSource === 'all') {
-      void this.getSlotChildren(pane).then((items) => {
-        this.setSlotSelection(slotId, items);
-        this.refreshSlot(slotId);
-      });
-    } else if (pane.selectionSource === 'cursor' && this.currentEditor) {
-      void this.handleSelectionChange(this.currentEditor);
-    }
   }
 
   public scheduleSync(): void {
@@ -574,9 +583,6 @@ export class FacetCoordinator implements vscode.Disposable {
         for (const dep of downstream) {
           this.slotSelections.delete(dep.id);
           this.refreshSlot(dep.id);
-          if (dep.selectionSource === 'all') {
-            this.handlePaneSelectionSourceChange(dep.id);
-          }
         }
       }
     } finally {

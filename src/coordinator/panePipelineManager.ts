@@ -5,7 +5,6 @@ import {
   type PaneConfig,
   type PaneInputSource,
   type PaneRole,
-  type SelectionSource,
   type SortOption,
 } from '../models/paneConfig';
 import type { PaneExecutionContext, PaneOutput } from '../panes/paneDefinition';
@@ -448,39 +447,6 @@ export class PanePipelineManager {
     }
   }
 
-  public async configureSelectionSource(slotId: string): Promise<void> {
-    const pane = this.getPane(slotId);
-    if (!pane) {
-      return;
-    }
-    const def = this.registry.get(pane.role);
-    const labels: Record<SelectionSource, string> = {
-      cursor: 'Cursor',
-      all: 'All',
-      none: 'None',
-    };
-    const descriptions: Record<SelectionSource, string> = {
-      cursor: 'Active cursor symbol or file (selects item under cursor)',
-      all: 'Select all items in this pane by default',
-      none: 'Manual selection only',
-    };
-
-    const options = def.capabilities.supportedSelections.map((src) => ({
-      label: labels[src] ?? src,
-      description: descriptions[src] ?? src,
-      source: src,
-    }));
-
-    const selPick = await vscode.window.showQuickPick(options, {
-      placeHolder: 'Select Selection Source',
-    });
-    if (selPick) {
-      pane.selectionSource = selPick.source;
-      this._onDidUpdatePanes.fire();
-      this.coordinator.handlePaneSelectionSourceChange(pane.id);
-    }
-  }
-
   public async configureSort(slotId: string): Promise<void> {
     const pane = this.getPane(slotId);
     if (!pane) {
@@ -918,18 +884,15 @@ export class PanePipelineManager {
         s1.title = 'Definitions';
         s1.tree = false;
         s1.inputSource = 'activeEditor';
-        s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = true;
         s2.inputSource = 'previousPane';
-        s2.selectionSource = 'cursor';
 
         const c = callersDef.defaultConfig('');
         c.title = 'Callers';
         c.inputSource = 'previousPane';
-        c.selectionSource = 'none';
 
         newVisible = [s1, s2, c];
         break;
@@ -938,24 +901,20 @@ export class PanePipelineManager {
         const ch = changesDef.defaultConfig('');
         ch.title = 'Changes';
         ch.inputSource = 'project';
-        ch.selectionSource = 'cursor';
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Symbols';
         s1.tree = true;
         s1.inputSource = 'previousPane';
-        s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
         s2.inputSource = 'previousPane';
-        s2.selectionSource = 'cursor';
 
         const pr = probDef.defaultConfig('');
         pr.title = 'Problems';
         pr.inputSource = 'previousPane';
-        pr.selectionSource = 'none';
 
         newVisible = [ch, s1, s2, pr];
         break;
@@ -964,24 +923,20 @@ export class PanePipelineManager {
         const pr = probDef.defaultConfig('');
         pr.title = 'Problems';
         pr.inputSource = 'project';
-        pr.selectionSource = 'cursor';
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Symbols';
         s1.tree = true;
         s1.inputSource = 'previousPane';
-        s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
         s2.inputSource = 'previousPane';
-        s2.selectionSource = 'cursor';
 
         const ref = refDef.defaultConfig('');
         ref.title = 'References';
         ref.inputSource = 'previousPane';
-        ref.selectionSource = 'none';
 
         newVisible = [pr, s1, s2, ref];
         break;
@@ -991,18 +946,15 @@ export class PanePipelineManager {
         h.title = 'Hierarchy';
         h.tree = true;
         h.inputSource = 'project';
-        h.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
         s2.inputSource = 'previousPane';
-        s2.selectionSource = 'cursor';
 
         const imp = implDef.defaultConfig('');
         imp.title = 'Implementations';
         imp.inputSource = 'previousPane';
-        imp.selectionSource = 'none';
 
         newVisible = [h, s2, imp];
         break;
@@ -1012,24 +964,20 @@ export class PanePipelineManager {
         f.title = 'Open Files';
         f.tree = false;
         f.inputSource = 'openEditors';
-        f.selectionSource = 'cursor';
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Definitions';
         s1.tree = false;
         s1.inputSource = 'previousPane';
-        s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = true;
         s2.inputSource = 'previousPane';
-        s2.selectionSource = 'cursor';
 
         const ref = refDef.defaultConfig('');
         ref.title = 'References';
         ref.inputSource = 'previousPane';
-        ref.selectionSource = 'none';
 
         newVisible = [f, s1, s2, ref];
         break;
@@ -1040,28 +988,24 @@ export class PanePipelineManager {
         d.title = 'Directories';
         d.tree = true;
         d.inputSource = 'project';
-        d.selectionSource = 'cursor';
         d.sort = 'name';
 
         const f = filesDef.defaultConfig('');
         f.title = 'Files';
         f.tree = false;
         f.inputSource = 'previousPane';
-        f.selectionSource = 'cursor';
         f.sort = 'name';
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Definitions';
         s1.tree = false;
         s1.inputSource = 'previousPane';
-        s1.selectionSource = 'cursor';
         s1.sort = 'category';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = true;
         s2.inputSource = 'previousPane';
-        s2.selectionSource = 'cursor';
         s2.sort = 'category';
 
         newVisible = [d, f, s1, s2];

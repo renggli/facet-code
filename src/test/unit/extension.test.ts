@@ -158,7 +158,6 @@ suite('Extension Lifecycle Test Suite', () => {
       title: 'Files',
       visible: true,
       inputSource: 'project',
-      selectionSource: 'cursor',
       sort: 'name',
       tree: false,
     };
@@ -174,7 +173,6 @@ suite('Extension Lifecycle Test Suite', () => {
       title: 'Directories',
       visible: true,
       inputSource: 'project',
-      selectionSource: 'cursor',
       sort: 'name',
       tree: true,
     };

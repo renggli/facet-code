@@ -23,7 +23,6 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
 
   public readonly capabilities: PaneCapabilities = {
     supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name', 'category'],
     hasTreeToggle: false,
     hasFilter: false,
@@ -36,7 +35,6 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
       title: 'Problems',
       visible: true,
       inputSource: 'project',
-      selectionSource: 'cursor',
       sort: 'category',
     } as PaneConfig;
   }

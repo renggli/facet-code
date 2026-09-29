@@ -24,7 +24,6 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
 
   public readonly capabilities: PaneCapabilities = {
     supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name', 'category'],
     hasTreeToggle: true,
     hasFilter: true,
@@ -37,7 +36,6 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
       title: 'Hierarchy',
       visible: true,
       inputSource: 'project',
-      selectionSource: 'cursor',
       sort: 'name',
       filters: createDefaultFilters(),
       tree: true,

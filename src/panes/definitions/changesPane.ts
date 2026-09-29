@@ -30,7 +30,6 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
 
   public readonly capabilities: PaneCapabilities = {
     supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSelections: ['cursor', 'all', 'none'],
     supportedSorts: ['position', 'name'],
     hasTreeToggle: false,
     hasFilter: false,
@@ -43,7 +42,6 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
       title: 'Changes',
       visible: true,
       inputSource: 'project',
-      selectionSource: 'cursor',
       sort: 'name',
     } as PaneConfig;
   }
