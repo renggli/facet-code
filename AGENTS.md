@@ -150,14 +150,12 @@ Custom pipeline layouts can be saved, loaded, and deleted via Command Palette or
 ## 5. UI Controls, Menus & Context Keys
 
 ### Pane Header Controls (`view/title`)
-Each slot `facet.pane.{N}` publishes contextual header buttons controlled by published context keys:
-- `$(list-tree)` / `$(list-flat)` (`facet.pane.{N}.toggleTree.on` / `facet.pane.{N}.toggleTree.off`): Toggles tree vs flat display mode.
-- `$(pin)` / `$(pinned)` (`facet.pane.{N}.togglePin.on` / `facet.pane.{N}.togglePin.off`): Toggles pinning lock.
-- `$(filter)` (`facet.pane.{N}.filter`): Opens QuickPick to configure glob filters or 26 symbol kind filters.
-- `$(gear)` (`facet.pane.{N}.configure`): Opens full configuration menu for the pane.
-- `$(symbol-class)` (`facet.pane.{N}.type`): Switches pane role across the 11 modular types.
-- `$(sign-in)` (`facet.pane.{N}.input`): Switches input source (`project`, `openEditors`, `activeEditor`, `previousPane`).
-- `$(sort-precedence)` (`facet.pane.{N}.sort`): Changes sort ordering (`position`, `name`, `category`).
+Each slot `facet.pane.{N}` publishes 5 native header buttons in fixed sequence (`group: "navigation@N"`), with zero overflow (`...`) menu and zero "Collapse All" button:
+1. `$(pin)` / `$(pinned)` (`facet.pane.{N}.togglePin.on` / `facet.pane.{N}.togglePin.off`): Toggles pinning lock.
+2. `$(list-tree)` / `$(list-flat)` (`facet.pane.{N}.toggleTree.on` / `facet.pane.{N}.toggleTree.off`): Toggles tree vs flat display mode.
+3. `$(filter)` (`facet.pane.{N}.filter`): Opens QuickPick to configure glob filters or symbol kind filters.
+4. `$(sort-precedence)` (`facet.pane.{N}.sort`): Changes sort ordering (`position`, `name`, `category`).
+5. `$(gear)` (`facet.pane.{N}.configure`): Opens full configuration menu for the pane (pane role, input source for pane 1, filters, tree display, sorting, title, pin).
 
 ### Deck Navigation & Commands
 Primary deck actions are accessible via the Command Palette, keybindings, and pane menus:

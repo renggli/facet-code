@@ -33,7 +33,7 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
   });
 
   suite('Cascading Pinning Mechanism', () => {
-    test('setPinned with cascade=true locks all downstream previousPane slots', async () => {
+    test('setPinned with cascade=true locks all upstream previousPane slots', async () => {
       // Pipeline: Slot 1 (activeEditor) -> Slot 2 (previousPane) -> Slot 3 (previousPane) -> Slot 4 (project)
       const p1: SymbolsPaneConfig = {
         id: 'facet.pane.1',
@@ -81,18 +81,18 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
 
       await manager.applyVisiblePanes([p1, p2, p3, p4]);
 
-      // Pin slot 1 with cascade
-      await manager.setPinned('facet.pane.1', true, true);
+      // Pin slot 3 with cascade (travels upwards to slot 2 and slot 1)
+      await manager.setPinned('facet.pane.3', true, true);
 
       const panes = manager.getVisiblePanes();
       assert.strictEqual(Boolean(panes[0].pinned), true);
       assert.strictEqual(Boolean(panes[1].pinned), true);
       assert.strictEqual(Boolean(panes[2].pinned), true);
-      // Slot 4 has inputSource 'project', so it does not depend on previousPane and should not be pinned
+      // Slot 4 is downstream of slot 3, so it should not be pinned
       assert.strictEqual(Boolean(panes[3].pinned), false);
 
-      // Unpin slot 1 with cascade
-      await manager.setPinned('facet.pane.1', false, true);
+      // Unpin slot 3 with cascade (travels upwards to slot 2 and slot 1)
+      await manager.setPinned('facet.pane.3', false, true);
 
       const unpinned = manager.getVisiblePanes();
       assert.strictEqual(Boolean(unpinned[0].pinned), false);
@@ -127,12 +127,12 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
 
       await manager.applyVisiblePanes([p1, p2]);
 
-      // Pin only slot 1 without cascade
-      await manager.setPinned('facet.pane.1', true, false);
+      // Pin only slot 2 without cascade
+      await manager.setPinned('facet.pane.2', true, false);
 
       const panes = manager.getVisiblePanes();
-      assert.strictEqual(Boolean(panes[0].pinned), true);
-      assert.strictEqual(Boolean(panes[1].pinned), false);
+      assert.strictEqual(Boolean(panes[0].pinned), false);
+      assert.strictEqual(Boolean(panes[1].pinned), true);
     });
 
     test('togglePin inverts pin state and cascades to dependents', async () => {
@@ -163,14 +163,15 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
 
       // Initially unpinned
       assert.strictEqual(Boolean(manager.getPane('facet.pane.1')?.pinned), false);
+      assert.strictEqual(Boolean(manager.getPane('facet.pane.2')?.pinned), false);
 
-      // Toggle to true
-      await manager.togglePin('facet.pane.1');
+      // Toggle slot 2 to true: cascades upwards to slot 1
+      await manager.togglePin('facet.pane.2');
       assert.strictEqual(Boolean(manager.getPane('facet.pane.1')?.pinned), true);
       assert.strictEqual(Boolean(manager.getPane('facet.pane.2')?.pinned), true);
 
-      // Toggle back to false
-      await manager.togglePin('facet.pane.1');
+      // Toggle slot 2 back to false: cascades upwards to slot 1
+      await manager.togglePin('facet.pane.2');
       assert.strictEqual(Boolean(manager.getPane('facet.pane.1')?.pinned), false);
       assert.strictEqual(Boolean(manager.getPane('facet.pane.2')?.pinned), false);
     });

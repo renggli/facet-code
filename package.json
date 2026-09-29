@@ -104,6 +104,11 @@
         "icon": "$(target)"
       },
       {
+        "command": "facet.toggleSelectAll",
+        "title": "Facet: Toggle Select All in Focused Pane",
+        "category": "Facet"
+      },
+      {
         "command": "facet.addPane",
         "title": "Facet: Add Pane",
         "icon": "$(add)"
@@ -239,11 +244,6 @@
         "icon": "$(symbol-class)"
       },
       {
-        "command": "facet.pane.2.input",
-        "title": "Input Source...",
-        "icon": "$(sign-in)"
-      },
-      {
         "command": "facet.pane.2.sort",
         "title": "Sort...",
         "icon": "$(sort-precedence)"
@@ -282,11 +282,6 @@
         "command": "facet.pane.3.type",
         "title": "Change Type...",
         "icon": "$(symbol-class)"
-      },
-      {
-        "command": "facet.pane.3.input",
-        "title": "Input Source...",
-        "icon": "$(sign-in)"
       },
       {
         "command": "facet.pane.3.sort",
@@ -329,11 +324,6 @@
         "icon": "$(symbol-class)"
       },
       {
-        "command": "facet.pane.4.input",
-        "title": "Input Source...",
-        "icon": "$(sign-in)"
-      },
-      {
         "command": "facet.pane.4.sort",
         "title": "Sort...",
         "icon": "$(sort-precedence)"
@@ -374,11 +364,6 @@
         "icon": "$(symbol-class)"
       },
       {
-        "command": "facet.pane.5.input",
-        "title": "Input Source...",
-        "icon": "$(sign-in)"
-      },
-      {
         "command": "facet.pane.5.sort",
         "title": "Sort...",
         "icon": "$(sort-precedence)"
@@ -417,11 +402,6 @@
         "command": "facet.pane.6.type",
         "title": "Change Type...",
         "icon": "$(symbol-class)"
-      },
-      {
-        "command": "facet.pane.6.input",
-        "title": "Input Source...",
-        "icon": "$(sign-in)"
       },
       {
         "command": "facet.pane.6.sort",
@@ -607,10 +587,6 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.2.input",
-          "when": "false"
-        },
-        {
           "command": "facet.pane.2.sort",
           "when": "false"
         },
@@ -640,10 +616,6 @@
         },
         {
           "command": "facet.pane.3.type",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.3.input",
           "when": "false"
         },
         {
@@ -679,10 +651,6 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.4.input",
-          "when": "false"
-        },
-        {
           "command": "facet.pane.4.sort",
           "when": "false"
         },
@@ -715,10 +683,6 @@
           "when": "false"
         },
         {
-          "command": "facet.pane.5.input",
-          "when": "false"
-        },
-        {
           "command": "facet.pane.5.sort",
           "when": "false"
         },
@@ -748,10 +712,6 @@
         },
         {
           "command": "facet.pane.6.type",
-          "when": "false"
-        },
-        {
-          "command": "facet.pane.6.input",
           "when": "false"
         },
         {
@@ -861,23 +821,23 @@
       ],
       "view/title": [
         {
-          "command": "facet.pane.1.toggleTree.on",
-          "when": "view == facet.pane.1 && facet.pane.1.hasTree && facet.pane.1.isTree",
-          "group": "navigation@1"
-        },
-        {
-          "command": "facet.pane.1.toggleTree.off",
-          "when": "view == facet.pane.1 && facet.pane.1.hasTree && !facet.pane.1.isTree",
-          "group": "navigation@1"
-        },
-        {
           "command": "facet.pane.1.togglePin.on",
           "when": "view == facet.pane.1 && !facet.pane.1.isPinned",
-          "group": "navigation@2"
+          "group": "navigation@1"
         },
         {
           "command": "facet.pane.1.togglePin.off",
           "when": "view == facet.pane.1 && facet.pane.1.isPinned",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.1.toggleTree.on",
+          "when": "view == facet.pane.1 && facet.pane.1.hasTree && facet.pane.1.isTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.1.toggleTree.off",
+          "when": "view == facet.pane.1 && facet.pane.1.hasTree && !facet.pane.1.isTree",
           "group": "navigation@2"
         },
         {
@@ -886,43 +846,33 @@
           "group": "navigation@3"
         },
         {
-          "command": "facet.pane.1.configure",
-          "when": "view == facet.pane.1",
-          "group": "1_settings@1"
-        },
-        {
-          "command": "facet.pane.1.type",
-          "when": "view == facet.pane.1",
-          "group": "1_settings@2"
-        },
-        {
-          "command": "facet.pane.1.input",
-          "when": "view == facet.pane.1",
-          "group": "1_settings@3"
-        },
-        {
           "command": "facet.pane.1.sort",
           "when": "view == facet.pane.1",
-          "group": "1_settings@4"
+          "group": "navigation@4"
         },
         {
-          "command": "facet.pane.2.toggleTree.on",
-          "when": "view == facet.pane.2 && facet.pane.2.hasTree && facet.pane.2.isTree",
-          "group": "navigation@1"
-        },
-        {
-          "command": "facet.pane.2.toggleTree.off",
-          "when": "view == facet.pane.2 && facet.pane.2.hasTree && !facet.pane.2.isTree",
-          "group": "navigation@1"
+          "command": "facet.pane.1.configure",
+          "when": "view == facet.pane.1",
+          "group": "navigation@5"
         },
         {
           "command": "facet.pane.2.togglePin.on",
           "when": "view == facet.pane.2 && !facet.pane.2.isPinned",
-          "group": "navigation@2"
+          "group": "navigation@1"
         },
         {
           "command": "facet.pane.2.togglePin.off",
           "when": "view == facet.pane.2 && facet.pane.2.isPinned",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.2.toggleTree.on",
+          "when": "view == facet.pane.2 && facet.pane.2.hasTree && facet.pane.2.isTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.2.toggleTree.off",
+          "when": "view == facet.pane.2 && facet.pane.2.hasTree && !facet.pane.2.isTree",
           "group": "navigation@2"
         },
         {
@@ -931,43 +881,33 @@
           "group": "navigation@3"
         },
         {
-          "command": "facet.pane.2.configure",
-          "when": "view == facet.pane.2",
-          "group": "1_settings@1"
-        },
-        {
-          "command": "facet.pane.2.type",
-          "when": "view == facet.pane.2",
-          "group": "1_settings@2"
-        },
-        {
-          "command": "facet.pane.2.input",
-          "when": "view == facet.pane.2",
-          "group": "1_settings@3"
-        },
-        {
           "command": "facet.pane.2.sort",
           "when": "view == facet.pane.2",
-          "group": "1_settings@4"
+          "group": "navigation@4"
         },
         {
-          "command": "facet.pane.3.toggleTree.on",
-          "when": "view == facet.pane.3 && facet.pane.3.hasTree && facet.pane.3.isTree",
-          "group": "navigation@1"
-        },
-        {
-          "command": "facet.pane.3.toggleTree.off",
-          "when": "view == facet.pane.3 && facet.pane.3.hasTree && !facet.pane.3.isTree",
-          "group": "navigation@1"
+          "command": "facet.pane.2.configure",
+          "when": "view == facet.pane.2",
+          "group": "navigation@5"
         },
         {
           "command": "facet.pane.3.togglePin.on",
           "when": "view == facet.pane.3 && !facet.pane.3.isPinned",
-          "group": "navigation@2"
+          "group": "navigation@1"
         },
         {
           "command": "facet.pane.3.togglePin.off",
           "when": "view == facet.pane.3 && facet.pane.3.isPinned",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.3.toggleTree.on",
+          "when": "view == facet.pane.3 && facet.pane.3.hasTree && facet.pane.3.isTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.3.toggleTree.off",
+          "when": "view == facet.pane.3 && facet.pane.3.hasTree && !facet.pane.3.isTree",
           "group": "navigation@2"
         },
         {
@@ -976,43 +916,33 @@
           "group": "navigation@3"
         },
         {
-          "command": "facet.pane.3.configure",
-          "when": "view == facet.pane.3",
-          "group": "1_settings@1"
-        },
-        {
-          "command": "facet.pane.3.type",
-          "when": "view == facet.pane.3",
-          "group": "1_settings@2"
-        },
-        {
-          "command": "facet.pane.3.input",
-          "when": "view == facet.pane.3",
-          "group": "1_settings@3"
-        },
-        {
           "command": "facet.pane.3.sort",
           "when": "view == facet.pane.3",
-          "group": "1_settings@4"
+          "group": "navigation@4"
         },
         {
-          "command": "facet.pane.4.toggleTree.on",
-          "when": "view == facet.pane.4 && facet.pane.4.hasTree && facet.pane.4.isTree",
-          "group": "navigation@1"
-        },
-        {
-          "command": "facet.pane.4.toggleTree.off",
-          "when": "view == facet.pane.4 && facet.pane.4.hasTree && !facet.pane.4.isTree",
-          "group": "navigation@1"
+          "command": "facet.pane.3.configure",
+          "when": "view == facet.pane.3",
+          "group": "navigation@5"
         },
         {
           "command": "facet.pane.4.togglePin.on",
           "when": "view == facet.pane.4 && !facet.pane.4.isPinned",
-          "group": "navigation@2"
+          "group": "navigation@1"
         },
         {
           "command": "facet.pane.4.togglePin.off",
           "when": "view == facet.pane.4 && facet.pane.4.isPinned",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.4.toggleTree.on",
+          "when": "view == facet.pane.4 && facet.pane.4.hasTree && facet.pane.4.isTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.4.toggleTree.off",
+          "when": "view == facet.pane.4 && facet.pane.4.hasTree && !facet.pane.4.isTree",
           "group": "navigation@2"
         },
         {
@@ -1021,43 +951,33 @@
           "group": "navigation@3"
         },
         {
-          "command": "facet.pane.4.configure",
-          "when": "view == facet.pane.4",
-          "group": "1_settings@1"
-        },
-        {
-          "command": "facet.pane.4.type",
-          "when": "view == facet.pane.4",
-          "group": "1_settings@2"
-        },
-        {
-          "command": "facet.pane.4.input",
-          "when": "view == facet.pane.4",
-          "group": "1_settings@3"
-        },
-        {
           "command": "facet.pane.4.sort",
           "when": "view == facet.pane.4",
-          "group": "1_settings@4"
+          "group": "navigation@4"
         },
         {
-          "command": "facet.pane.5.toggleTree.on",
-          "when": "view == facet.pane.5 && facet.pane.5.hasTree && facet.pane.5.isTree",
-          "group": "navigation@1"
-        },
-        {
-          "command": "facet.pane.5.toggleTree.off",
-          "when": "view == facet.pane.5 && facet.pane.5.hasTree && !facet.pane.5.isTree",
-          "group": "navigation@1"
+          "command": "facet.pane.4.configure",
+          "when": "view == facet.pane.4",
+          "group": "navigation@5"
         },
         {
           "command": "facet.pane.5.togglePin.on",
           "when": "view == facet.pane.5 && !facet.pane.5.isPinned",
-          "group": "navigation@2"
+          "group": "navigation@1"
         },
         {
           "command": "facet.pane.5.togglePin.off",
           "when": "view == facet.pane.5 && facet.pane.5.isPinned",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.5.toggleTree.on",
+          "when": "view == facet.pane.5 && facet.pane.5.hasTree && facet.pane.5.isTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.5.toggleTree.off",
+          "when": "view == facet.pane.5 && facet.pane.5.hasTree && !facet.pane.5.isTree",
           "group": "navigation@2"
         },
         {
@@ -1066,43 +986,33 @@
           "group": "navigation@3"
         },
         {
-          "command": "facet.pane.5.configure",
-          "when": "view == facet.pane.5",
-          "group": "1_settings@1"
-        },
-        {
-          "command": "facet.pane.5.type",
-          "when": "view == facet.pane.5",
-          "group": "1_settings@2"
-        },
-        {
-          "command": "facet.pane.5.input",
-          "when": "view == facet.pane.5",
-          "group": "1_settings@3"
-        },
-        {
           "command": "facet.pane.5.sort",
           "when": "view == facet.pane.5",
-          "group": "1_settings@4"
+          "group": "navigation@4"
         },
         {
-          "command": "facet.pane.6.toggleTree.on",
-          "when": "view == facet.pane.6 && facet.pane.6.hasTree && facet.pane.6.isTree",
-          "group": "navigation@1"
-        },
-        {
-          "command": "facet.pane.6.toggleTree.off",
-          "when": "view == facet.pane.6 && facet.pane.6.hasTree && !facet.pane.6.isTree",
-          "group": "navigation@1"
+          "command": "facet.pane.5.configure",
+          "when": "view == facet.pane.5",
+          "group": "navigation@5"
         },
         {
           "command": "facet.pane.6.togglePin.on",
           "when": "view == facet.pane.6 && !facet.pane.6.isPinned",
-          "group": "navigation@2"
+          "group": "navigation@1"
         },
         {
           "command": "facet.pane.6.togglePin.off",
           "when": "view == facet.pane.6 && facet.pane.6.isPinned",
+          "group": "navigation@1"
+        },
+        {
+          "command": "facet.pane.6.toggleTree.on",
+          "when": "view == facet.pane.6 && facet.pane.6.hasTree && facet.pane.6.isTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "facet.pane.6.toggleTree.off",
+          "when": "view == facet.pane.6 && facet.pane.6.hasTree && !facet.pane.6.isTree",
           "group": "navigation@2"
         },
         {
@@ -1111,24 +1021,14 @@
           "group": "navigation@3"
         },
         {
-          "command": "facet.pane.6.configure",
-          "when": "view == facet.pane.6",
-          "group": "1_settings@1"
-        },
-        {
-          "command": "facet.pane.6.type",
-          "when": "view == facet.pane.6",
-          "group": "1_settings@2"
-        },
-        {
-          "command": "facet.pane.6.input",
-          "when": "view == facet.pane.6",
-          "group": "1_settings@3"
-        },
-        {
           "command": "facet.pane.6.sort",
           "when": "view == facet.pane.6",
-          "group": "1_settings@4"
+          "group": "navigation@4"
+        },
+        {
+          "command": "facet.pane.6.configure",
+          "when": "view == facet.pane.6",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
@@ -1270,6 +1170,102 @@
         "key": "ctrl+k shift+f",
         "mac": "cmd+k shift+f",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "cmd+a",
+        "when": "focusedView == 'facet.pane.1' && listFocus && !inputFocus",
+        "args": "facet.pane.1"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "ctrl+a",
+        "when": "focusedView == 'facet.pane.1' && listFocus && !inputFocus",
+        "args": "facet.pane.1"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "cmd+a",
+        "when": "focusedView == 'facet.pane.2' && listFocus && !inputFocus",
+        "args": "facet.pane.2"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "ctrl+a",
+        "when": "focusedView == 'facet.pane.2' && listFocus && !inputFocus",
+        "args": "facet.pane.2"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "cmd+a",
+        "when": "focusedView == 'facet.pane.3' && listFocus && !inputFocus",
+        "args": "facet.pane.3"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "ctrl+a",
+        "when": "focusedView == 'facet.pane.3' && listFocus && !inputFocus",
+        "args": "facet.pane.3"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "cmd+a",
+        "when": "focusedView == 'facet.pane.4' && listFocus && !inputFocus",
+        "args": "facet.pane.4"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "ctrl+a",
+        "when": "focusedView == 'facet.pane.4' && listFocus && !inputFocus",
+        "args": "facet.pane.4"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "cmd+a",
+        "when": "focusedView == 'facet.pane.5' && listFocus && !inputFocus",
+        "args": "facet.pane.5"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "ctrl+a",
+        "when": "focusedView == 'facet.pane.5' && listFocus && !inputFocus",
+        "args": "facet.pane.5"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "cmd+a",
+        "when": "focusedView == 'facet.pane.6' && listFocus && !inputFocus",
+        "args": "facet.pane.6"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "ctrl+a",
+        "when": "focusedView == 'facet.pane.6' && listFocus && !inputFocus",
+        "args": "facet.pane.6"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "cmd+a",
+        "when": "focusedView =~ /^facet\\.pane\\./ && listFocus && !inputFocus"
+      },
+      {
+        "command": "facet.toggleSelectAll",
+        "key": "ctrl+a",
+        "mac": "ctrl+a",
+        "when": "focusedView =~ /^facet\\.pane\\./ && listFocus && !inputFocus"
       }
     ],
     "configuration": {

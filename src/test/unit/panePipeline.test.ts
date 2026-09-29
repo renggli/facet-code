@@ -192,13 +192,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     await manager.configurePane('facet.pane.1');
     assert.strictEqual(manager.getPane('facet.pane.1')?.inputSource, 'openEditors');
 
-    // 4. Change selection source to none
-    window.pushQuickPick({ action: 'selectionSource' });
-    window.pushQuickPick({ source: 'none' });
-    await manager.configurePane('facet.pane.1');
-    assert.strictEqual(manager.getPane('facet.pane.1')?.selectionSource, 'none');
-
-    // 5. Change sort to name
+    // 4. Change sort to name
     window.pushQuickPick({ action: 'sort' });
     window.pushQuickPick({ sort: 'name' });
     await manager.configurePane('facet.pane.1');
@@ -691,23 +685,24 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const manager = new PanePipelineManager(coordinator);
 
     // Default: P1 (project), P2 (previousPane), P3 (previousPane), P4 (previousPane)
+    // Upward cascade: P1 has no upstream dependencies
     const depP1 = manager.getDependentPanes('facet.pane.1');
-    assert.strictEqual(depP1.length, 3);
-    assert.strictEqual(depP1[0].id, 'facet.pane.2');
-    assert.strictEqual(depP1[1].id, 'facet.pane.3');
-    assert.strictEqual(depP1[2].id, 'facet.pane.4');
+    assert.strictEqual(depP1.length, 0);
 
     const depP2 = manager.getDependentPanes('facet.pane.2');
-    assert.strictEqual(depP2.length, 2);
-    assert.strictEqual(depP2[0].id, 'facet.pane.3');
-    assert.strictEqual(depP2[1].id, 'facet.pane.4');
+    assert.strictEqual(depP2.length, 1);
+    assert.strictEqual(depP2[0].id, 'facet.pane.1');
 
     const depP3 = manager.getDependentPanes('facet.pane.3');
-    assert.strictEqual(depP3.length, 1);
-    assert.strictEqual(depP3[0].id, 'facet.pane.4');
+    assert.strictEqual(depP3.length, 2);
+    assert.strictEqual(depP3[0].id, 'facet.pane.2');
+    assert.strictEqual(depP3[1].id, 'facet.pane.1');
 
     const depP4 = manager.getDependentPanes('facet.pane.4');
-    assert.strictEqual(depP4.length, 0);
+    assert.strictEqual(depP4.length, 3);
+    assert.strictEqual(depP4[0].id, 'facet.pane.3');
+    assert.strictEqual(depP4[1].id, 'facet.pane.2');
+    assert.strictEqual(depP4[2].id, 'facet.pane.1');
 
     // Break the chain: set P3 inputSource to 'project'
     const p3 = manager.getPane('facet.pane.3');
@@ -715,13 +710,12 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
       p3.inputSource = 'project';
     }
 
-    const depP1Broken = manager.getDependentPanes('facet.pane.1');
-    assert.strictEqual(depP1Broken.length, 1);
-    assert.strictEqual(depP1Broken[0].id, 'facet.pane.2');
+    const depP4Broken = manager.getDependentPanes('facet.pane.4');
+    assert.strictEqual(depP4Broken.length, 1);
+    assert.strictEqual(depP4Broken[0].id, 'facet.pane.3');
 
     const depP3After = manager.getDependentPanes('facet.pane.3');
-    assert.strictEqual(depP3After.length, 1);
-    assert.strictEqual(depP3After[0].id, 'facet.pane.4');
+    assert.strictEqual(depP3After.length, 0);
 
     coordinator.dispose();
   });
@@ -732,30 +726,179 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const coordinator = new FacetCoordinator(resolver, relationsProvider);
     const manager = new PanePipelineManager(coordinator);
 
-    // Pinning pane 2 should pin pane 2, pane 3, and pane 4
+    // Pinning pane 2 should cascade upwards to pin pane 2 and pane 1
     await manager.setPinned('facet.pane.2', true);
-    assert.strictEqual(manager.getPane('facet.pane.1')?.pinned, false);
+    assert.strictEqual(manager.getPane('facet.pane.1')?.pinned, true);
     assert.strictEqual(manager.getPane('facet.pane.2')?.pinned, true);
-    assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, true);
-    assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, true);
-
-    // Unpinning leaf pane 4 should unpin only pane 4
-    await manager.togglePin('facet.pane.4');
-    assert.strictEqual(manager.getPane('facet.pane.2')?.pinned, true);
-    assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, false);
     assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, false);
 
-    // Unpinning pane 2 should unpin pane 2 and its remaining dependent pane 3
+    // Unpinning pane 1 should unpin only pane 1 (no upstream dependencies)
+    await manager.togglePin('facet.pane.1');
+    assert.strictEqual(manager.getPane('facet.pane.1')?.pinned, false);
+    assert.strictEqual(manager.getPane('facet.pane.2')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, false);
+    assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, false);
+
+    // Unpinning pane 2 should unpin pane 2 and its upstream dependent pane 1
     await manager.togglePin('facet.pane.2');
+    assert.strictEqual(manager.getPane('facet.pane.1')?.pinned, false);
     assert.strictEqual(manager.getPane('facet.pane.2')?.pinned, false);
     assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, false);
     assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, false);
 
-    // configurePane with pin action
+    // configurePane with pin action on pane 3 cascades upwards to pane 2 and pane 1
     window.pushQuickPick({ action: 'pin' });
     await manager.configurePane('facet.pane.3');
     assert.strictEqual(manager.getPane('facet.pane.3')?.pinned, true);
-    assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.2')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.1')?.pinned, true);
+    assert.strictEqual(manager.getPane('facet.pane.4')?.pinned, false);
+
+    coordinator.dispose();
+  });
+
+  test('getDownstreamPanes correctly chains downstream previousPane dependencies', () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const manager = new PanePipelineManager(coordinator);
+
+    // Default: P1 (project), P2 (previousPane), P3 (previousPane), P4 (previousPane)
+    const downP1 = manager.getDownstreamPanes('facet.pane.1');
+    assert.strictEqual(downP1.length, 3);
+    assert.strictEqual(downP1[0].id, 'facet.pane.2');
+    assert.strictEqual(downP1[1].id, 'facet.pane.3');
+    assert.strictEqual(downP1[2].id, 'facet.pane.4');
+
+    const downP2 = manager.getDownstreamPanes('facet.pane.2');
+    assert.strictEqual(downP2.length, 2);
+    assert.strictEqual(downP2[0].id, 'facet.pane.3');
+    assert.strictEqual(downP2[1].id, 'facet.pane.4');
+
+    const downP3 = manager.getDownstreamPanes('facet.pane.3');
+    assert.strictEqual(downP3.length, 1);
+    assert.strictEqual(downP3[0].id, 'facet.pane.4');
+
+    const downP4 = manager.getDownstreamPanes('facet.pane.4');
+    assert.strictEqual(downP4.length, 0);
+
+    // Break chain: P3 inputSource set to 'project'
+    const p3 = manager.getPane('facet.pane.3');
+    if (p3) {
+      p3.inputSource = 'project';
+    }
+
+    const downP1Broken = manager.getDownstreamPanes('facet.pane.1');
+    assert.strictEqual(downP1Broken.length, 1);
+    assert.strictEqual(downP1Broken[0].id, 'facet.pane.2');
+
+    const downP3Broken = manager.getDownstreamPanes('facet.pane.3');
+    assert.strictEqual(downP3Broken.length, 1);
+    assert.strictEqual(downP3Broken[0].id, 'facet.pane.4');
+
+    coordinator.dispose();
+  });
+
+  test('handleSlotSelection clears downstream stale selections and cascades refresh', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    new PanePipelineManager(coordinator);
+
+    const refreshedSlots: string[] = [];
+    coordinator.onDidRefreshSlot((slotId) => {
+      refreshedSlots.push(slotId);
+    });
+
+    // Populate selections in P2, P3, P4
+    coordinator.setSlotSelection('facet.pane.2', [vscode.Uri.file('/workspace/old.ts')]);
+    coordinator.setSlotSelection('facet.pane.3', [
+      { name: 'OldType', uri: vscode.Uri.file('/workspace/old.ts') } as any,
+    ]);
+    coordinator.setSlotSelection('facet.pane.4', [
+      { name: 'oldMember', uri: vscode.Uri.file('/workspace/old.ts') } as any,
+    ]);
+
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.2').length, 1);
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.3').length, 1);
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.4').length, 1);
+
+    // User selects a directory in P1
+    const newDirNode = {
+      type: 'directory' as const,
+      uri: vscode.Uri.file('/workspace/src'),
+      name: 'src',
+      relativePath: 'src',
+    };
+    await coordinator.handleSlotSelection('facet.pane.1', [newDirNode]);
+
+    // Downstream selections in P2, P3, P4 must all be cleared
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.2').length, 0);
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.3').length, 0);
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.4').length, 0);
+
+    // Downstream panes P2, P3, P4 must all have been refreshed
+    assert.ok(refreshedSlots.includes('facet.pane.2'));
+    assert.ok(refreshedSlots.includes('facet.pane.3'));
+    assert.ok(refreshedSlots.includes('facet.pane.4'));
+
+    coordinator.dispose();
+  });
+
+  test('toggleSelectAll toggles selection: select all when unselected, deselect all when all selected', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    const pipeline = new PanePipelineManager(coordinator);
+
+    const files = [
+      vscode.Uri.file('/workspace/a.ts'),
+      vscode.Uri.file('/workspace/b.ts'),
+      vscode.Uri.file('/workspace/c.ts'),
+    ];
+    coordinator.setCachedWorkspaceFiles(files);
+
+    const pane2 = pipeline.getPane('facet.pane.2');
+    assert.ok(pane2);
+    const allItems = await coordinator.getSlotChildren(pane2);
+    assert.strictEqual(allItems.length, 3);
+
+    // Initially 0 items selected
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.2').length, 0);
+
+    const toggleSlot = async (slotId: string) => {
+      const p = pipeline.getPane(slotId);
+      if (!p) {
+        return;
+      }
+      const items = await coordinator.getSlotChildren(p);
+      const current = coordinator.getSlotSelection(slotId);
+      const isAll = items.length > 0 && current.length >= items.length;
+      if (isAll) {
+        await coordinator.handleSlotSelection(slotId, []);
+      } else {
+        await coordinator.handleSlotSelection(slotId, items);
+      }
+    };
+
+    // 1. Toggle from 0 selected -> all 3 selected
+    await toggleSlot('facet.pane.2');
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.2').length, 3);
+
+    // 2. Toggle from all 3 selected -> 0 selected (deselected)
+    await toggleSlot('facet.pane.2');
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.2').length, 0);
+
+    // 3. User selects 1 item -> toggle -> all 3 selected
+    await coordinator.handleSlotSelection('facet.pane.2', [files[0]]);
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.2').length, 1);
+    await toggleSlot('facet.pane.2');
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.2').length, 3);
+
+    // 4. Toggle from 3 selected -> 0 selected
+    await toggleSlot('facet.pane.2');
+    assert.strictEqual(coordinator.getSlotSelection('facet.pane.2').length, 0);
 
     coordinator.dispose();
   });

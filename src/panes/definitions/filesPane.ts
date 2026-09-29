@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { type FilesPaneConfig, matchesGlob } from '../../models/paneConfig';
 import { getPathBasename, getRelativePath } from '../../shared/pathUtils';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
+import type { DirectoryNode } from './directoriesPane';
 
 export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vscode.Uri> {
   public readonly role = 'files';
@@ -94,6 +95,25 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
           return candidate.type === 'directory' || (item instanceof vscode.Uri && !item.path.includes('.'));
         })
         .map((item) => (item.uri ? item.uri.fsPath : (item as vscode.Uri).fsPath));
+      const prevPane = context.coordinator.getPreviousPane(config.id);
+      const isUpstreamDirectories = prevPane?.role === 'directories';
+
+      if (dirPaths.length === 0 && isUpstreamDirectories && prevPane) {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+          for (const wf of workspaceFolders) {
+            dirPaths.push(wf.uri.fsPath);
+          }
+        } else {
+          const prevChildren = await context.coordinator.getSlotChildren(prevPane);
+          for (const c of prevChildren) {
+            const maybeDir = c as Partial<DirectoryNode>;
+            if (maybeDir.uri && maybeDir.type === 'directory') {
+              dirPaths.push(maybeDir.uri.fsPath);
+            }
+          }
+        }
+      }
 
       if (dirPaths.length > 0) {
         let workspaceFiles = context.coordinator.getCachedWorkspaceFiles();
@@ -109,15 +129,12 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
           const normFile = file.fsPath.replace(/\\/g, '/').replace(/\/+$/, '');
           return dirPaths.some((dir) => {
             const normDir = dir.replace(/\\/g, '/').replace(/\/+$/, '');
-            if (isRecursive) {
-              return normFile.startsWith(`${normDir}/`);
-            }
             const lastSlash = normFile.lastIndexOf('/');
             const fileDir = lastSlash !== -1 ? normFile.slice(0, lastSlash) : '';
             return fileDir === normDir;
           });
         });
-      } else {
+      } else if (!isUpstreamDirectories) {
         let rawFiles =
           context.upstreamOutput.uris && context.upstreamOutput.uris.length > 0
             ? context.upstreamOutput.uris
@@ -125,14 +142,11 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
                 .map((item) => (item instanceof vscode.Uri ? item : (item as { uri?: vscode.Uri })?.uri))
                 .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
 
-        if (rawFiles.length === 0) {
-          const prevPane = context.coordinator.getPreviousPane(config.id);
-          if (prevPane) {
-            const prevChildren = await context.coordinator.getSlotChildren(prevPane);
-            rawFiles = prevChildren
-              .map((item) => (item instanceof vscode.Uri ? item : (item as { uri?: vscode.Uri })?.uri))
-              .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
-          }
+        if (rawFiles.length === 0 && prevPane) {
+          const prevChildren = await context.coordinator.getSlotChildren(prevPane);
+          rawFiles = prevChildren
+            .map((item) => (item instanceof vscode.Uri ? item : (item as { uri?: vscode.Uri })?.uri))
+            .filter((u): u is vscode.Uri => u instanceof vscode.Uri);
         }
 
         const seen = new Set<string>();

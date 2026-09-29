@@ -1,6 +1,11 @@
 import * as assert from 'node:assert';
 import * as vscode from 'vscode';
-import { activate, deactivate } from '../../extension';
+import { FacetCoordinator } from '../../coordinator/facetCoordinator';
+import { PanePipelineManager } from '../../coordinator/panePipelineManager';
+import { activate, deactivate, getAllPaneItems } from '../../extension';
+import type { PaneConfig } from '../../models/paneConfig';
+import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
+import { SymbolResolver } from '../../services/symbolResolver';
 
 suite('Extension Lifecycle Test Suite', () => {
   test('activate registers tree views and commands without throwing', () => {
@@ -85,6 +90,9 @@ suite('Extension Lifecycle Test Suite', () => {
     await vscode.commands.executeCommand('facet.focus');
     await vscode.commands.executeCommand('facet.syncCursorAndFocus');
     await vscode.commands.executeCommand('facet.selectAtCursorAndFocus');
+    await vscode.commands.executeCommand('facet.toggleSelectAll');
+    await vscode.commands.executeCommand('facet.toggleSelectAll', 'facet.pane.1');
+    await vscode.commands.executeCommand('facet.toggleSelectAll', { viewId: 'facet.pane.2' });
     await vscode.commands.executeCommand('facet.addPane');
     await vscode.commands.executeCommand('facet.removePane');
     await vscode.commands.executeCommand('facet.applyPreset');
@@ -136,5 +144,49 @@ suite('Extension Lifecycle Test Suite', () => {
       type: 'problem',
     };
     await vscode.commands.executeCommand('facet.problem.copyMessage', problemArg);
+  });
+
+  test('getAllPaneItems returns flat list of all nodes across tree and flat panes', async () => {
+    const resolver = new SymbolResolver();
+    const relationsProvider = new RelationsTreeProvider();
+    const coordinator = new FacetCoordinator(resolver, relationsProvider);
+    new PanePipelineManager(coordinator);
+
+    const filesConfig: PaneConfig = {
+      id: 'facet.pane.2',
+      role: 'files',
+      title: 'Files',
+      visible: true,
+      inputSource: 'project',
+      selectionSource: 'cursor',
+      sort: 'name',
+      tree: false,
+    };
+
+    coordinator.setCachedWorkspaceFiles([vscode.Uri.file('/workspace/a.ts'), vscode.Uri.file('/workspace/b.ts')]);
+
+    const flatItems = await getAllPaneItems(coordinator, filesConfig);
+    assert.strictEqual(flatItems.length, 2);
+
+    const dirConfig: PaneConfig = {
+      id: 'facet.pane.1',
+      role: 'directories',
+      title: 'Directories',
+      visible: true,
+      inputSource: 'project',
+      selectionSource: 'cursor',
+      sort: 'name',
+      tree: true,
+    };
+
+    coordinator.setCachedWorkspaceFiles([
+      vscode.Uri.file('/workspace/src/app/index.ts'),
+      vscode.Uri.file('/workspace/src/utils/math.ts'),
+    ]);
+
+    const treeItems = await getAllPaneItems(coordinator, dirConfig);
+    assert.ok(treeItems.length >= 2);
+
+    coordinator.dispose();
   });
 });

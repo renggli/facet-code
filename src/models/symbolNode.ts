@@ -41,11 +41,19 @@ export function unionMembers(types: readonly FacetSymbolNode[]): FacetSymbolNode
   const seen = new Set<string>();
 
   for (const t of types) {
-    for (const member of t.children) {
-      const key = `${member.name}:${member.kind}:${member.isStatic}`;
+    if (t.children.length === 0 && !isTypeKind(t.kind)) {
+      const key = `${t.name}:${t.kind}:${t.isStatic}`;
       if (!seen.has(key)) {
         seen.add(key);
-        result.push(member);
+        result.push(t);
+      }
+    } else {
+      for (const member of t.children) {
+        const key = `${member.name}:${member.kind}:${member.isStatic}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          result.push(member);
+        }
       }
     }
   }
@@ -85,7 +93,7 @@ export function extractTypeHeader(lines: string[], startLine: number): string {
   const collected: string[] = [];
   let actualStart = startLine;
   if (!/\b(class|interface|struct|enum)\b/.test(lines[startLine] ?? '')) {
-    for (let j = Math.max(0, startLine - 3); j <= Math.min(startLine + 3, lines.length - 1); j++) {
+    for (let j = Math.max(0, startLine - 5); j <= Math.min(startLine + 20, lines.length - 1); j++) {
       if (/\b(class|interface|struct|enum)\b/.test(lines[j])) {
         actualStart = j;
         break;
@@ -93,10 +101,10 @@ export function extractTypeHeader(lines: string[], startLine: number): string {
     }
   }
 
-  for (let i = actualStart; i < Math.min(actualStart + 10, lines.length); i++) {
+  for (let i = actualStart; i < Math.min(actualStart + 15, lines.length); i++) {
     const line = lines[i].replace(/\/\/.*$/, '');
     collected.push(line.trim());
-    if (line.includes('{') || (line.includes(':') && !line.includes('::'))) {
+    if (line.includes('{')) {
       break;
     }
   }
@@ -106,9 +114,12 @@ export function extractTypeHeader(lines: string[], startLine: number): string {
 export function extractSuperTypes(header: string, isInterface = false): string[] {
   const superTypes: string[] = [];
 
+  // Strip generic type parameters on the declared type itself to avoid matching 'extends' inside <T extends Foo>
+  const cleanedHeader = header.replace(/\b(class|interface|struct|enum)\s+([A-Za-z0-9_$]+)\s*<[^>{}]*>/, '$1 $2');
+
   if (isInterface) {
     // Interface inheritance: interface Cat extends Animal, Domesticated
-    const extendsMatch = /\bextends\s+([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(header);
+    const extendsMatch = /\bextends\s+([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(cleanedHeader);
     if (extendsMatch) {
       const parts = extendsMatch[1]
         .split(',')
@@ -125,7 +136,7 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
     }
 
     // C# / C++ interface inheritance: interface ICat : IAnimal, IDomesticated
-    const colonMatch = /:\s*([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(header);
+    const colonMatch = /:\s*([A-Za-z0-9_$.<>\s,]+?)(?=\s*\{|\s*$)/.exec(cleanedHeader);
     if (colonMatch && !extendsMatch) {
       const parts = colonMatch[1]
         .split(',')
@@ -143,7 +154,7 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
     }
   } else {
     // Class inheritance: class Dog extends Animal (ignores generic args and interfaces)
-    const extendsMatch = /\bextends\s+([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)*)/.exec(header);
+    const extendsMatch = /\bextends\s+([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)*)/.exec(cleanedHeader);
     if (extendsMatch) {
       const name = extendsMatch[1].split('.').pop()!.trim();
       if (name) {
@@ -152,7 +163,9 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
     }
 
     // C# / C++: class Dog : Animal, IPet (only the first type can be a base class, interfaces ignored)
-    const colonMatch = /:\s*(?:public\s+|private\s+|protected\s+)?([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)*)/.exec(header);
+    const colonMatch = /:\s*(?:public\s+|private\s+|protected\s+)?([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)*)/.exec(
+      cleanedHeader,
+    );
     if (colonMatch && !extendsMatch) {
       const name = colonMatch[1].split('.').pop()!.trim();
       if (name && !/^I[A-Z]/.test(name)) {
@@ -161,7 +174,7 @@ export function extractSuperTypes(header: string, isInterface = false): string[]
     }
 
     // Python: class Dog(Animal, CanRun):
-    const pythonMatch = /\(([A-Za-z0-9_$,\s]+)\)\s*:/.exec(header);
+    const pythonMatch = /\(([A-Za-z0-9_$,\s]+)\)\s*:/.exec(cleanedHeader);
     if (pythonMatch) {
       const parts = pythonMatch[1]
         .split(',')

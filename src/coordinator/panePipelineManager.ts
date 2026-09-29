@@ -270,6 +270,8 @@ export class PanePipelineManager {
     }
     const def = this.registry.get(pane.role);
     const caps = def.capabilities;
+    const visible = this.getVisiblePanes();
+    const isFirstPane = visible[0]?.id === slotId;
 
     const items: { label: string; description?: string; action: string }[] = [
       {
@@ -284,19 +286,11 @@ export class PanePipelineManager {
       },
     ];
 
-    if (caps.supportedInputs.length > 1) {
+    if (isFirstPane && caps.supportedInputs.length > 1) {
       items.push({
         label: '$(sign-in) Input Source...',
         description: this.getInputSourceLabel(pane.inputSource),
         action: 'input',
-      });
-    }
-
-    if (caps.supportedSelections.length > 1) {
-      items.push({
-        label: '$(check) Selection Source...',
-        description: this.getSelectionSourceLabel(pane.selectionSource),
-        action: 'selectionSource',
       });
     }
 
@@ -351,9 +345,6 @@ export class PanePipelineManager {
         break;
       case 'input':
         await this.configureInputSource(slotId);
-        break;
-      case 'selectionSource':
-        await this.configureSelectionSource(slotId);
         break;
       case 'sort':
         await this.configureSort(slotId);
@@ -417,7 +408,10 @@ export class PanePipelineManager {
     const def = this.registry.get(pane.role);
     const visible = this.getVisiblePanes();
     const idx = visible.findIndex((p) => p.id === slotId);
-    const isFirstPane = idx === 0;
+    if (idx !== 0) {
+      return;
+    }
+    const isFirstPane = true;
 
     const descriptions: Record<PaneInputSource, string> = {
       project: 'Workspace-wide files, directories, symbols, or issues',
@@ -580,18 +574,35 @@ export class PanePipelineManager {
   public getDependentPanes(slotId: string): PaneConfig[] {
     const visible = this.getVisiblePanes();
     const idx = visible.findIndex((p) => p.id === slotId);
-    if (idx === -1) {
+    if (idx <= 0) {
       return [];
     }
     const dependents: PaneConfig[] = [];
-    for (let i = idx + 1; i < visible.length; i++) {
-      if (visible[i].inputSource === 'previousPane') {
+    for (let i = idx - 1; i >= 0; i--) {
+      if (visible[i + 1].inputSource === 'previousPane') {
         dependents.push(visible[i]);
       } else {
         break;
       }
     }
     return dependents;
+  }
+
+  public getDownstreamPanes(slotId: string): PaneConfig[] {
+    const visible = this.getVisiblePanes();
+    const idx = visible.findIndex((p) => p.id === slotId);
+    if (idx === -1 || idx >= visible.length - 1) {
+      return [];
+    }
+    const downstream: PaneConfig[] = [];
+    for (let i = idx + 1; i < visible.length; i++) {
+      if (visible[i].inputSource === 'previousPane') {
+        downstream.push(visible[i]);
+      } else {
+        break;
+      }
+    }
+    return downstream;
   }
 
   public async setPinned(slotId: string, pinned: boolean, cascade = true): Promise<void> {
@@ -658,7 +669,7 @@ export class PanePipelineManager {
       },
       {
         label: '$(edit) Active Editor',
-        description: 'Symbols (Active Editor) -> Members -> Callers',
+        description: 'Definitions (Flat) -> Members (Hierarchy) -> Callers',
         preset: 'activeEditor',
       },
       {
@@ -678,7 +689,7 @@ export class PanePipelineManager {
       },
       {
         label: '$(files) Open Editors',
-        description: 'Open Files -> Symbols (Hierarchy) -> Members -> References',
+        description: 'Open Files -> Definitions (Flat) -> Members (Hierarchy) -> References',
         preset: 'openEditors',
       },
       { label: 'Custom Presets', kind: vscode.QuickPickItemKind.Separator },
@@ -904,14 +915,14 @@ export class PanePipelineManager {
     switch (preset) {
       case 'activeEditor': {
         const s1 = symDef.defaultConfig('');
-        s1.title = 'Symbols';
-        s1.tree = true;
+        s1.title = 'Definitions';
+        s1.tree = false;
         s1.inputSource = 'activeEditor';
         s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
-        s2.tree = false;
+        s2.tree = true;
         s2.inputSource = 'previousPane';
         s2.selectionSource = 'cursor';
 
@@ -1004,14 +1015,14 @@ export class PanePipelineManager {
         f.selectionSource = 'cursor';
 
         const s1 = symDef.defaultConfig('');
-        s1.title = 'Symbols';
-        s1.tree = true;
+        s1.title = 'Definitions';
+        s1.tree = false;
         s1.inputSource = 'previousPane';
         s1.selectionSource = 'cursor';
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
-        s2.tree = false;
+        s2.tree = true;
         s2.inputSource = 'previousPane';
         s2.selectionSource = 'none';
 
@@ -1077,17 +1088,6 @@ export class PanePipelineManager {
         return 'Active Editor';
       case 'previousPane':
         return 'Previous Pane';
-    }
-  }
-
-  private getSelectionSourceLabel(source: SelectionSource): string {
-    switch (source) {
-      case 'cursor':
-        return 'Cursor';
-      case 'all':
-        return 'All';
-      case 'none':
-        return 'None';
     }
   }
 

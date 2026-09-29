@@ -285,12 +285,10 @@ export class FacetCoordinator implements vscode.Disposable {
       this._onRevealInView.fire({ slotId: pane.id, node: itemToSet });
       targetSlotId = pane.id;
 
-      for (const other of visible) {
-        if (other.id !== pane.id && other.inputSource === 'previousPane' && (!other.pinned || force)) {
-          const upstream = this.getPreviousPane(other.id);
-          if (upstream && upstream.id === pane.id) {
-            this.refreshSlot(other.id);
-          }
+      const downstream = this.getDownstreamPanes(pane.id);
+      for (const dep of downstream) {
+        if (!dep.pinned || force) {
+          this.refreshSlot(dep.id);
         }
       }
     }
@@ -493,22 +491,31 @@ export class FacetCoordinator implements vscode.Disposable {
       }
 
       if (this.pipelineManager) {
-        const visible = this.pipelineManager.getVisiblePanes();
-        for (const other of visible) {
-          if (other.id !== slotId && other.inputSource === 'previousPane') {
-            const upstream = this.getPreviousPane(other.id);
-            if (upstream && upstream.id === slotId) {
-              this.refreshSlot(other.id);
-              if (other.selectionSource === 'all') {
-                this.handlePaneSelectionSourceChange(other.id);
-              }
-            }
+        const downstream = this.getDownstreamPanes(slotId);
+        for (const dep of downstream) {
+          this.slotSelections.delete(dep.id);
+          this.refreshSlot(dep.id);
+          if (dep.selectionSource === 'all') {
+            this.handlePaneSelectionSourceChange(dep.id);
           }
         }
       }
     } finally {
       this.isInternalSelection = false;
     }
+
+    if (selection.length === 1 && selection[0] instanceof vscode.Uri) {
+      const openedUri = selection[0] as vscode.Uri;
+      setTimeout(() => {
+        if (this.currentEditor && this.currentEditor.document.uri.fsPath === openedUri.fsPath) {
+          void this.handleSelectionChange(this.currentEditor);
+        }
+      }, 50);
+    }
+  }
+
+  public getDownstreamPanes(slotId: string): PaneConfig[] {
+    return this.pipelineManager?.getDownstreamPanes(slotId) ?? [];
   }
 
   public getPreviousPane(slotId: string): PaneConfig | undefined {
@@ -694,7 +701,24 @@ export class FacetCoordinator implements vscode.Disposable {
       return undefined;
     }
     const pos = this.currentEditor.selection.active;
-    return this.cachedDocumentSymbols.find((s) => isTypeKind(s.kind) && s.range.contains(pos));
+    const findDeep = (nodes: FacetSymbolNode[]): FacetSymbolNode | undefined => {
+      for (const s of nodes) {
+        if (s.range?.contains(pos)) {
+          if (isTypeKind(s.kind)) {
+            const inner = s.children ? findDeep(s.children) : undefined;
+            return inner ?? s;
+          }
+          if (s.children && s.children.length > 0) {
+            const inner = findDeep(s.children);
+            if (inner) {
+              return inner;
+            }
+          }
+        }
+      }
+      return undefined;
+    };
+    return findDeep(this.cachedDocumentSymbols);
   }
 
   public findMemberAtCursor(): FacetSymbolNode | undefined {

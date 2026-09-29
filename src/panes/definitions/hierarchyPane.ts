@@ -41,7 +41,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
       sort: 'name',
       filters: createDefaultFilters(),
       tree: true,
-      subclassTypes: ['class', 'struct'],
+      subclassTypes: ['class', 'interface', 'struct'],
     };
   }
 
@@ -63,6 +63,12 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
           );
           if (lspSubtypes.length > 0) {
             element.subTypes = lspSubtypes;
+          } else {
+            const cached = context.coordinator.getCachedWorkspaceTypes();
+            const matchingSubs = cached.filter((t) => t.superTypes?.includes(element.name));
+            if (matchingSubs.length > 0) {
+              element.subTypes = matchingSubs;
+            }
           }
         }
         const subTypes = element.subTypes ?? [];
@@ -240,7 +246,10 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
     const isTree = Boolean(context.config.tree);
     const filters = context.config.filters;
     const hasChildren =
-      isTree && Boolean(node.subTypes?.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters)));
+      isTree &&
+      (node.subTypes === undefined
+        ? true
+        : Boolean(node.subTypes.some((c) => isTypeKind(c.kind) && matchesPaneFilters(c, filters))));
 
     const item = new vscode.TreeItem(
       node.name,
@@ -434,7 +443,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
           if (!found && current.uri) {
             found = {
               name: superName,
-              kind: vscode.SymbolKind.Class,
+              kind: current.kind,
               uri: current.uri,
               range: new vscode.Range(0, 0, 0, 0),
               selectionRange: new vscode.Range(0, 0, 0, 0),

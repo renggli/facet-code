@@ -103,7 +103,9 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
           return false;
         }
         const candidate = s as Partial<FacetSymbolNode>;
-        return candidate.kind !== undefined && isTypeKind(candidate.kind);
+        return (
+          candidate.kind !== undefined && (isTypeKind(candidate.kind) || candidate.kind === vscode.SymbolKind.Function)
+        );
       });
 
       if (symbolTypes.length > 0) {
@@ -129,7 +131,10 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
                 return false;
               }
               const candidate = s as Partial<FacetSymbolNode>;
-              return candidate.kind !== undefined && isTypeKind(candidate.kind);
+              return (
+                candidate.kind !== undefined &&
+                (isTypeKind(candidate.kind) || candidate.kind === vscode.SymbolKind.Function)
+              );
             });
             if (prevTypes.length > 0) {
               targetTypes = [prevTypes[0]];
@@ -293,8 +298,8 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
       try {
         const doc = await vscode.workspace.openTextDocument(uri);
         const symbols = await context.coordinator.resolver.resolveDocumentSymbols(doc);
-        const types = symbols.filter((s) => isTypeKind(s.kind));
-        rawTypes.push(...types);
+        const types = symbols.filter((s) => isTypeKind(s.kind) || s.kind === vscode.SymbolKind.Function);
+        rawTypes.push(...(types.length > 0 ? types : symbols));
       } catch {
         // ignore unopenable files
       }

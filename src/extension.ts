@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { FacetCoordinator, type FacetSlotItem } from './coordinator/facetCoordinator';
 import { PanePipelineManager } from './coordinator/panePipelineManager';
 import { WorkbenchLayoutWatcher } from './coordinator/workbenchLayoutWatcher';
+import type { PaneConfig } from './models/paneConfig';
 import { RelationsTreeProvider } from './providers/relationsTreeProvider';
 import { SlotTreeProvider } from './providers/slotTreeProvider';
 import { SymbolResolver } from './services/symbolResolver';
@@ -42,7 +43,6 @@ export function activate(context: vscode.ExtensionContext) {
     const treeView = vscode.window.createTreeView<FacetSlotItem>(slotId, {
       treeDataProvider: slotProvider,
       canSelectMany: true,
-      showCollapseAll: true,
     });
     const pane = pipelineManager.getPane(slotId);
     if (pane) {
@@ -115,6 +115,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const focusPane = async (slotId: string): Promise<void> => {
     try {
+      lastActiveSlotId = slotId;
       await vscode.commands.executeCommand(`${slotId}.focus`);
     } catch {
       // fallback
@@ -179,13 +180,17 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(`${slotId}.type`, async () => {
         await pipelineManager.configurePaneType(slotId);
       }),
-      vscode.commands.registerCommand(`${slotId}.input`, async () => {
-        await pipelineManager.configureInputSource(slotId);
-      }),
       vscode.commands.registerCommand(`${slotId}.sort`, async () => {
         await pipelineManager.configureSort(slotId);
       }),
     );
+    if (slotId === 'facet.pane.1') {
+      context.subscriptions.push(
+        vscode.commands.registerCommand(`${slotId}.input`, async () => {
+          await pipelineManager.configureInputSource(slotId);
+        }),
+      );
+    }
   }
 
   // Dynamic commands for current active panes (based on current order and configuration)
@@ -321,6 +326,54 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('facet.selectAtCursorAndFocus', async () => {
       await vscode.commands.executeCommand('facet.syncCursorAndFocus');
+    }),
+    vscode.commands.registerCommand('facet.toggleSelectAll', async (arg?: unknown) => {
+      let slotId: string | undefined;
+      if (typeof arg === 'string' && arg.startsWith('facet.pane.')) {
+        slotId = arg;
+      } else if (
+        arg &&
+        typeof arg === 'object' &&
+        'viewId' in arg &&
+        typeof (arg as { viewId: unknown }).viewId === 'string'
+      ) {
+        slotId = (arg as { viewId: string }).viewId;
+      } else if (lastActiveSlotId && pipelineManager.getPane(lastActiveSlotId)) {
+        slotId = lastActiveSlotId;
+      } else {
+        slotId = pipelineManager.getVisiblePanes()[0]?.id ?? 'facet.pane.1';
+      }
+
+      const pane = pipelineManager.getPane(slotId);
+      if (!pane) {
+        return;
+      }
+
+      const allItems = await getAllPaneItems(coordinator, pane);
+      if (allItems.length === 0) {
+        return;
+      }
+
+      const currentSel = coordinator.getSlotSelection(slotId);
+      const isAllSelected = currentSel.length >= allItems.length;
+
+      if (isAllSelected) {
+        try {
+          await vscode.commands.executeCommand('list.clear');
+        } catch {
+          // ignore
+        }
+        await coordinator.handleSlotSelection(slotId, []);
+        slotProviders.get(slotId)?.refresh();
+      } else {
+        try {
+          await vscode.commands.executeCommand('list.selectAll');
+        } catch {
+          // ignore
+        }
+        await coordinator.handleSlotSelection(slotId, allItems);
+        slotProviders.get(slotId)?.refresh();
+      }
     }),
   );
 
@@ -553,4 +606,29 @@ function extractItemTarget(arg: unknown): ItemTarget {
   const name = typeof item.name === 'string' ? item.name : undefined;
   const message = typeof item.message === 'string' ? item.message : undefined;
   return { uri, range, name, message, isDirectory };
+}
+
+export async function getAllPaneItems(coordinator: FacetCoordinator, pane: PaneConfig): Promise<FacetSlotItem[]> {
+  const rootItems = await coordinator.getSlotChildren(pane);
+  const hasTree = 'tree' in pane && Boolean((pane as { tree?: boolean }).tree);
+  if (!hasTree) {
+    return rootItems;
+  }
+  const visited = new Set<unknown>();
+  const all: FacetSlotItem[] = [];
+  const collect = async (items: FacetSlotItem[]) => {
+    for (const item of items) {
+      if (visited.has(item)) {
+        continue;
+      }
+      visited.add(item);
+      all.push(item);
+      const children = await coordinator.getSlotChildren(pane, item);
+      if (children.length > 0) {
+        await collect(children);
+      }
+    }
+  };
+  await collect(rootItems);
+  return all;
 }
