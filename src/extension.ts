@@ -71,7 +71,10 @@ export function activate(context: vscode.ExtensionContext) {
     coordinator.onRevealInView(({ slotId, node }) => {
       const view = slotViews.get(slotId);
       if (view?.visible) {
-        void view.reveal(node, { select: true, focus: false, expand: true });
+        if (view.selection?.length === 1 && coordinator.isSameSlotItem(view.selection[0], node)) {
+          return;
+        }
+        void view.reveal(node, { select: true, focus: false, expand: false });
       }
     }),
     pipelineManager.onDidUpdatePanes(() => {

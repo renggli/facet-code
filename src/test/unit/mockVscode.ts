@@ -330,6 +330,7 @@ export const window = {
     title: '',
     description: '',
     visible: true,
+    selection: [] as any[],
     onDidChangeSelection: () => ({ dispose: () => {} }),
     onDidChangeVisibility: () => ({ dispose: () => {} }),
     reveal: async () => {},

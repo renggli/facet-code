@@ -88,7 +88,10 @@
   - **Tier 3 (Types ➔ Members):** Selecting multiple types aggregates the union of all their member declarations (methods, properties, fields) in the Members pane, with smart deduplication.
   - **Tier 4 (Members ➔ Relations):** Selecting multiple members computes the combined union of references, callers, definitions, declarations, or implementations simultaneously.
   - **Multi-Selection Caret Protection:** When a user selects 2 or more items in a pane, automated cursor tracking skips updating that pane, preventing caret movements in editors from destroying multi-selections.
-- **Deep Cursor Tracking & Tree Sync:** Caret tracking simultaneously locates the enclosing type, active member, and document URI. It resolves exact tree references and auto-expands hierarchical parent nodes via `getParent()`. Debounced at 150ms with `CancellationTokenSource` and redundancy guards (`isSameSlotItem`) to prevent view jitter.
+- **Deep Cursor Tracking & Tree Sync:** Caret tracking simultaneously locates the enclosing type, active member, and document URI. It resolves exact tree references and auto-expands hierarchical parent nodes via `getParent()`. Debounced at 150ms with `CancellationTokenSource` and redundancy guards (`isSameSlotItem`).
+  - **Navigation Leases (`InternalNavigationLease`):** Outgoing navigation from a Facet slot grants a 600ms lease that prevents caret tracking from reverse-mutating parent slots ($0 \dots K$), eliminating selection echo loops.
+  - **Ancestor Directory Preservation:** Retains currently selected parent directory if it is already an ancestor of the document, preventing unwanted drill-down transitions.
+  - **Consolidated Downstream Refreshes:** Downstream pane refreshes during caret sync are batched in a `Set<string>`, eliminating multi-pass refresh thrashing.
 - **Tiered LSP & Fallback Parsing:**
   - **Tier 1:** Standard VS Code `DocumentSymbol` hierarchical outline.
   - **Tier 2:** Flat `SymbolInformation` container query.

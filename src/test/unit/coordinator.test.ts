@@ -1607,4 +1607,155 @@ suite('FacetCoordinator Test Suite', () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
     assert.strictEqual(refreshFired, false);
   });
+
+  test('findMatchingSlotItem preserves ancestor directory selection', async () => {
+    const resolver = new SymbolResolver();
+    const coordinator = new FacetCoordinator(resolver);
+    const manager = new PanePipelineManager(coordinator);
+
+    const dirConfig = manager.getVisiblePanes()[0]; // Directories
+    assert.strictEqual(dirConfig.role, 'directories');
+
+    const srcDirNode: DirectoryNode = {
+      type: 'directory',
+      name: 'src',
+      relativePath: 'src',
+      uri: vscode.Uri.file('/workspace/src'),
+    };
+
+    coordinator.setCachedWorkspaceFiles([
+      vscode.Uri.file('/workspace/src/components/button.tsx'),
+      vscode.Uri.file('/workspace/docs/guide.md'),
+    ]);
+
+    // User selected /workspace/src
+    coordinator.setSlotSelection(dirConfig.id, [srcDirNode]);
+
+    // Active document inside /workspace/src/components/button.tsx
+    const matchInside = await coordinator.findMatchingSlotItem(
+      dirConfig,
+      vscode.Uri.file('/workspace/src/components/button.tsx'),
+    );
+    // Must preserve existing /workspace/src ancestor selection
+    assert.ok(matchInside);
+    assert.strictEqual((matchInside as DirectoryNode).uri.fsPath, '/workspace/src');
+
+    // Active document in different root /workspace/docs/guide.md
+    const matchOutside = await coordinator.findMatchingSlotItem(dirConfig, vscode.Uri.file('/workspace/docs/guide.md'));
+    assert.ok(matchOutside);
+    assert.strictEqual((matchOutside as DirectoryNode).name, 'docs');
+
+    coordinator.dispose();
+  });
+
+  test('InternalNavigationLease suppresses reverse parent updates when editor changes originate from Facet clicks', async () => {
+    const resolver = new SymbolResolver();
+    const coordinator = new FacetCoordinator(resolver);
+    const manager = new PanePipelineManager(coordinator);
+
+    const visible = manager.getVisiblePanes();
+    const [p1, p2, p3, p4] = visible;
+
+    const fileUri = vscode.Uri.file('/workspace/src/app.ts');
+    const range = new vscode.Range(10, 0, 10, 10);
+
+    const dirNode: DirectoryNode = {
+      type: 'directory',
+      name: 'src',
+      relativePath: 'src',
+      uri: vscode.Uri.file('/workspace/src'),
+    };
+    const classNode: FacetSymbolNode = {
+      name: 'AppService',
+      kind: vscode.SymbolKind.Class,
+      uri: fileUri,
+      range: new vscode.Range(0, 0, 20, 0),
+      selectionRange: new vscode.Range(0, 0, 0, 10),
+      category: MemberCategory.All,
+      isStatic: false,
+      children: [],
+    };
+    const methodNode: FacetSymbolNode = {
+      name: 'run',
+      kind: vscode.SymbolKind.Method,
+      uri: fileUri,
+      range,
+      selectionRange: range,
+      category: MemberCategory.InstanceMethods,
+      isStatic: false,
+      children: [],
+    };
+
+    coordinator.setSlotSelection(p1.id, [dirNode]);
+    coordinator.setSlotSelection(p2.id, [fileUri]);
+    coordinator.setSlotSelection(p3.id, [classNode]);
+
+    // User selects a member in P4 (Members)
+    await coordinator.handleSlotSelection(p4.id, [methodNode]);
+
+    // Check lease is established
+    const lease = coordinator.getNavigationLease();
+    assert.ok(lease);
+    assert.strictEqual(lease.slotId, p4.id);
+    assert.strictEqual(lease.uriString, fileUri.toString());
+
+    // Mock active text editor positioned at method
+    const editor = {
+      document: {
+        uri: fileUri,
+        version: 1,
+        getText: () => 'class AppService { run() {} }',
+      },
+      selection: new vscode.Selection(range.start, range.end),
+    } as any;
+
+    // handleSelectionChange should NOT overwrite parents P1, P2, P3
+    await coordinator.handleSelectionChange(editor);
+
+    // Parent selections remain intact
+    assert.strictEqual(coordinator.getSlotSelection(p1.id).length, 1);
+    assert.strictEqual((coordinator.getSlotSelection(p1.id)[0] as DirectoryNode).name, 'src');
+    assert.strictEqual(coordinator.getSlotSelection(p2.id).length, 1);
+    assert.strictEqual((coordinator.getSlotSelection(p2.id)[0] as vscode.Uri).fsPath, fileUri.fsPath);
+    assert.strictEqual(coordinator.getSlotSelection(p3.id).length, 1);
+    assert.strictEqual((coordinator.getSlotSelection(p3.id)[0] as FacetSymbolNode).name, 'AppService');
+
+    coordinator.dispose();
+  });
+
+  test('handleSelectionChange batches downstream refreshes so each pane refreshes at most once', async () => {
+    const resolver = new SymbolResolver();
+    const coordinator = new FacetCoordinator(resolver);
+    new PanePipelineManager(coordinator);
+
+    const refreshedSlots: string[] = [];
+    coordinator.onDidRefreshSlot((slotId) => {
+      refreshedSlots.push(slotId);
+    });
+
+    const fileUri = vscode.Uri.file('/workspace/src/main.ts');
+    const editor = {
+      document: {
+        uri: fileUri,
+        version: 1,
+        getText: () => 'export const x = 1;',
+      },
+      selection: new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0)),
+    } as any;
+
+    await coordinator.handleSelectionChange(editor, { force: true });
+
+    // Count occurrences of each slot in refreshedSlots
+    const counts = new Map<string, number>();
+    for (const slot of refreshedSlots) {
+      counts.set(slot, (counts.get(slot) ?? 0) + 1);
+    }
+
+    // Every refreshed slot must have been refreshed at most 1 time
+    for (const [slot, count] of counts.entries()) {
+      assert.strictEqual(count, 1, `Slot ${slot} was refreshed more than once: ${count} times`);
+    }
+
+    coordinator.dispose();
+  });
 });

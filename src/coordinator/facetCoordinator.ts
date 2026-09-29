@@ -12,6 +12,13 @@ import type { PanePipelineManager } from './panePipelineManager';
 export type FacetSlotItem = vscode.Uri | DirectoryNode | FacetSymbolNode | ProblemItem | RelationItem;
 export type { DirectoryNode, ProblemItem, RelationItem };
 
+export interface InternalNavigationLease {
+  slotId: string;
+  uriString: string;
+  range?: vscode.Range;
+  expiresAt: number;
+}
+
 export class FacetCoordinator implements vscode.Disposable {
   private cancellationSource?: vscode.CancellationTokenSource;
   private debounceTimer?: NodeJS.Timeout;
@@ -24,6 +31,7 @@ export class FacetCoordinator implements vscode.Disposable {
   private cachedDocumentUri?: string;
   private cachedDocumentVersion?: number;
   private isInternalSelection = false;
+  private navigationLease?: InternalNavigationLease;
   private slotSelections = new Map<string, readonly FacetSlotItem[]>();
   private pipelineManager?: PanePipelineManager;
   private documentChangeDebounceTimer?: NodeJS.Timeout;
@@ -89,6 +97,14 @@ export class FacetCoordinator implements vscode.Disposable {
 
   public clearSlotSelections(): void {
     this.slotSelections.clear();
+  }
+
+  public getNavigationLease(): InternalNavigationLease | undefined {
+    return this.navigationLease;
+  }
+
+  public setNavigationLease(lease: InternalNavigationLease | undefined): void {
+    this.navigationLease = lease;
   }
 
   public refreshSlot(slotId: string): void {
@@ -227,7 +243,26 @@ export class FacetCoordinator implements vscode.Disposable {
     const docUri = this.currentEditor.document.uri;
     let targetSlotId: string | undefined;
 
+    const now = Date.now();
+    const activeLease = this.navigationLease && this.navigationLease.expiresAt > now ? this.navigationLease : undefined;
+    if (!activeLease) {
+      this.navigationLease = undefined;
+    }
+
+    let leaseSlotIdx = -1;
+    if (activeLease && !force) {
+      const docUriStr = docUri.toString();
+      if (activeLease.uriString === docUriStr) {
+        leaseSlotIdx = visible.findIndex((p) => p.id === activeLease.slotId);
+      }
+    }
+
+    const affectedDownstreamSlots = new Set<string>();
+
     for (let i = 0; i <= lastCursorIdx; i++) {
+      if (!force && leaseSlotIdx !== -1 && i <= leaseSlotIdx) {
+        continue;
+      }
       const pane = visible[i];
       if (pane.pinned && !force) {
         continue;
@@ -288,9 +323,13 @@ export class FacetCoordinator implements vscode.Disposable {
       const downstream = this.getDownstreamPanes(pane.id);
       for (const dep of downstream) {
         if (!dep.pinned || force) {
-          this.refreshSlot(dep.id);
+          affectedDownstreamSlots.add(dep.id);
         }
       }
+    }
+
+    for (const depId of affectedDownstreamSlots) {
+      this.refreshSlot(depId);
     }
 
     return targetSlotId;
@@ -301,9 +340,32 @@ export class FacetCoordinator implements vscode.Disposable {
       return undefined;
     }
     if (pane.role === 'directories') {
-      const items = (await this.getSlotChildren(pane)) as DirectoryNode[];
       const targetPath =
         target instanceof vscode.Uri ? target.fsPath : ((target as { uri?: vscode.Uri }).uri?.fsPath ?? '');
+      if (!targetPath) {
+        return undefined;
+      }
+
+      // Ancestor preservation: if current selection already contains targetPath, retain it
+      const currentSel = this.getSlotSelection(pane.id);
+      if (
+        currentSel.length === 1 &&
+        currentSel[0] &&
+        typeof currentSel[0] === 'object' &&
+        'type' in currentSel[0] &&
+        (currentSel[0] as { type: string }).type === 'directory'
+      ) {
+        const curDir = currentSel[0] as DirectoryNode;
+        if (curDir.uri) {
+          const normTarget = targetPath.replace(/\\/g, '/');
+          const normCur = curDir.uri.fsPath.replace(/\\/g, '/');
+          if (normTarget === normCur || normTarget.startsWith(normCur.endsWith('/') ? normCur : `${normCur}/`)) {
+            return curDir;
+          }
+        }
+      }
+
+      const items = (await this.getSlotChildren(pane)) as DirectoryNode[];
       const findDir = (list: DirectoryNode[]): DirectoryNode | undefined => {
         for (const d of list) {
           if (targetPath.startsWith(d.uri.fsPath)) {
@@ -461,6 +523,11 @@ export class FacetCoordinator implements vscode.Disposable {
       if (selection.length === 1) {
         const first = selection[0];
         if (first instanceof vscode.Uri) {
+          this.navigationLease = {
+            slotId,
+            uriString: first.toString(),
+            expiresAt: Date.now() + 600,
+          };
           const currentDoc = this.currentEditor?.document;
           if (!currentDoc || currentDoc.uri.fsPath !== first.fsPath) {
             await vscode.commands.executeCommand('vscode.open', first);
@@ -468,11 +535,23 @@ export class FacetCoordinator implements vscode.Disposable {
         } else if (first && typeof first === 'object' && 'type' in first && first.type === 'directory') {
           // Directory selection filters downstream panes
         } else if (first && typeof first === 'object' && 'type' in first && first.type === 'problem') {
+          this.navigationLease = {
+            slotId,
+            uriString: first.uri.toString(),
+            range: first.range,
+            expiresAt: Date.now() + 600,
+          };
           await vscode.commands.executeCommand('facet.revealRange', first.uri, first.range);
         } else if (first && typeof first === 'object' && 'uri' in first && first.uri) {
           const sym = first as Partial<FacetSymbolNode>;
           const targetRange: vscode.Range | undefined = sym.selectionRange ?? sym.range;
           if (targetRange) {
+            this.navigationLease = {
+              slotId,
+              uriString: first.uri.toString(),
+              range: targetRange,
+              expiresAt: Date.now() + 600,
+            };
             const currentDoc = this.currentEditor?.document;
             const currentSel = this.currentEditor?.selection;
             const sameFile = currentDoc && currentDoc.uri.fsPath === first.uri.fsPath;
