@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import { parseSlotOrderFromBuffer, WorkbenchLayoutWatcher } from '../../coordinator/workbenchLayoutWatcher';
-import type { SymbolsPaneConfig } from '../../models/paneConfig';
+import { PaneInputSource, PaneRole, type SymbolsPaneConfig } from '../../models/paneConfig';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { SlotTreeProvider } from '../../providers/slotTreeProvider';
 import { SymbolResolver } from '../../services/symbolResolver';
@@ -82,20 +82,20 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     assert.strictEqual(manager.getVisiblePanes().length, 4);
 
     // Add Callers to end
-    const added1 = await manager.addPaneToEnd('callers');
+    const added1 = await manager.addPaneToEnd(PaneRole.Callers);
     assert.ok(added1);
     assert.strictEqual(manager.getVisiblePanes().length, 5);
-    assert.strictEqual(manager.getVisiblePanes()[4].role, 'callers');
+    assert.strictEqual(manager.getVisiblePanes()[4].role, PaneRole.Callers);
     assert.strictEqual(manager.getVisiblePanes()[4].id, 'facet.pane.5');
 
     // Add Definitions to end
-    const added2 = await manager.addPaneToEnd('definitions');
+    const added2 = await manager.addPaneToEnd(PaneRole.Definitions);
     assert.ok(added2);
     assert.strictEqual(manager.getVisiblePanes().length, 6);
-    assert.strictEqual(manager.getVisiblePanes()[5].role, 'definitions');
+    assert.strictEqual(manager.getVisiblePanes()[5].role, PaneRole.Definitions);
 
     // Cannot add beyond 6
-    const addedOverflow = await manager.addPaneToEnd('symbols');
+    const addedOverflow = await manager.addPaneToEnd(PaneRole.Symbols);
     assert.strictEqual(addedOverflow, undefined);
     assert.strictEqual(manager.getVisiblePanes().length, 6);
 
@@ -143,7 +143,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     const manager = new PanePipelineManager(coordinator);
     // Initial visible: [pane.1 (directories), pane.2 (files), pane.3 (types), pane.4 (members)]
     // Add Callers pane to end
-    await manager.addPaneToEnd('callers');
+    await manager.addPaneToEnd(PaneRole.Callers);
     // Current visible: [pane.1 (directories), pane.2 (files), pane.3 (types), pane.4 (members), pane.5 (callers)]
 
     // pane.1 has no previous pane
@@ -721,7 +721,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     // Break the chain: set P3 inputSource to 'project'
     const p3 = manager.getPane('facet.pane.3');
     if (p3) {
-      p3.inputSource = 'project';
+      p3.inputSource = PaneInputSource.Project;
     }
 
     const depP4Broken = manager.getDependentPanes('facet.pane.4');
@@ -800,7 +800,7 @@ suite('PanePipelineManager & SlotTreeProvider Test Suite', () => {
     // Break chain: P3 inputSource set to 'project'
     const p3 = manager.getPane('facet.pane.3');
     if (p3) {
-      p3.inputSource = 'project';
+      p3.inputSource = PaneInputSource.Project;
     }
 
     const downP1Broken = manager.getDownstreamPanes('facet.pane.1');

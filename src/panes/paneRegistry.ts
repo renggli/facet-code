@@ -1,17 +1,17 @@
-import type {
-  CallersPaneConfig,
-  ChangesPaneConfig,
-  DeclarationsPaneConfig,
-  DefinitionsPaneConfig,
-  DirectoriesPaneConfig,
-  FilesPaneConfig,
-  HierarchyPaneConfig,
-  ImplementationsPaneConfig,
-  PaneConfig,
+import {
+  type CallersPaneConfig,
+  type ChangesPaneConfig,
+  type DeclarationsPaneConfig,
+  type DefinitionsPaneConfig,
+  type DirectoriesPaneConfig,
+  type FilesPaneConfig,
+  type HierarchyPaneConfig,
+  type ImplementationsPaneConfig,
+  type PaneConfig,
   PaneRole,
-  ProblemsPaneConfig,
-  ReferencesPaneConfig,
-  SymbolsPaneConfig,
+  type ProblemsPaneConfig,
+  type ReferencesPaneConfig,
+  type SymbolsPaneConfig,
 } from '../models/paneConfig';
 import { ChangesPaneDefinition } from './definitions/changesPane';
 import { DirectoriesPaneDefinition } from './definitions/directoriesPane';
@@ -29,17 +29,17 @@ import { SymbolsPaneDefinition } from './definitions/symbolsPane';
 import type { PaneDefinition } from './paneDefinition';
 
 export interface PaneRoleConfigMap {
-  files: FilesPaneConfig;
-  directories: DirectoriesPaneConfig;
-  symbols: SymbolsPaneConfig;
-  definitions: DefinitionsPaneConfig;
-  declarations: DeclarationsPaneConfig;
-  implementations: ImplementationsPaneConfig;
-  references: ReferencesPaneConfig;
-  problems: ProblemsPaneConfig;
-  changes: ChangesPaneConfig;
-  callers: CallersPaneConfig;
-  hierarchy: HierarchyPaneConfig;
+  [PaneRole.Files]: FilesPaneConfig;
+  [PaneRole.Directories]: DirectoriesPaneConfig;
+  [PaneRole.Symbols]: SymbolsPaneConfig;
+  [PaneRole.Definitions]: DefinitionsPaneConfig;
+  [PaneRole.Declarations]: DeclarationsPaneConfig;
+  [PaneRole.Implementations]: ImplementationsPaneConfig;
+  [PaneRole.References]: ReferencesPaneConfig;
+  [PaneRole.Problems]: ProblemsPaneConfig;
+  [PaneRole.Changes]: ChangesPaneConfig;
+  [PaneRole.Callers]: CallersPaneConfig;
+  [PaneRole.Hierarchy]: HierarchyPaneConfig;
 }
 
 export class PaneRegistry {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { matchesPaneFilters, type PaneFilters } from './paneConfig';
+import { matchesPaneFilters, type PaneFilters, SortOption } from './paneConfig';
 
 export enum MemberCategory {
   All = 'all',
@@ -299,10 +299,7 @@ export function buildTypeHierarchy(
   return uniqueRoots;
 }
 
-export function sortSymbolNodes<T extends FacetSymbolNode>(
-  items: readonly T[],
-  sort: 'position' | 'name' | 'category',
-): T[] {
+export function sortSymbolNodes<T extends FacetSymbolNode>(items: readonly T[], sort: SortOption): T[] {
   const copy = items.slice();
   return copy.sort((a, b) => {
     const uriA = a.uri ? (vscode.workspace.asRelativePath ? vscode.workspace.asRelativePath(a.uri) : a.uri.fsPath) : '';
@@ -312,7 +309,7 @@ export function sortSymbolNodes<T extends FacetSymbolNode>(
     const lineDiff = (a.range?.start?.line ?? 0) - (b.range?.start?.line ?? 0);
     const charDiff = (a.range?.start?.character ?? 0) - (b.range?.start?.character ?? 0);
 
-    if (sort === 'category') {
+    if (sort === SortOption.Category) {
       const kindDiff = a.kind - b.kind;
       if (kindDiff !== 0) {
         return kindDiff;
@@ -330,7 +327,7 @@ export function sortSymbolNodes<T extends FacetSymbolNode>(
       return charDiff;
     }
 
-    if (sort === 'position') {
+    if (sort === SortOption.Position) {
       if (uriDiff !== 0) {
         return uriDiff;
       }

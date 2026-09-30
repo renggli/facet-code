@@ -1,5 +1,11 @@
 import * as vscode from 'vscode';
-import { type DirectoriesPaneConfig, matchesGlob } from '../../models/paneConfig';
+import {
+  type DirectoriesPaneConfig,
+  matchesGlob,
+  PaneInputSource,
+  PaneRole,
+  SortOption,
+} from '../../models/paneConfig';
 import { getPathBasename, getRelativePath } from '../../shared/pathUtils';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
@@ -13,14 +19,19 @@ export interface DirectoryNode {
 }
 
 export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPaneConfig, DirectoryNode> {
-  public readonly role = 'directories';
+  public readonly role = PaneRole.Directories;
   public readonly title = 'Directories';
   public readonly icon = 'folder';
   public readonly description = 'Workspace directory tree and list navigator';
 
   public readonly capabilities: PaneCapabilities = {
-    supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSorts: ['position', 'name'],
+    supportedInputs: [
+      PaneInputSource.Project,
+      PaneInputSource.OpenEditors,
+      PaneInputSource.ActiveEditor,
+      PaneInputSource.PreviousPane,
+    ],
+    supportedSorts: [SortOption.Position, SortOption.Name],
     hasTreeToggle: true,
     hasFilter: true,
   };
@@ -28,11 +39,11 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
   public defaultConfig(slotId: string): DirectoriesPaneConfig {
     return {
       id: slotId,
-      role: 'directories',
+      role: PaneRole.Directories,
       title: 'Directories',
       visible: true,
-      inputSource: 'project',
-      sort: 'name',
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Name,
       tree: true,
     };
   }
@@ -48,7 +59,7 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
     const config = context.config;
     let candidateUris: vscode.Uri[] = [];
 
-    if (config.inputSource === 'project') {
+    if (config.inputSource === PaneInputSource.Project) {
       let workspaceFiles = context.coordinator.getCachedWorkspaceFiles();
       if (workspaceFiles.length === 0) {
         try {
@@ -59,9 +70,9 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
         }
       }
       candidateUris = workspaceFiles;
-    } else if (config.inputSource === 'openEditors') {
+    } else if (config.inputSource === PaneInputSource.OpenEditors) {
       candidateUris = context.coordinator.getOpenEditorUris();
-    } else if (config.inputSource === 'activeEditor') {
+    } else if (config.inputSource === PaneInputSource.ActiveEditor) {
       const activeUri =
         config.pinned && config.pinnedUri
           ? vscode.Uri.parse(config.pinnedUri)
@@ -69,14 +80,14 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
       if (activeUri) {
         candidateUris = [activeUri];
       }
-    } else if (config.inputSource === 'previousPane') {
+    } else if (config.inputSource === PaneInputSource.PreviousPane) {
       candidateUris = context.upstreamOutput.uris ?? [];
     }
 
     const baseDirMap = new Map<string, { uri: vscode.Uri; relPath: string; name: string }>();
 
     const prevSel =
-      config.inputSource === 'previousPane'
+      config.inputSource === PaneInputSource.PreviousPane
         ? (context.upstreamOutput.items ?? context.coordinator.getPreviousPaneSelection(config.id))
         : [];
     const prevDirNodes = prevSel.filter((item): item is DirectoryNode => {
@@ -157,7 +168,7 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
 
     if (!isTree) {
       let flatNodes = Array.from(baseDirMap.values());
-      if (config.inputSource === 'previousPane') {
+      if (config.inputSource === PaneInputSource.PreviousPane) {
         const prevSelDirs = prevSel.filter((item): item is DirectoryNode => {
           if (!item || typeof item !== 'object') {
             return false;
@@ -177,7 +188,7 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
       flatNodes = flatNodes.filter((d) => matchesGlob(d.relPath, pattern) || matchesGlob(d.name, pattern));
 
       flatNodes.sort((a, b) => {
-        if (config.sort === 'name') {
+        if (config.sort === SortOption.Name) {
           const diff = a.name.localeCompare(b.name);
           if (diff !== 0) {
             return diff;
@@ -268,7 +279,7 @@ export class DirectoriesPaneDefinition implements PaneDefinition<DirectoriesPane
 
     const sortNodes = (nodes: DirectoryNode[]) => {
       nodes.sort((a, b) =>
-        config.sort === 'name' ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath),
+        config.sort === SortOption.Name ? a.name.localeCompare(b.name) : a.relativePath.localeCompare(b.relativePath),
       );
       for (const n of nodes) {
         if (n.children && n.children.length > 0) {

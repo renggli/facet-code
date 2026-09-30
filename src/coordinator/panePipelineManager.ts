@@ -3,9 +3,9 @@ import {
   createDefaultPanes,
   hasTreeProperty,
   type PaneConfig,
-  type PaneInputSource,
-  type PaneRole,
-  type SortOption,
+  PaneInputSource,
+  PaneRole,
+  SortOption,
 } from '../models/paneConfig';
 import type { PaneExecutionContext, PaneOutput } from '../panes/paneDefinition';
 import type { PaneRegistry } from '../panes/paneRegistry';
@@ -42,19 +42,7 @@ export class PanePipelineManager {
   }
 
   public async syncContextKeys(): Promise<void> {
-    const allRoles: PaneRole[] = [
-      'files',
-      'directories',
-      'symbols',
-      'definitions',
-      'declarations',
-      'implementations',
-      'references',
-      'problems',
-      'changes',
-      'callers',
-      'hierarchy',
-    ];
+    const allRoles: PaneRole[] = Object.values(PaneRole);
     const visibleRoles = new Set(this.getVisiblePanes().map((p) => p.role));
 
     const contextPromises: Thenable<unknown>[] = [];
@@ -129,13 +117,13 @@ export class PanePipelineManager {
       p.id = visualSlotOrder[i];
       p.visible = true;
 
-      if (i === 0 && p.inputSource === 'previousPane') {
-        p.inputSource = 'project';
+      if (i === 0 && p.inputSource === PaneInputSource.PreviousPane) {
+        p.inputSource = PaneInputSource.Project;
       }
       updatedPanes.push(p);
     }
 
-    const defaultDef = this.registry.get('symbols');
+    const defaultDef = this.registry.get(PaneRole.Symbols);
     for (let i = clampedVisible.length; i < totalSlots; i++) {
       const slotId = visualSlotOrder[i];
       const hiddenPane = defaultDef.defaultConfig(slotId);
@@ -203,7 +191,7 @@ export class PanePipelineManager {
       const def = this.registry.get(paneOrRole);
       configToAdd = def.defaultConfig('');
       configToAdd.visible = true;
-      configToAdd.inputSource = 'previousPane';
+      configToAdd.inputSource = PaneInputSource.PreviousPane;
     } else if (paneOrRole) {
       configToAdd = paneOrRole;
     } else {
@@ -215,7 +203,7 @@ export class PanePipelineManager {
       configToAdd = def.defaultConfig('');
       configToAdd.title = rolePick.label;
       configToAdd.visible = true;
-      configToAdd.inputSource = 'previousPane';
+      configToAdd.inputSource = PaneInputSource.PreviousPane;
     }
 
     const newVisible = [...visible, configToAdd];
@@ -252,8 +240,8 @@ export class PanePipelineManager {
 
     this.panes = orderedPanes;
     const visible = this.getVisiblePanes();
-    if (visible.length > 0 && visible[0].inputSource === 'previousPane') {
-      visible[0].inputSource = 'project';
+    if (visible.length > 0 && visible[0].inputSource === PaneInputSource.PreviousPane) {
+      visible[0].inputSource = PaneInputSource.Project;
     }
 
     await this.syncContextKeys();
@@ -391,7 +379,7 @@ export class PanePipelineManager {
       const def = this.registry.get(rolePick.role);
       const newPane = def.defaultConfig(pane.id);
       newPane.title = rolePick.label;
-      newPane.inputSource = isFirstPane ? 'project' : pane.inputSource;
+      newPane.inputSource = isFirstPane ? PaneInputSource.Project : pane.inputSource;
       newPane.visible = true;
 
       visible[idx] = newPane;
@@ -413,21 +401,21 @@ export class PanePipelineManager {
     const isFirstPane = true;
 
     const descriptions: Record<PaneInputSource, string> = {
-      project: 'Workspace-wide files, directories, symbols, or issues',
-      openEditors: 'Items from open editor tabs',
-      activeEditor: 'Items from the active editor',
-      previousPane: 'Items from preceding visible pane',
+      [PaneInputSource.Project]: 'Workspace-wide files, directories, symbols, or issues',
+      [PaneInputSource.OpenEditors]: 'Items from open editor tabs',
+      [PaneInputSource.ActiveEditor]: 'Items from the active editor',
+      [PaneInputSource.PreviousPane]: 'Items from preceding visible pane',
     };
     const labels: Record<PaneInputSource, string> = {
-      project: 'Project',
-      openEditors: 'Open Editors',
-      activeEditor: 'Active Editor',
-      previousPane: 'Previous Pane',
+      [PaneInputSource.Project]: 'Project',
+      [PaneInputSource.OpenEditors]: 'Open Editors',
+      [PaneInputSource.ActiveEditor]: 'Active Editor',
+      [PaneInputSource.PreviousPane]: 'Previous Pane',
     };
 
     const inputOptions: { label: string; description: string; source: PaneInputSource }[] = [];
     for (const src of def.capabilities.supportedInputs) {
-      if (src === 'previousPane' && isFirstPane) {
+      if (src === PaneInputSource.PreviousPane && isFirstPane) {
         continue;
       }
       inputOptions.push({
@@ -455,9 +443,9 @@ export class PanePipelineManager {
     const def = this.registry.get(pane.role);
     const caps = def.capabilities;
     const sortDescriptions: Record<SortOption, string> = {
-      name: 'Sort alphabetically by name',
-      position: 'Sort by position in file or directory path',
-      category: 'Group items by kind, category, or severity',
+      [SortOption.Name]: 'Sort alphabetically by name',
+      [SortOption.Position]: 'Sort by position in file or directory path',
+      [SortOption.Category]: 'Group items by kind, category, or severity',
     };
     const sortOptions = caps.supportedSorts.map((sort) => ({
       label: sort.charAt(0).toUpperCase() + sort.slice(1),
@@ -867,15 +855,15 @@ export class PanePipelineManager {
   // --- Private Helpers at Bottom ---
 
   private async loadBuiltinPreset(preset: string): Promise<void> {
-    const dirDef = this.registry.get('directories');
-    const filesDef = this.registry.get('files');
-    const symDef = this.registry.get('symbols');
-    const hierDef = this.registry.get('hierarchy');
-    const callersDef = this.registry.get('callers');
-    const changesDef = this.registry.get('changes');
-    const probDef = this.registry.get('problems');
-    const refDef = this.registry.get('references');
-    const implDef = this.registry.get('implementations');
+    const dirDef = this.registry.get(PaneRole.Directories);
+    const filesDef = this.registry.get(PaneRole.Files);
+    const symDef = this.registry.get(PaneRole.Symbols);
+    const hierDef = this.registry.get(PaneRole.Hierarchy);
+    const callersDef = this.registry.get(PaneRole.Callers);
+    const changesDef = this.registry.get(PaneRole.Changes);
+    const probDef = this.registry.get(PaneRole.Problems);
+    const refDef = this.registry.get(PaneRole.References);
+    const implDef = this.registry.get(PaneRole.Implementations);
 
     let newVisible: PaneConfig[];
     switch (preset) {
@@ -883,16 +871,16 @@ export class PanePipelineManager {
         const s1 = symDef.defaultConfig('');
         s1.title = 'Definitions';
         s1.tree = false;
-        s1.inputSource = 'activeEditor';
+        s1.inputSource = PaneInputSource.ActiveEditor;
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = true;
-        s2.inputSource = 'previousPane';
+        s2.inputSource = PaneInputSource.PreviousPane;
 
         const c = callersDef.defaultConfig('');
         c.title = 'Callers';
-        c.inputSource = 'previousPane';
+        c.inputSource = PaneInputSource.PreviousPane;
 
         newVisible = [s1, s2, c];
         break;
@@ -900,21 +888,21 @@ export class PanePipelineManager {
       case 'workingChanges': {
         const ch = changesDef.defaultConfig('');
         ch.title = 'Changes';
-        ch.inputSource = 'project';
+        ch.inputSource = PaneInputSource.Project;
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Symbols';
         s1.tree = true;
-        s1.inputSource = 'previousPane';
+        s1.inputSource = PaneInputSource.PreviousPane;
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
-        s2.inputSource = 'previousPane';
+        s2.inputSource = PaneInputSource.PreviousPane;
 
         const pr = probDef.defaultConfig('');
         pr.title = 'Problems';
-        pr.inputSource = 'previousPane';
+        pr.inputSource = PaneInputSource.PreviousPane;
 
         newVisible = [ch, s1, s2, pr];
         break;
@@ -922,21 +910,21 @@ export class PanePipelineManager {
       case 'problemTriage': {
         const pr = probDef.defaultConfig('');
         pr.title = 'Problems';
-        pr.inputSource = 'project';
+        pr.inputSource = PaneInputSource.Project;
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Symbols';
         s1.tree = true;
-        s1.inputSource = 'previousPane';
+        s1.inputSource = PaneInputSource.PreviousPane;
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
-        s2.inputSource = 'previousPane';
+        s2.inputSource = PaneInputSource.PreviousPane;
 
         const ref = refDef.defaultConfig('');
         ref.title = 'References';
-        ref.inputSource = 'previousPane';
+        ref.inputSource = PaneInputSource.PreviousPane;
 
         newVisible = [pr, s1, s2, ref];
         break;
@@ -945,16 +933,16 @@ export class PanePipelineManager {
         const h = hierDef.defaultConfig('');
         h.title = 'Hierarchy';
         h.tree = true;
-        h.inputSource = 'project';
+        h.inputSource = PaneInputSource.Project;
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = false;
-        s2.inputSource = 'previousPane';
+        s2.inputSource = PaneInputSource.PreviousPane;
 
         const imp = implDef.defaultConfig('');
         imp.title = 'Implementations';
-        imp.inputSource = 'previousPane';
+        imp.inputSource = PaneInputSource.PreviousPane;
 
         newVisible = [h, s2, imp];
         break;
@@ -963,21 +951,21 @@ export class PanePipelineManager {
         const f = filesDef.defaultConfig('');
         f.title = 'Open Files';
         f.tree = false;
-        f.inputSource = 'openEditors';
+        f.inputSource = PaneInputSource.OpenEditors;
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Definitions';
         s1.tree = false;
-        s1.inputSource = 'previousPane';
+        s1.inputSource = PaneInputSource.PreviousPane;
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = true;
-        s2.inputSource = 'previousPane';
+        s2.inputSource = PaneInputSource.PreviousPane;
 
         const ref = refDef.defaultConfig('');
         ref.title = 'References';
-        ref.inputSource = 'previousPane';
+        ref.inputSource = PaneInputSource.PreviousPane;
 
         newVisible = [f, s1, s2, ref];
         break;
@@ -987,26 +975,26 @@ export class PanePipelineManager {
         const d = dirDef.defaultConfig('');
         d.title = 'Directories';
         d.tree = true;
-        d.inputSource = 'project';
-        d.sort = 'name';
+        d.inputSource = PaneInputSource.Project;
+        d.sort = SortOption.Name;
 
         const f = filesDef.defaultConfig('');
         f.title = 'Files';
         f.tree = false;
-        f.inputSource = 'previousPane';
-        f.sort = 'name';
+        f.inputSource = PaneInputSource.PreviousPane;
+        f.sort = SortOption.Name;
 
         const s1 = symDef.defaultConfig('');
         s1.title = 'Definitions';
         s1.tree = false;
-        s1.inputSource = 'previousPane';
-        s1.sort = 'category';
+        s1.inputSource = PaneInputSource.PreviousPane;
+        s1.sort = SortOption.Category;
 
         const s2 = symDef.defaultConfig('');
         s2.title = 'Members';
         s2.tree = true;
-        s2.inputSource = 'previousPane';
-        s2.sort = 'category';
+        s2.inputSource = PaneInputSource.PreviousPane;
+        s2.sort = SortOption.Category;
 
         newVisible = [d, f, s1, s2];
         break;
@@ -1029,24 +1017,24 @@ export class PanePipelineManager {
 
   private getInputSourceLabel(source: PaneInputSource): string {
     switch (source) {
-      case 'project':
+      case PaneInputSource.Project:
         return 'Project';
-      case 'openEditors':
+      case PaneInputSource.OpenEditors:
         return 'Open Editors';
-      case 'activeEditor':
+      case PaneInputSource.ActiveEditor:
         return 'Active Editor';
-      case 'previousPane':
+      case PaneInputSource.PreviousPane:
         return 'Previous Pane';
     }
   }
 
   private getSortLabel(sort: SortOption): string {
     switch (sort) {
-      case 'name':
+      case SortOption.Name:
         return 'Name';
-      case 'position':
+      case SortOption.Position:
         return 'Position';
-      case 'category':
+      case SortOption.Category:
         return 'Category';
     }
   }

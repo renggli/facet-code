@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { PaneConfig } from '../../models/paneConfig';
+import { type PaneConfig, PaneInputSource, PaneRole, SortOption } from '../../models/paneConfig';
 import { getPathBasename, getRelativePath } from '../../shared/pathUtils';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
@@ -23,14 +23,19 @@ interface GitExtensionExports {
 }
 
 export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.Uri> {
-  public readonly role = 'changes';
+  public readonly role = PaneRole.Changes;
   public readonly title = 'Changes';
   public readonly icon = 'git-commit';
   public readonly description = 'Dirty and modified files';
 
   public readonly capabilities: PaneCapabilities = {
-    supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSorts: ['position', 'name'],
+    supportedInputs: [
+      PaneInputSource.Project,
+      PaneInputSource.OpenEditors,
+      PaneInputSource.ActiveEditor,
+      PaneInputSource.PreviousPane,
+    ],
+    supportedSorts: [SortOption.Position, SortOption.Name],
     hasTreeToggle: false,
     hasFilter: false,
   };
@@ -38,11 +43,11 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
   public defaultConfig(slotId: string): PaneConfig {
     return {
       id: slotId,
-      role: 'changes',
+      role: PaneRole.Changes,
       title: 'Changes',
       visible: true,
-      inputSource: 'project',
-      sort: 'name',
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Name,
     } as PaneConfig;
   }
 
@@ -77,16 +82,16 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
 
     let files = Array.from(changedUris.values());
 
-    if (config.inputSource === 'activeEditor') {
+    if (config.inputSource === PaneInputSource.ActiveEditor) {
       const activeUri =
         config.pinned && config.pinnedUri
           ? vscode.Uri.parse(config.pinnedUri)
           : (context.activeEditor?.document.uri ?? vscode.window.activeTextEditor?.document.uri);
       files = activeUri && changedUris.has(activeUri.fsPath) ? [activeUri] : [];
-    } else if (config.inputSource === 'openEditors') {
+    } else if (config.inputSource === PaneInputSource.OpenEditors) {
       const openUris = new Set(context.coordinator.getOpenEditorUris().map((u) => u.fsPath));
       files = files.filter((u) => openUris.has(u.fsPath));
-    } else if (config.inputSource === 'previousPane') {
+    } else if (config.inputSource === PaneInputSource.PreviousPane) {
       const prevItems = context.upstreamOutput.items ?? [];
       const upstreamPaths = (context.upstreamOutput.uris ?? []).map((u) => u.fsPath);
       const itemPaths = prevItems
@@ -107,7 +112,7 @@ export class ChangesPaneDefinition implements PaneDefinition<PaneConfig, vscode.
     }
 
     files.sort((a, b) => {
-      if (config.sort === 'name') {
+      if (config.sort === SortOption.Name) {
         const nameA = getPathBasename(a);
         const nameB = getPathBasename(b);
         const nameDiff = nameA.localeCompare(nameB);

@@ -3,6 +3,9 @@ import {
   ALL_SYMBOL_FILTER_OPTIONS,
   createDefaultFilters,
   matchesPaneFilters,
+  PaneInputSource,
+  PaneRole,
+  SortOption,
   type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import {
@@ -15,14 +18,19 @@ import {
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
 export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, FacetSymbolNode> {
-  public readonly role = 'symbols';
+  public readonly role = PaneRole.Symbols;
   public readonly title = 'Symbols';
   public readonly icon = 'symbol-misc';
   public readonly description = 'Unified types and members navigator';
 
   public readonly capabilities: PaneCapabilities = {
-    supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSorts: ['position', 'name', 'category'],
+    supportedInputs: [
+      PaneInputSource.Project,
+      PaneInputSource.OpenEditors,
+      PaneInputSource.ActiveEditor,
+      PaneInputSource.PreviousPane,
+    ],
+    supportedSorts: [SortOption.Position, SortOption.Name, SortOption.Category],
     hasTreeToggle: true,
     hasFilter: true,
   };
@@ -30,11 +38,11 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
   public defaultConfig(slotId: string): SymbolsPaneConfig {
     return {
       id: slotId,
-      role: 'symbols',
+      role: PaneRole.Symbols,
       title: 'Symbols',
       visible: true,
-      inputSource: 'previousPane',
-      sort: 'position',
+      inputSource: PaneInputSource.PreviousPane,
+      sort: SortOption.Position,
       filters: createDefaultFilters(),
       tree: true,
     };
@@ -88,7 +96,7 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
     let targetTypes: FacetSymbolNode[] = [];
     let isTypeInput = false;
 
-    if (config.inputSource === 'previousPane') {
+    if (config.inputSource === PaneInputSource.PreviousPane) {
       const prevSel =
         context.upstreamOutput.symbols && context.upstreamOutput.symbols.length > 0
           ? context.upstreamOutput.symbols
@@ -149,7 +157,7 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
           }
         }
       }
-    } else if (config.inputSource === 'activeEditor') {
+    } else if (config.inputSource === PaneInputSource.ActiveEditor) {
       const activeUri =
         config.pinned && config.pinnedUri
           ? vscode.Uri.parse(config.pinnedUri)
@@ -158,11 +166,11 @@ export class SymbolsPaneDefinition implements PaneDefinition<SymbolsPaneConfig, 
         targetTypes = await this.resolveTypesFromFiles([activeUri], context);
       }
       isTypeInput = false;
-    } else if (config.inputSource === 'openEditors') {
+    } else if (config.inputSource === PaneInputSource.OpenEditors) {
       const openUris = context.coordinator.getOpenEditorUris();
       targetTypes = await this.resolveTypesFromFiles(openUris, context);
       isTypeInput = false;
-    } else if (config.inputSource === 'project') {
+    } else if (config.inputSource === PaneInputSource.Project) {
       let workspaceTypes = context.coordinator.getCachedWorkspaceTypes();
       if (workspaceTypes.length === 0) {
         workspaceTypes = await context.coordinator.resolver.resolveWorkspaceTypes('');

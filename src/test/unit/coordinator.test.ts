@@ -16,7 +16,10 @@ import {
   createReferencesPane,
   createSymbolsPane,
   type HierarchyPaneConfig,
+  PaneInputSource,
+  PaneRole,
   type ProblemsPaneConfig,
+  SortOption,
   type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
@@ -75,7 +78,7 @@ suite('FacetCoordinator Test Suite', () => {
 
     const dirConfigHierarchy = createDirectoriesPane('facet.pane.1', {
       tree: true,
-      inputSource: 'project',
+      inputSource: PaneInputSource.Project,
     });
 
     const hierarchyRoots = await coordinator.getSlotChildren(dirConfigHierarchy);
@@ -86,7 +89,7 @@ suite('FacetCoordinator Test Suite', () => {
 
     const dirConfigFlat = createDirectoriesPane('facet.pane.1', {
       tree: false,
-      inputSource: 'project',
+      inputSource: PaneInputSource.Project,
     });
     const flatDirs = await coordinator.getSlotChildren(dirConfigFlat);
     assert.ok(flatDirs.length >= 2);
@@ -112,7 +115,7 @@ suite('FacetCoordinator Test Suite', () => {
     // 1. Filter by 'auth': leaf 'src/services/auth' matches
     const dirConfigAuth = createDirectoriesPane('facet.pane.1', {
       tree: true,
-      inputSource: 'project',
+      inputSource: PaneInputSource.Project,
       globPattern: 'auth',
     });
 
@@ -144,7 +147,7 @@ suite('FacetCoordinator Test Suite', () => {
     // 2. Filter by 'nonexistent': returns 0 roots
     const dirConfigNone = createDirectoriesPane('facet.pane.1', {
       tree: true,
-      inputSource: 'project',
+      inputSource: PaneInputSource.Project,
       globPattern: 'nonexistent',
     });
     const noneRoots = await coordinator.getSlotChildren<DirectoryNode>(dirConfigNone);
@@ -153,7 +156,7 @@ suite('FacetCoordinator Test Suite', () => {
     // 3. No filter: roots should only be 'src' and 'test'; none of the nested directories appear in roots
     const dirConfigAll = createDirectoriesPane('facet.pane.1', {
       tree: true,
-      inputSource: 'project',
+      inputSource: PaneInputSource.Project,
     });
     const allRoots = await coordinator.getSlotChildren<DirectoryNode>(dirConfigAll);
     assert.strictEqual(allRoots.length, 2);
@@ -197,9 +200,9 @@ suite('FacetCoordinator Test Suite', () => {
     (vscode.languages as any).getDiagnostics = () => mockDiags;
 
     const probConfig: ProblemsPaneConfig = {
-      ...coordinator.registry.get('problems').defaultConfig('facet.pane.5'),
-      inputSource: 'project',
-      sort: 'category',
+      ...coordinator.registry.get(PaneRole.Problems).defaultConfig('facet.pane.5'),
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Category,
     };
 
     const problems = await coordinator.getSlotChildren<ProblemItem>(probConfig);
@@ -223,15 +226,15 @@ suite('FacetCoordinator Test Suite', () => {
 
     const membersPaneConfig: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
       title: 'Members',
-      inputSource: 'previousPane',
-      sort: 'name',
+      inputSource: PaneInputSource.PreviousPane,
+      sort: SortOption.Name,
       filters: { ...createDefaultFilters(), constant: false },
       tree: false,
       visible: true,
     });
 
     coordinator.setSlotSelection('facet.pane.1', [mockClass]);
-    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'symbols' });
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: PaneRole.Symbols });
 
     const children = await coordinator.getSlotChildren<FacetSymbolNode>(membersPaneConfig);
     // defaultConfig (constant) is filtered out
@@ -260,8 +263,8 @@ suite('FacetCoordinator Test Suite', () => {
 
     const config: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
       title: 'Members',
-      inputSource: 'previousPane',
-      sort: 'name',
+      inputSource: PaneInputSource.PreviousPane,
+      sort: SortOption.Name,
       filters: createDefaultFilters(),
       tree: false,
       visible: true,
@@ -308,10 +311,10 @@ suite('FacetCoordinator Test Suite', () => {
     (coordinator as any).cachedWorkspaceTypes = [baseClass, subClass];
 
     const typesPaneConfig: HierarchyPaneConfig = {
-      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
+      ...coordinator.registry.get(PaneRole.Hierarchy).defaultConfig('facet.pane.1'),
       title: 'Hierarchy',
-      inputSource: 'project',
-      sort: 'name',
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Name,
       tree: true,
       filters: createDefaultFilters(),
       visible: true,
@@ -396,10 +399,10 @@ suite('FacetCoordinator Test Suite', () => {
     (coordinator as any).cachedWorkspaceTypes = [petNode, animalNode, dogNode];
 
     const hierarchyPaneConfig: HierarchyPaneConfig = {
-      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
+      ...coordinator.registry.get(PaneRole.Hierarchy).defaultConfig('facet.pane.1'),
       title: 'Hierarchy',
-      inputSource: 'project',
-      sort: 'name',
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Name,
       filters: createDefaultFilters(),
       tree: true,
     };
@@ -438,7 +441,7 @@ suite('FacetCoordinator Test Suite', () => {
 
     const filesPaneConfig = createFilesPane('facet.pane.1', {
       globPattern: '*.ts',
-      sort: 'name',
+      sort: SortOption.Name,
       tree: true,
     });
 
@@ -483,11 +486,11 @@ suite('FacetCoordinator Test Suite', () => {
     };
 
     coordinator.setSlotSelection('facet.pane.1', [dirNode]);
-    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'directories' });
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: PaneRole.Directories });
 
     // Test direct files mode: selecting directory yields direct children of that directory
     const currentConfig = createFilesPane('facet.pane.2', {
-      inputSource: 'previousPane',
+      inputSource: PaneInputSource.PreviousPane,
       tree: false,
     });
 
@@ -500,7 +503,7 @@ suite('FacetCoordinator Test Suite', () => {
 
     // Even with tree: true, selecting a directory only yields direct files in that directory
     const recursiveConfig = createFilesPane('facet.pane.2', {
-      inputSource: 'previousPane',
+      inputSource: PaneInputSource.PreviousPane,
       tree: true,
     });
 
@@ -546,14 +549,14 @@ suite('FacetCoordinator Test Suite', () => {
 
     const symbolsPaneConfig: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
       title: 'Symbols',
-      inputSource: 'previousPane',
-      sort: 'name',
+      inputSource: PaneInputSource.PreviousPane,
+      sort: SortOption.Name,
       filters: createDefaultFilters(),
       tree: false,
     });
 
     coordinator.setSlotSelection('facet.pane.1', [file1Uri, file2Uri]);
-    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: 'files' });
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.1', role: PaneRole.Files });
 
     const types = await coordinator.getSlotChildren<FacetSymbolNode>(symbolsPaneConfig);
     assert.strictEqual(types.length, 2);
@@ -732,9 +735,9 @@ suite('FacetCoordinator Test Suite', () => {
     });
 
     const changesConfig: ChangesPaneConfig = {
-      ...coordinator.registry.get('changes').defaultConfig('facet.pane.5'),
-      inputSource: 'project',
-      sort: 'name',
+      ...coordinator.registry.get(PaneRole.Changes).defaultConfig('facet.pane.5'),
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Name,
     };
 
     const children = await coordinator.getSlotChildren<vscode.Uri>(changesConfig);
@@ -770,7 +773,7 @@ suite('FacetCoordinator Test Suite', () => {
     };
 
     coordinator.setSlotSelection('facet.pane.4', [targetMember]);
-    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.4', role: 'symbols' });
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.4', role: PaneRole.Symbols });
 
     // Mock relations fetch
     (relationsProvider as any).fetchRelationsForNodes = async (_nodes: any, mode: string) => [
@@ -785,13 +788,13 @@ suite('FacetCoordinator Test Suite', () => {
     ];
 
     const defs = await coordinator.getSlotChildren<RelationItem>(
-      coordinator.registry.get('definitions').defaultConfig('facet.pane.5'),
+      coordinator.registry.get(PaneRole.Definitions).defaultConfig('facet.pane.5'),
     );
     assert.strictEqual(defs.length, 1);
     assert.strictEqual(defs[0].label, 'preview for definitions');
 
     const decls = await coordinator.getSlotChildren<RelationItem>(
-      coordinator.registry.get('declarations').defaultConfig('facet.pane.5'),
+      coordinator.registry.get(PaneRole.Declarations).defaultConfig('facet.pane.5'),
     );
     assert.strictEqual(decls.length, 1);
     assert.strictEqual(decls[0].label, 'preview for declarations');
@@ -805,7 +808,7 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(refs[0].label, 'preview for references');
 
     const callers = await coordinator.getSlotChildren<RelationItem>(
-      coordinator.registry.get('callers').defaultConfig('facet.pane.5'),
+      coordinator.registry.get(PaneRole.Callers).defaultConfig('facet.pane.5'),
     );
     assert.strictEqual(callers.length, 1);
     assert.strictEqual(callers[0].label, 'preview for callers');
@@ -835,26 +838,26 @@ suite('FacetCoordinator Test Suite', () => {
 
     // 1. Files with openEditors
     const filesOpen = await coordinator.getSlotChildren<vscode.Uri>(
-      createFilesPane('facet.pane.2', { inputSource: 'openEditors' }),
+      createFilesPane('facet.pane.2', { inputSource: PaneInputSource.OpenEditors }),
     );
     assert.strictEqual(filesOpen.length, 2);
 
     // 2. Files with activeEditor
     const filesActive = await coordinator.getSlotChildren<vscode.Uri>(
-      createFilesPane('facet.pane.2', { inputSource: 'activeEditor' }),
+      createFilesPane('facet.pane.2', { inputSource: PaneInputSource.ActiveEditor }),
     );
     assert.strictEqual(filesActive.length, 1);
     assert.strictEqual(filesActive[0].path, fileA.path);
 
     // 3. Directories with openEditors
     const dirOpen = await coordinator.getSlotChildren<DirectoryNode>(
-      createDirectoriesPane('facet.pane.1', { inputSource: 'openEditors', tree: false }),
+      createDirectoriesPane('facet.pane.1', { inputSource: PaneInputSource.OpenEditors, tree: false }),
     );
     assert.ok(dirOpen.length >= 2);
 
     // 4. Directories with activeEditor
     const dirActive = await coordinator.getSlotChildren<DirectoryNode>(
-      createDirectoriesPane('facet.pane.1', { inputSource: 'activeEditor', tree: false }),
+      createDirectoriesPane('facet.pane.1', { inputSource: PaneInputSource.ActiveEditor, tree: false }),
     );
     assert.strictEqual(dirActive.length, 1);
 
@@ -919,7 +922,7 @@ suite('FacetCoordinator Test Suite', () => {
     const parentOfDir = coordinator.getSlotParent(dirsPane, dirNode);
     assert.strictEqual(parentOfDir, undefined);
 
-    const problemsPane = coordinator.registry.get('problems').defaultConfig('facet.pane.5');
+    const problemsPane = coordinator.registry.get(PaneRole.Problems).defaultConfig('facet.pane.5');
     assert.strictEqual(coordinator.getSlotParent(problemsPane, problemItem), undefined);
 
     // Test handleSlotSelection
@@ -1018,12 +1021,12 @@ suite('FacetCoordinator Test Suite', () => {
 
     // --- Scenario 1: Input is files, tree = true ---
     const symbolsPaneFilesTree: SymbolsPaneConfig = createSymbolsPane('facet.pane.3', {
-      inputSource: 'previousPane',
+      inputSource: PaneInputSource.PreviousPane,
       tree: true,
     });
 
     coordinator.setSlotSelection('facet.pane.2', [fileUri]);
-    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.2', role: 'files' });
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.2', role: PaneRole.Files });
 
     // Root children should be top-level types (OuterType only)
     const rootTypesTree = await coordinator.getSlotChildren<FacetSymbolNode>(symbolsPaneFilesTree);
@@ -1043,7 +1046,7 @@ suite('FacetCoordinator Test Suite', () => {
 
     // --- Scenario 2: Input is files, tree = false ---
     const symbolsPaneFilesFlat: SymbolsPaneConfig = createSymbolsPane('facet.pane.3', {
-      inputSource: 'previousPane',
+      inputSource: PaneInputSource.PreviousPane,
       tree: false,
     });
 
@@ -1061,13 +1064,13 @@ suite('FacetCoordinator Test Suite', () => {
 
     // --- Scenario 3: Input is another type (e.g. from previous pane) ---
     const symbolsPaneFromType: SymbolsPaneConfig = createSymbolsPane('facet.pane.4', {
-      inputSource: 'previousPane',
+      inputSource: PaneInputSource.PreviousPane,
       tree: false,
     });
 
     // Upstream pane has OuterType selected
     coordinator.setSlotSelection('facet.pane.3', [outerType]);
-    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.3', role: 'symbols' });
+    (coordinator as any).getPreviousPane = () => ({ id: 'facet.pane.3', role: PaneRole.Symbols });
 
     // Since input is a type, it enumerates the type's members!
     const members = await coordinator.getSlotChildren<FacetSymbolNode>(symbolsPaneFromType);
@@ -1221,7 +1224,7 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(dirTreeItem.contextValue, 'facetDirectory');
 
     // 3. Changes pane
-    const changesCfg = coordinator.registry.get('changes').defaultConfig('facet.pane.1');
+    const changesCfg = coordinator.registry.get(PaneRole.Changes).defaultConfig('facet.pane.1');
     const changeTreeItem = coordinator.getSlotTreeItem(changesCfg, testUri);
     assert.strictEqual(changeTreeItem.resourceUri?.toString(), testUri.toString());
     assert.strictEqual(changeTreeItem.contextValue, 'facetFile');
@@ -1243,13 +1246,13 @@ suite('FacetCoordinator Test Suite', () => {
     assert.strictEqual(symTreeItem.contextValue, 'facetSymbol');
 
     // 5. Hierarchy pane
-    const hierCfg = coordinator.registry.get('hierarchy').defaultConfig('facet.pane.3');
+    const hierCfg = coordinator.registry.get(PaneRole.Hierarchy).defaultConfig('facet.pane.3');
     const hierTreeItem = coordinator.getSlotTreeItem(hierCfg, symNode);
     assert.strictEqual(hierTreeItem.resourceUri?.toString(), testUri.toString());
     assert.strictEqual(hierTreeItem.contextValue, 'facetSymbol');
 
     // 6. Problems pane
-    const probCfg = coordinator.registry.get('problems').defaultConfig('facet.pane.4');
+    const probCfg = coordinator.registry.get(PaneRole.Problems).defaultConfig('facet.pane.4');
     const probItem = {
       uri: testUri,
       range: new vscode.Range(1, 0, 1, 10),
@@ -1285,7 +1288,7 @@ suite('FacetCoordinator Test Suite', () => {
     // 1. Diagnostics change refreshes problems pane
     const p4 = manager.getPane('facet.pane.4');
     if (p4) {
-      p4.role = 'problems';
+      p4.role = PaneRole.Problems;
     }
     coordinator.handleDiagnosticsChange([vscode.Uri.file('/workspace/src/test.ts')]);
     assert.ok(refreshedSlots.includes('facet.pane.4'));
@@ -1348,7 +1351,7 @@ suite('FacetCoordinator Test Suite', () => {
     ]);
 
     const hierConfig: HierarchyPaneConfig = {
-      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
+      ...(coordinator.registry.get(PaneRole.Hierarchy).defaultConfig('facet.pane.1') as HierarchyPaneConfig),
       tree: true,
     };
     const subtypes = await coordinator.getSlotChildren<FacetSymbolNode>(hierConfig, baseNode);
@@ -1437,9 +1440,9 @@ suite('FacetCoordinator Test Suite', () => {
 
     // 1. List View (tree: false)
     const listViewConfig: HierarchyPaneConfig = {
-      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.1'),
+      ...(coordinator.registry.get(PaneRole.Hierarchy).defaultConfig('facet.pane.1') as HierarchyPaneConfig),
       tree: false,
-      inputSource: 'activeEditor',
+      inputSource: PaneInputSource.ActiveEditor,
       filters: createDefaultFilters(),
     };
 
@@ -1451,9 +1454,9 @@ suite('FacetCoordinator Test Suite', () => {
 
     // 2. Tree View (tree: true - default)
     const treeViewConfig: HierarchyPaneConfig = {
-      ...coordinator.registry.get('hierarchy').defaultConfig('facet.pane.2'),
+      ...(coordinator.registry.get(PaneRole.Hierarchy).defaultConfig('facet.pane.2') as HierarchyPaneConfig),
       tree: true,
-      inputSource: 'activeEditor',
+      inputSource: PaneInputSource.ActiveEditor,
       filters: createDefaultFilters(),
     };
 
@@ -1595,8 +1598,8 @@ suite('FacetCoordinator Test Suite', () => {
 
     // Configure pane 1 as Symbols with inputSource: activeEditor
     const p1 = manager.getVisiblePanes()[0];
-    p1.role = 'symbols';
-    p1.inputSource = 'activeEditor';
+    p1.role = PaneRole.Symbols;
+    p1.inputSource = PaneInputSource.ActiveEditor;
 
     // Mock active editor fileA
     const mockEditorA = {

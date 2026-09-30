@@ -6,6 +6,9 @@ import {
   createDefaultFilters,
   type FilesPaneConfig,
   type HierarchyPaneConfig,
+  PaneInputSource,
+  PaneRole,
+  SortOption,
   type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import type { FacetSymbolNode } from '../../models/symbolNode';
@@ -37,41 +40,41 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
       // Pipeline: Slot 1 (activeEditor) -> Slot 2 (previousPane) -> Slot 3 (previousPane) -> Slot 4 (project)
       const p1: SymbolsPaneConfig = {
         id: 'facet.pane.1',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Editor Symbols',
         visible: true,
-        inputSource: 'activeEditor',
-        sort: 'name',
+        inputSource: PaneInputSource.ActiveEditor,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
       };
       const p2: SymbolsPaneConfig = {
         id: 'facet.pane.2',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Members',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'name',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
       };
       const p3: SymbolsPaneConfig = {
         id: 'facet.pane.3',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Sub-Members',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'name',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
       };
       const p4: FilesPaneConfig = {
         id: 'facet.pane.4',
-        role: 'files',
+        role: PaneRole.Files,
         title: 'Project Files',
         visible: true,
-        inputSource: 'project',
-        sort: 'name',
+        inputSource: PaneInputSource.Project,
+        sort: SortOption.Name,
         tree: false,
       };
 
@@ -100,21 +103,21 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
     test('setPinned with cascade=false pins only the targeted slot', async () => {
       const p1: SymbolsPaneConfig = {
         id: 'facet.pane.1',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Symbols',
         visible: true,
-        inputSource: 'activeEditor',
-        sort: 'name',
+        inputSource: PaneInputSource.ActiveEditor,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
       };
       const p2: SymbolsPaneConfig = {
         id: 'facet.pane.2',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Members',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'name',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
       };
@@ -132,21 +135,21 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
     test('togglePin inverts pin state and cascades to dependents', async () => {
       const p1: SymbolsPaneConfig = {
         id: 'facet.pane.1',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Symbols',
         visible: true,
-        inputSource: 'activeEditor',
-        sort: 'name',
+        inputSource: PaneInputSource.ActiveEditor,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
       };
       const p2: SymbolsPaneConfig = {
         id: 'facet.pane.2',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Members',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'name',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
       };
@@ -185,11 +188,11 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
 
       const p1: SymbolsPaneConfig = {
         id: 'facet.pane.1',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Symbols',
         visible: true,
-        inputSource: 'activeEditor',
-        sort: 'name',
+        inputSource: PaneInputSource.ActiveEditor,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
       };
@@ -251,11 +254,11 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
 
       const hierPane: HierarchyPaneConfig = {
         id: 'facet.pane.1',
-        role: 'hierarchy',
+        role: PaneRole.Hierarchy,
         title: 'Hierarchy',
         visible: true,
-        inputSource: 'activeEditor',
-        sort: 'name',
+        inputSource: PaneInputSource.ActiveEditor,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
         subclassTypes: ['class'],
@@ -294,11 +297,11 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
 
       const p1: SymbolsPaneConfig = {
         id: 'facet.pane.1',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Symbols',
         visible: true,
-        inputSource: 'activeEditor',
-        sort: 'name',
+        inputSource: PaneInputSource.ActiveEditor,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
       };

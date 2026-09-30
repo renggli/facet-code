@@ -1,20 +1,39 @@
 import * as vscode from 'vscode';
 
-export type PaneRole =
-  | 'files'
-  | 'directories'
-  | 'symbols'
-  | 'definitions'
-  | 'declarations'
-  | 'implementations'
-  | 'references'
-  | 'problems'
-  | 'changes'
-  | 'callers'
-  | 'hierarchy';
+export enum PaneRole {
+  Files = 'files',
+  Directories = 'directories',
+  Symbols = 'symbols',
+  Definitions = 'definitions',
+  Declarations = 'declarations',
+  Implementations = 'implementations',
+  References = 'references',
+  Problems = 'problems',
+  Changes = 'changes',
+  Callers = 'callers',
+  Hierarchy = 'hierarchy',
+}
 
-export type PaneInputSource = 'project' | 'openEditors' | 'activeEditor' | 'previousPane';
-export type SortOption = 'position' | 'name' | 'category';
+export enum PaneInputSource {
+  Project = 'project',
+  OpenEditors = 'openEditors',
+  ActiveEditor = 'activeEditor',
+  PreviousPane = 'previousPane',
+}
+
+export enum SortOption {
+  Position = 'position',
+  Name = 'name',
+  Category = 'category',
+}
+
+export enum RelationMode {
+  References = 'references',
+  Callers = 'callers',
+  Implementations = 'implementations',
+  Definitions = 'definitions',
+  Declarations = 'declarations',
+}
 
 export type SymbolKindKey =
   | 'array'
@@ -115,74 +134,74 @@ export interface BasePaneConfig {
 }
 
 export interface FilesPaneConfig extends BasePaneConfig {
-  role: 'files';
-  sort: 'position' | 'name';
+  role: PaneRole.Files;
+  sort: SortOption.Position | SortOption.Name;
   tree: boolean;
   globPattern?: string;
 }
 
 export interface DirectoriesPaneConfig extends BasePaneConfig {
-  role: 'directories';
-  sort: 'position' | 'name';
+  role: PaneRole.Directories;
+  sort: SortOption.Position | SortOption.Name;
   tree: boolean;
   globPattern?: string;
 }
 
 export interface DefinitionsPaneConfig extends BasePaneConfig {
-  role: 'definitions';
-  inputSource: 'previousPane';
-  sort: 'position' | 'name';
+  role: PaneRole.Definitions;
+  inputSource: PaneInputSource.PreviousPane;
+  sort: SortOption.Position | SortOption.Name;
   filters: PaneFilters;
 }
 
 export interface DeclarationsPaneConfig extends BasePaneConfig {
-  role: 'declarations';
-  inputSource: 'previousPane';
-  sort: 'position' | 'name';
+  role: PaneRole.Declarations;
+  inputSource: PaneInputSource.PreviousPane;
+  sort: SortOption.Position | SortOption.Name;
   filters: PaneFilters;
 }
 
 export interface ImplementationsPaneConfig extends BasePaneConfig {
-  role: 'implementations';
-  inputSource: 'previousPane';
-  sort: 'position' | 'name';
+  role: PaneRole.Implementations;
+  inputSource: PaneInputSource.PreviousPane;
+  sort: SortOption.Position | SortOption.Name;
   filters: PaneFilters;
 }
 
 export interface ReferencesPaneConfig extends BasePaneConfig {
-  role: 'references';
-  inputSource: 'previousPane';
-  sort: 'position' | 'name';
+  role: PaneRole.References;
+  inputSource: PaneInputSource.PreviousPane;
+  sort: SortOption.Position | SortOption.Name;
   filters: PaneFilters;
 }
 
 export interface CallersPaneConfig extends BasePaneConfig {
-  role: 'callers';
-  inputSource: 'previousPane';
-  sort: 'position' | 'name';
+  role: PaneRole.Callers;
+  inputSource: PaneInputSource.PreviousPane;
+  sort: SortOption.Position | SortOption.Name;
 }
 
 export interface ProblemsPaneConfig extends BasePaneConfig {
-  role: 'problems';
-  sort: 'position' | 'name' | 'category';
+  role: PaneRole.Problems;
+  sort: SortOption;
 }
 
 export interface ChangesPaneConfig extends BasePaneConfig {
-  role: 'changes';
-  sort: 'position' | 'name';
+  role: PaneRole.Changes;
+  sort: SortOption.Position | SortOption.Name;
 }
 
 export interface HierarchyPaneConfig extends BasePaneConfig {
-  role: 'hierarchy';
-  sort: 'position' | 'name' | 'category';
+  role: PaneRole.Hierarchy;
+  sort: SortOption;
   tree: boolean;
   subclassTypes?: SymbolKindKey[];
   filters: PaneFilters;
 }
 
 export interface SymbolsPaneConfig extends BasePaneConfig {
-  role: 'symbols';
-  sort: 'position' | 'name' | 'category';
+  role: PaneRole.Symbols;
+  sort: SortOption;
   tree: boolean;
   filters: PaneFilters;
 }
@@ -230,9 +249,9 @@ export function createFilesPane(id: string, overrides?: Partial<FilesPaneConfig>
   return {
     id,
     title: 'Files',
-    role: 'files',
-    inputSource: 'project',
-    sort: 'name',
+    role: PaneRole.Files,
+    inputSource: PaneInputSource.Project,
+    sort: SortOption.Name,
     tree: false,
     visible: true,
     pinned: false,
@@ -244,9 +263,9 @@ export function createDirectoriesPane(id: string, overrides?: Partial<Directorie
   return {
     id,
     title: 'Directories',
-    role: 'directories',
-    inputSource: 'project',
-    sort: 'name',
+    role: PaneRole.Directories,
+    inputSource: PaneInputSource.Project,
+    sort: SortOption.Name,
     tree: true,
     visible: true,
     pinned: false,
@@ -258,9 +277,9 @@ export function createSymbolsPane(id: string, overrides?: Partial<SymbolsPaneCon
   return {
     id,
     title: 'Symbols',
-    role: 'symbols',
-    inputSource: 'previousPane',
-    sort: 'name',
+    role: PaneRole.Symbols,
+    inputSource: PaneInputSource.PreviousPane,
+    sort: SortOption.Name,
     tree: true,
     filters: createDefaultFilters(),
     visible: true,
@@ -273,9 +292,9 @@ export function createReferencesPane(id: string, overrides?: Partial<ReferencesP
   return {
     id,
     title: 'References',
-    role: 'references',
-    inputSource: 'previousPane',
-    sort: 'name',
+    role: PaneRole.References,
+    inputSource: PaneInputSource.PreviousPane,
+    sort: SortOption.Name,
     filters: createDefaultFilters(),
     visible: true,
     pinned: false,
@@ -290,9 +309,9 @@ export function createImplementationsPane(
   return {
     id,
     title: 'Implementations',
-    role: 'implementations',
-    inputSource: 'previousPane',
-    sort: 'name',
+    role: PaneRole.Implementations,
+    inputSource: PaneInputSource.PreviousPane,
+    sort: SortOption.Name,
     filters: createDefaultFilters(),
     visible: true,
     pinned: false,
@@ -305,36 +324,36 @@ export function createDefaultPanes(): PaneConfig[] {
     createDirectoriesPane('facet.pane.1', {
       visible: true,
       tree: true,
-      inputSource: 'project',
-      sort: 'name',
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Name,
     }),
     createFilesPane('facet.pane.2', {
       visible: true,
       tree: false,
-      inputSource: 'previousPane',
-      sort: 'name',
+      inputSource: PaneInputSource.PreviousPane,
+      sort: SortOption.Name,
     }),
     createSymbolsPane('facet.pane.3', {
       visible: true,
       title: 'Definitions',
       tree: false,
-      inputSource: 'previousPane',
-      sort: 'category',
+      inputSource: PaneInputSource.PreviousPane,
+      sort: SortOption.Category,
     }),
     createSymbolsPane('facet.pane.4', {
       visible: true,
       title: 'Members',
       tree: true,
-      inputSource: 'previousPane',
-      sort: 'category',
+      inputSource: PaneInputSource.PreviousPane,
+      sort: SortOption.Category,
     }),
     createReferencesPane('facet.pane.5', {
       visible: false,
-      inputSource: 'previousPane',
+      inputSource: PaneInputSource.PreviousPane,
     }),
     createImplementationsPane('facet.pane.6', {
       visible: false,
-      inputSource: 'previousPane',
+      inputSource: PaneInputSource.PreviousPane,
     }),
   ];
 }

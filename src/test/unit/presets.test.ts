@@ -2,7 +2,13 @@ import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
-import { createDirectoriesPane, createFilesPane, type PaneConfig } from '../../models/paneConfig';
+import {
+  createDirectoriesPane,
+  createFilesPane,
+  type PaneConfig,
+  PaneInputSource,
+  PaneRole,
+} from '../../models/paneConfig';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { SymbolResolver } from '../../services/symbolResolver';
 import { resetMockState, window } from './mockVscode';
@@ -72,8 +78,8 @@ suite('Custom Presets & Preset Management Test Suite', () => {
 
     test('merges global and workspace presets when scope is undefined, with workspace taking precedence', async () => {
       const config = vscode.workspace.getConfiguration('facet');
-      const wsDefChanges = manager.registry.get('changes').defaultConfig('facet.pane.1');
-      const globalDefProblems = manager.registry.get('problems').defaultConfig('facet.pane.1');
+      const wsDefChanges = manager.registry.get(PaneRole.Changes).defaultConfig('facet.pane.1');
+      const globalDefProblems = manager.registry.get(PaneRole.Problems).defaultConfig('facet.pane.1');
 
       const wsData: Record<string, PaneConfig[]> = {
         Common: [createDirectoriesPane('facet.pane.1', { title: 'WS Common' })],
@@ -168,9 +174,9 @@ suite('Custom Presets & Preset Management Test Suite', () => {
 
   suite('loadPresetByName', () => {
     test('loads a custom preset saved in workspace', async () => {
-      const probDef = manager.registry.get('problems').defaultConfig('facet.pane.1');
+      const probDef = manager.registry.get(PaneRole.Problems).defaultConfig('facet.pane.1');
       probDef.title = 'My Problems';
-      const changeDef = manager.registry.get('changes').defaultConfig('facet.pane.2');
+      const changeDef = manager.registry.get(PaneRole.Changes).defaultConfig('facet.pane.2');
       changeDef.title = 'My Changes';
       const customConfig: PaneConfig[] = [probDef, changeDef];
 
@@ -181,16 +187,16 @@ suite('Custom Presets & Preset Management Test Suite', () => {
 
       const visible = manager.getVisiblePanes();
       assert.strictEqual(visible.length, 2);
-      assert.strictEqual(visible[0].role, 'problems');
+      assert.strictEqual(visible[0].role, PaneRole.Problems);
       assert.strictEqual(visible[0].title, 'My Problems');
-      assert.strictEqual(visible[1].role, 'changes');
+      assert.strictEqual(visible[1].role, PaneRole.Changes);
       assert.strictEqual(visible[1].title, 'My Changes');
     });
 
     test('loads a custom preset saved in global settings', async () => {
-      const callerDef = manager.registry.get('callers').defaultConfig('facet.pane.1');
+      const callerDef = manager.registry.get(PaneRole.Callers).defaultConfig('facet.pane.1');
       callerDef.title = 'Global Callers';
-      callerDef.inputSource = 'previousPane';
+      callerDef.inputSource = PaneInputSource.PreviousPane;
       const customConfig: PaneConfig[] = [callerDef];
 
       const config = vscode.workspace.getConfiguration('facet');
@@ -200,9 +206,9 @@ suite('Custom Presets & Preset Management Test Suite', () => {
 
       const visible = manager.getVisiblePanes();
       assert.strictEqual(visible.length, 1);
-      assert.strictEqual(visible[0].role, 'callers');
+      assert.strictEqual(visible[0].role, PaneRole.Callers);
       // When at index 0, previousPane input is re-anchored to project
-      assert.strictEqual(visible[0].inputSource, 'project');
+      assert.strictEqual(visible[0].inputSource, PaneInputSource.Project);
     });
 
     test('loads built-in preset case-insensitively', async () => {
@@ -356,7 +362,7 @@ suite('Custom Presets & Preset Management Test Suite', () => {
     });
 
     test('load workflow: selects and loads saved preset', async () => {
-      const changeDef = manager.registry.get('changes').defaultConfig('facet.pane.1');
+      const changeDef = manager.registry.get(PaneRole.Changes).defaultConfig('facet.pane.1');
       changeDef.title = 'Changes Only';
       const customConfig: PaneConfig[] = [changeDef];
       const config = vscode.workspace.getConfiguration('facet');
@@ -371,12 +377,12 @@ suite('Custom Presets & Preset Management Test Suite', () => {
 
       const visible = manager.getVisiblePanes();
       assert.strictEqual(visible.length, 1);
-      assert.strictEqual(visible[0].role, 'changes');
+      assert.strictEqual(visible[0].role, PaneRole.Changes);
       assert.strictEqual(visible[0].title, 'Changes Only');
     });
 
     test('load workflow: user cancels selection quickpick', async () => {
-      const changeDef = manager.registry.get('changes').defaultConfig('facet.pane.1');
+      const changeDef = manager.registry.get(PaneRole.Changes).defaultConfig('facet.pane.1');
       changeDef.title = 'Changes Only';
       const customConfig: PaneConfig[] = [changeDef];
       const config = vscode.workspace.getConfiguration('facet');

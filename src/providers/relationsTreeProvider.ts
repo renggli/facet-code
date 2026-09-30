@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
+import { RelationMode } from '../models/paneConfig';
 import { type FacetSymbolNode, resolveExactSymbolPosition } from '../models/symbolNode';
 
-export type RelationsMode = 'references' | 'callers' | 'implementations' | 'definitions' | 'declarations';
+export { RelationMode };
+export type RelationsMode = RelationMode;
 
 export interface RelationItem {
   label: string;
@@ -16,7 +18,7 @@ export interface RelationItem {
 export class RelationsTreeProvider {
   async fetchRelationsForNodes(
     nodes: readonly FacetSymbolNode[],
-    mode: RelationsMode,
+    mode: RelationMode,
     token?: vscode.CancellationToken,
   ): Promise<RelationItem[]> {
     if (token?.isCancellationRequested) {
@@ -29,27 +31,27 @@ export class RelationsTreeProvider {
         break;
       }
       switch (mode) {
-        case 'references': {
+        case RelationMode.References: {
           const refs = await this.fetchReferencesForNode(node, token);
           allResults.push(...refs);
           break;
         }
-        case 'callers': {
+        case RelationMode.Callers: {
           const callers = await this.fetchCallersForNode(node, token);
           allResults.push(...callers);
           break;
         }
-        case 'implementations': {
+        case RelationMode.Implementations: {
           const impls = await this.fetchImplementationsForNode(node, token);
           allResults.push(...impls);
           break;
         }
-        case 'definitions': {
+        case RelationMode.Definitions: {
           const defs = await this.fetchDefinitionsForNode(node, token);
           allResults.push(...defs);
           break;
         }
-        case 'declarations': {
+        case RelationMode.Declarations: {
           const decls = await this.fetchDeclarationsForNode(node, token);
           allResults.push(...decls);
           break;

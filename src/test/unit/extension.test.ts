@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
 import { activate, deactivate, getAllPaneItems } from '../../extension';
-import type { PaneConfig } from '../../models/paneConfig';
+import { type PaneConfig, PaneInputSource, PaneRole, SortOption } from '../../models/paneConfig';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { SymbolResolver } from '../../services/symbolResolver';
 
@@ -154,11 +154,11 @@ suite('Extension Lifecycle Test Suite', () => {
 
     const filesConfig: PaneConfig = {
       id: 'facet.pane.2',
-      role: 'files',
+      role: PaneRole.Files,
       title: 'Files',
       visible: true,
-      inputSource: 'project',
-      sort: 'name',
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Name,
       tree: false,
     };
 
@@ -169,11 +169,11 @@ suite('Extension Lifecycle Test Suite', () => {
 
     const dirConfig: PaneConfig = {
       id: 'facet.pane.1',
-      role: 'directories',
+      role: PaneRole.Directories,
       title: 'Directories',
       visible: true,
-      inputSource: 'project',
-      sort: 'name',
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Name,
       tree: true,
     };
 

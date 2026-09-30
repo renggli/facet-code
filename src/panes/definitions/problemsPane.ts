@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { PaneConfig, SortOption } from '../../models/paneConfig';
+import { type PaneConfig, PaneInputSource, PaneRole, SortOption } from '../../models/paneConfig';
 import { getRelativePath } from '../../shared/pathUtils';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
@@ -16,14 +16,19 @@ export interface ProblemItem {
 }
 
 export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, ProblemItem> {
-  public readonly role = 'problems';
+  public readonly role = PaneRole.Problems;
   public readonly title = 'Problems';
   public readonly icon = 'warning';
   public readonly description = 'Workspace and editor diagnostic problems';
 
   public readonly capabilities: PaneCapabilities = {
-    supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSorts: ['position', 'name', 'category'],
+    supportedInputs: [
+      PaneInputSource.Project,
+      PaneInputSource.OpenEditors,
+      PaneInputSource.ActiveEditor,
+      PaneInputSource.PreviousPane,
+    ],
+    supportedSorts: [SortOption.Position, SortOption.Name, SortOption.Category],
     hasTreeToggle: false,
     hasFilter: false,
   };
@@ -31,11 +36,11 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
   public defaultConfig(slotId: string): PaneConfig {
     return {
       id: slotId,
-      role: 'problems',
+      role: PaneRole.Problems,
       title: 'Problems',
       visible: true,
-      inputSource: 'project',
-      sort: 'category',
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Category,
     } as PaneConfig;
   }
 
@@ -43,7 +48,7 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
     const config = context.config;
     let candidateUris: vscode.Uri[] = [];
 
-    if (config.inputSource === 'project') {
+    if (config.inputSource === PaneInputSource.Project) {
       const allDiags = vscode.languages.getDiagnostics();
       const items: ProblemItem[] = [];
       for (const [uri, diags] of allDiags) {
@@ -54,9 +59,9 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
       return this.sortProblems(items, config.sort);
     }
 
-    if (config.inputSource === 'openEditors') {
+    if (config.inputSource === PaneInputSource.OpenEditors) {
       candidateUris = context.coordinator.getOpenEditorUris();
-    } else if (config.inputSource === 'activeEditor') {
+    } else if (config.inputSource === PaneInputSource.ActiveEditor) {
       const activeUri =
         config.pinned && config.pinnedUri
           ? vscode.Uri.parse(config.pinnedUri)
@@ -64,7 +69,7 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
       if (activeUri) {
         candidateUris = [activeUri];
       }
-    } else if (config.inputSource === 'previousPane') {
+    } else if (config.inputSource === PaneInputSource.PreviousPane) {
       const prevItems = context.upstreamOutput.items ?? [];
       candidateUris =
         context.upstreamOutput.uris && context.upstreamOutput.uris.length > 0
@@ -133,13 +138,13 @@ export class ProblemsPaneDefinition implements PaneDefinition<PaneConfig, Proble
 
   private sortProblems(items: ProblemItem[], sort: SortOption): ProblemItem[] {
     return items.sort((a, b) => {
-      if (sort === 'category') {
+      if (sort === SortOption.Category) {
         const sevDiff = a.severity - b.severity;
         if (sevDiff !== 0) {
           return sevDiff;
         }
       }
-      if (sort === 'name') {
+      if (sort === SortOption.Name) {
         const msgDiff = a.message.localeCompare(b.message);
         if (msgDiff !== 0) {
           return msgDiff;

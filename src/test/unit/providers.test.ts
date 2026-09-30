@@ -1,5 +1,6 @@
 import * as assert from 'node:assert';
 import * as vscode from 'vscode';
+import { RelationMode } from '../../models/paneConfig';
 import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
 import { type RelationItem, RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { commands } from './mockVscode';
@@ -54,7 +55,7 @@ suite('Providers Test Suite', () => {
 
     // 1. References
     commands.setHandler('vscode.executeReferenceProvider', (uri: any, _pos: any) => [{ uri, range: dummyRange }]);
-    const refs = await provider.fetchRelationsForNodes([mockType.children[0]], 'references');
+    const refs = await provider.fetchRelationsForNodes([mockType.children[0]], RelationMode.References);
     assert.strictEqual(refs.length, 1);
     assert.strictEqual(refs[0].uri.toString(), dummyUri.toString());
 
@@ -73,18 +74,18 @@ suite('Providers Test Suite', () => {
         },
       },
     ]);
-    const callers = await provider.fetchRelationsForNodes([mockType.children[0]], 'callers');
+    const callers = await provider.fetchRelationsForNodes([mockType.children[0]], RelationMode.Callers);
     assert.strictEqual(callers.length, 1);
     assert.strictEqual(callers[0].label, 'CallerClass.callerFunc()');
 
     // Callers with empty prepareCallHierarchy
     commands.setHandler('vscode.prepareCallHierarchy', () => []);
-    const emptyCallers = await provider.fetchRelationsForNodes([mockType.children[0]], 'callers');
+    const emptyCallers = await provider.fetchRelationsForNodes([mockType.children[0]], RelationMode.Callers);
     assert.strictEqual(emptyCallers.length, 0);
 
     // 3. Implementations
     commands.setHandler('vscode.executeImplementationProvider', (uri: any, _pos: any) => [{ uri, range: dummyRange }]);
-    const impls = await provider.fetchRelationsForNodes([mockType.children[0]], 'implementations');
+    const impls = await provider.fetchRelationsForNodes([mockType.children[0]], RelationMode.Implementations);
     assert.strictEqual(impls.length, 1);
 
     // 4. Definitions (Location + LocationLink)
@@ -92,7 +93,7 @@ suite('Providers Test Suite', () => {
       { uri, range: dummyRange },
       { targetUri: uri, targetRange: dummyRange },
     ]);
-    const defs = await provider.fetchRelationsForNodes([mockType.children[0]], 'definitions');
+    const defs = await provider.fetchRelationsForNodes([mockType.children[0]], RelationMode.Definitions);
     assert.strictEqual(defs.length, 2);
 
     // 5. Declarations (Location + LocationLink)
@@ -100,12 +101,12 @@ suite('Providers Test Suite', () => {
       { uri, range: dummyRange },
       { targetUri: uri, targetRange: dummyRange },
     ]);
-    const decls = await provider.fetchRelationsForNodes([mockType.children[0]], 'declarations');
+    const decls = await provider.fetchRelationsForNodes([mockType.children[0]], RelationMode.Declarations);
     assert.strictEqual(decls.length, 2);
 
     // Empty results for definitions
     commands.setHandler('vscode.executeDefinitionProvider', () => []);
-    const emptyDefs = await provider.fetchRelationsForNodes([mockType.children[0]], 'definitions');
+    const emptyDefs = await provider.fetchRelationsForNodes([mockType.children[0]], RelationMode.Definitions);
     assert.strictEqual(emptyDefs.length, 0);
 
     // Callers fallback to references when prepareCallHierarchy returns empty
@@ -114,7 +115,7 @@ suite('Providers Test Suite', () => {
     commands.setHandler('vscode.executeReferenceProvider', () => [
       { uri: otherUri, range: new vscode.Range(10, 0, 10, 15) },
     ]);
-    const fallbackCallers = await provider.fetchRelationsForNodes([mockType.children[0]], 'callers');
+    const fallbackCallers = await provider.fetchRelationsForNodes([mockType.children[0]], RelationMode.Callers);
     assert.strictEqual(fallbackCallers.length, 1);
     assert.strictEqual(fallbackCallers[0].uri.toString(), otherUri.toString());
     assert.strictEqual(fallbackCallers[0].description, 'src/caller_file.ts:11');

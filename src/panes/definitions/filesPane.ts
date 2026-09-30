@@ -1,18 +1,23 @@
 import * as vscode from 'vscode';
-import { type FilesPaneConfig, matchesGlob } from '../../models/paneConfig';
+import { type FilesPaneConfig, matchesGlob, PaneInputSource, PaneRole, SortOption } from '../../models/paneConfig';
 import { getPathBasename, getRelativePath } from '../../shared/pathUtils';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 import type { DirectoryNode } from './directoriesPane';
 
 export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vscode.Uri> {
-  public readonly role = 'files';
+  public readonly role = PaneRole.Files;
   public readonly title = 'Files';
   public readonly icon = 'file-code';
   public readonly description = 'Workspace file navigator';
 
   public readonly capabilities: PaneCapabilities = {
-    supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSorts: ['position', 'name'],
+    supportedInputs: [
+      PaneInputSource.Project,
+      PaneInputSource.OpenEditors,
+      PaneInputSource.ActiveEditor,
+      PaneInputSource.PreviousPane,
+    ],
+    supportedSorts: [SortOption.Position, SortOption.Name],
     hasTreeToggle: true,
     hasFilter: true,
   };
@@ -20,11 +25,11 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
   public defaultConfig(slotId: string): FilesPaneConfig {
     return {
       id: slotId,
-      role: 'files',
+      role: PaneRole.Files,
       title: 'Files',
       visible: true,
-      inputSource: 'previousPane',
-      sort: 'name',
+      inputSource: PaneInputSource.PreviousPane,
+      sort: SortOption.Name,
       tree: false,
     };
   }
@@ -37,7 +42,7 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
     const isRecursive = Boolean(config.tree);
     let files: vscode.Uri[] = [];
 
-    if (config.inputSource === 'project') {
+    if (config.inputSource === PaneInputSource.Project) {
       let workspaceFiles = context.coordinator.getCachedWorkspaceFiles();
       if (workspaceFiles.length === 0) {
         try {
@@ -68,9 +73,9 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
           return !rel.includes('/');
         });
       }
-    } else if (config.inputSource === 'openEditors') {
+    } else if (config.inputSource === PaneInputSource.OpenEditors) {
       files = context.coordinator.getOpenEditorUris();
-    } else if (config.inputSource === 'activeEditor') {
+    } else if (config.inputSource === PaneInputSource.ActiveEditor) {
       const activeUri =
         config.pinned && config.pinnedUri
           ? vscode.Uri.parse(config.pinnedUri)
@@ -78,7 +83,7 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
       if (activeUri) {
         files = [activeUri];
       }
-    } else if (config.inputSource === 'previousPane') {
+    } else if (config.inputSource === PaneInputSource.PreviousPane) {
       const prevItems =
         context.upstreamOutput.items && context.upstreamOutput.items.length > 0
           ? context.upstreamOutput.items
@@ -94,7 +99,7 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
         })
         .map((item) => (item.uri ? item.uri.fsPath : (item as vscode.Uri).fsPath));
       const prevPane = context.coordinator.getPreviousPane(config.id);
-      const isUpstreamDirectories = prevPane?.role === 'directories';
+      const isUpstreamDirectories = prevPane?.role === PaneRole.Directories;
 
       if (dirPaths.length === 0 && isUpstreamDirectories && prevPane) {
         const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -169,7 +174,7 @@ export class FilesPaneDefinition implements PaneDefinition<FilesPaneConfig, vsco
     files.sort((a, b) => {
       const pathA = getRelativePath(a);
       const pathB = getRelativePath(b);
-      if (config.sort === 'name') {
+      if (config.sort === SortOption.Name) {
         const nameA = getPathBasename(a);
         const nameB = getPathBasename(b);
         const diff = nameA.localeCompare(nameB);

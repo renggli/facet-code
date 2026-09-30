@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { PaneConfig } from '../models/paneConfig';
+import { type PaneConfig, PaneInputSource, PaneRole } from '../models/paneConfig';
 import { extractSuperTypes, extractTypeHeader, type FacetSymbolNode, isTypeKind } from '../models/symbolNode';
 import type { DirectoryNode } from '../panes/definitions/directoriesPane';
 import type { ProblemItem, ProblemsPaneDefinition } from '../panes/definitions/problemsPane';
@@ -115,13 +115,13 @@ export class FacetCoordinator implements vscode.Disposable {
     this._onDidRefreshAll.fire();
   }
 
-  public refreshAffectedPanes(roles: readonly string[]): void {
+  public refreshAffectedPanes(roles: readonly (PaneRole | string)[]): void {
     if (!this.pipelineManager) {
       return;
     }
     const visible = this.pipelineManager.getVisiblePanes();
     for (const pane of visible) {
-      if (roles.includes(pane.role)) {
+      if ((roles as readonly string[]).includes(pane.role)) {
         this.refreshSlot(pane.id);
       }
     }
@@ -279,34 +279,34 @@ export class FacetCoordinator implements vscode.Disposable {
       }
 
       let rawTarget: FacetSlotItem | undefined;
-      if (pane.role === 'directories') {
+      if (pane.role === PaneRole.Directories) {
         rawTarget = docUri;
-      } else if (pane.role === 'files' || pane.role === 'changes') {
+      } else if (pane.role === PaneRole.Files || pane.role === PaneRole.Changes) {
         rawTarget = docUri;
-      } else if (pane.role === 'symbols') {
+      } else if (pane.role === PaneRole.Symbols) {
         const upstream = this.getPreviousPane(pane.id);
-        const upstreamIsType = upstream && upstream.role === 'symbols';
-        if (pane.inputSource === 'previousPane' && upstreamIsType) {
+        const upstreamIsType = upstream && upstream.role === PaneRole.Symbols;
+        if (pane.inputSource === PaneInputSource.PreviousPane && upstreamIsType) {
           rawTarget = memberAtCursor;
         } else {
           rawTarget = enclosingType ?? memberAtCursor;
         }
-      } else if (pane.role === 'hierarchy') {
+      } else if (pane.role === PaneRole.Hierarchy) {
         rawTarget = enclosingType;
-      } else if (pane.role === 'problems') {
+      } else if (pane.role === PaneRole.Problems) {
         const pos = this.currentEditor.selection.active;
         const diags = vscode.languages.getDiagnostics(docUri);
         const matchDiag = diags.find((d) => d.range.contains(pos));
         if (matchDiag) {
-          const probDef = this.registry.get('problems') as ProblemsPaneDefinition;
+          const probDef = this.registry.get(PaneRole.Problems) as ProblemsPaneDefinition;
           rawTarget = probDef.createProblemItem ? probDef.createProblemItem(docUri, matchDiag) : undefined;
         }
       } else if (
-        pane.role === 'definitions' ||
-        pane.role === 'declarations' ||
-        pane.role === 'implementations' ||
-        pane.role === 'references' ||
-        pane.role === 'callers'
+        pane.role === PaneRole.Definitions ||
+        pane.role === PaneRole.Declarations ||
+        pane.role === PaneRole.Implementations ||
+        pane.role === PaneRole.References ||
+        pane.role === PaneRole.Callers
       ) {
         const pos = this.currentEditor.selection.active;
         const items = await this.getSlotChildren(pane);
@@ -356,7 +356,7 @@ export class FacetCoordinator implements vscode.Disposable {
     if (!target) {
       return undefined;
     }
-    if (pane.role === 'directories') {
+    if (pane.role === PaneRole.Directories) {
       const targetPath =
         target instanceof vscode.Uri ? target.fsPath : ((target as { uri?: vscode.Uri }).uri?.fsPath ?? '');
       if (!targetPath) {
@@ -404,7 +404,7 @@ export class FacetCoordinator implements vscode.Disposable {
       return items.find((item) => item instanceof vscode.Uri && item.fsPath === target.fsPath);
     }
     if (
-      pane.role === 'problems' &&
+      pane.role === PaneRole.Problems &&
       target &&
       typeof target === 'object' &&
       'type' in target &&
@@ -419,7 +419,7 @@ export class FacetCoordinator implements vscode.Disposable {
           p.range.start.character === probTarget.range.start.character,
       );
     }
-    if (pane.role === 'symbols' || pane.role === 'hierarchy') {
+    if (pane.role === PaneRole.Symbols || pane.role === PaneRole.Hierarchy) {
       const items = (await this.getSlotChildren(pane)) as FacetSymbolNode[];
       const symTarget = target as Partial<FacetSymbolNode>;
       const search = (list: FacetSymbolNode[]): FacetSymbolNode | undefined => {
@@ -449,11 +449,11 @@ export class FacetCoordinator implements vscode.Disposable {
       return search(items);
     }
     if (
-      (pane.role === 'definitions' ||
-        pane.role === 'declarations' ||
-        pane.role === 'implementations' ||
-        pane.role === 'references' ||
-        pane.role === 'callers') &&
+      (pane.role === PaneRole.Definitions ||
+        pane.role === PaneRole.Declarations ||
+        pane.role === PaneRole.Implementations ||
+        pane.role === PaneRole.References ||
+        pane.role === PaneRole.Callers) &&
       target &&
       typeof target === 'object' &&
       'uri' in target &&

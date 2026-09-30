@@ -5,13 +5,16 @@ import {
   matchesPaneFilters,
   type PaneConfig,
   type PaneFilters,
-  type PaneRole,
+  PaneInputSource,
+  PaneRole,
+  RelationMode,
+  SortOption,
 } from '../../models/paneConfig';
 import type { FacetSymbolNode } from '../../models/symbolNode';
 import type { RelationItem } from '../../providers/relationsTreeProvider';
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
-export type RelationMode = 'references' | 'callers' | 'implementations' | 'definitions' | 'declarations';
+export { RelationMode };
 
 export type FilterableRelationConfig = PaneConfig & {
   filters?: PaneFilters;
@@ -25,8 +28,8 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
   public abstract readonly mode: RelationMode;
 
   public readonly capabilities: PaneCapabilities = {
-    supportedInputs: ['previousPane'],
-    supportedSorts: ['position', 'name'],
+    supportedInputs: [PaneInputSource.PreviousPane],
+    supportedSorts: [SortOption.Position, SortOption.Name],
     hasTreeToggle: false,
     hasFilter: true,
   };
@@ -37,8 +40,8 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
       role: this.role,
       title: this.title,
       visible: true,
-      inputSource: 'previousPane',
-      sort: 'position',
+      inputSource: PaneInputSource.PreviousPane,
+      sort: SortOption.Position,
       filters: createDefaultFilters(),
     } as PaneConfig;
   }
@@ -144,41 +147,41 @@ export abstract class BaseRelationPaneDefinition implements PaneDefinition<PaneC
 }
 
 export class DefinitionsPaneDefinition extends BaseRelationPaneDefinition {
-  public readonly role = 'definitions';
+  public readonly role = PaneRole.Definitions;
   public readonly title = 'Definitions';
   public readonly icon = 'references';
   public readonly description = 'Symbol definition targets';
-  public readonly mode = 'definitions' as const;
+  public readonly mode = RelationMode.Definitions;
 }
 
 export class DeclarationsPaneDefinition extends BaseRelationPaneDefinition {
-  public readonly role = 'declarations';
+  public readonly role = PaneRole.Declarations;
   public readonly title = 'Declarations';
   public readonly icon = 'references';
   public readonly description = 'Symbol declaration locations';
-  public readonly mode = 'declarations' as const;
+  public readonly mode = RelationMode.Declarations;
 }
 
 export class ImplementationsPaneDefinition extends BaseRelationPaneDefinition {
-  public readonly role = 'implementations';
+  public readonly role = PaneRole.Implementations;
   public readonly title = 'Implementations';
   public readonly icon = 'references';
   public readonly description = 'Interface or abstract method implementations';
-  public readonly mode = 'implementations' as const;
+  public readonly mode = RelationMode.Implementations;
 }
 
 export class ReferencesPaneDefinition extends BaseRelationPaneDefinition {
-  public readonly role = 'references';
+  public readonly role = PaneRole.References;
   public readonly title = 'References';
   public readonly icon = 'references';
   public readonly description = 'Symbol references across workspace';
-  public readonly mode = 'references' as const;
+  public readonly mode = RelationMode.References;
 }
 
 export class CallersPaneDefinition extends BaseRelationPaneDefinition {
-  public readonly role = 'callers';
+  public readonly role = PaneRole.Callers;
   public readonly title = 'Callers';
   public readonly icon = 'call-incoming';
   public readonly description = 'Incoming calls to selected functions and methods';
-  public readonly mode = 'callers' as const;
+  public readonly mode = RelationMode.Callers;
 }

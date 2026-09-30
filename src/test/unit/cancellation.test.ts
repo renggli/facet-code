@@ -5,7 +5,11 @@ import {
   createDefaultFilters,
   type DefinitionsPaneConfig,
   type ImplementationsPaneConfig,
+  PaneInputSource,
+  PaneRole,
   type ReferencesPaneConfig,
+  RelationMode,
+  SortOption,
   type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
@@ -277,7 +281,7 @@ suite('Cancellation Tokens & Abort Handling Test Suite', () => {
         return (origExecuteCommand as (...a: unknown[]) => unknown)(cmd, ...args);
       };
 
-      await relationsProvider.fetchRelationsForNodes([nodeA, nodeB], 'references', cts.token);
+      await relationsProvider.fetchRelationsForNodes([nodeA, nodeB], RelationMode.References, cts.token);
       // Only nodeA should have been processed; nodeB should have been skipped due to cancellation
       assert.strictEqual(count, 1);
     });
@@ -285,42 +289,42 @@ suite('Cancellation Tokens & Abort Handling Test Suite', () => {
     test('relations panes abort promptly in getSlotChildren when cancellation token is passed', async () => {
       const refPane: ReferencesPaneConfig = {
         id: 'facet.pane.4',
-        role: 'references',
+        role: PaneRole.References,
         title: 'References',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'position',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Position,
         filters: createDefaultFilters(),
       };
 
       const implPane: ImplementationsPaneConfig = {
         id: 'facet.pane.4',
-        role: 'implementations',
+        role: PaneRole.Implementations,
         title: 'Implementations',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'position',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Position,
         filters: createDefaultFilters(),
       };
 
       const defPane: DefinitionsPaneConfig = {
         id: 'facet.pane.3',
-        role: 'definitions',
+        role: PaneRole.Definitions,
         title: 'Definitions',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'position',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Position,
         filters: createDefaultFilters(),
       };
 
       coordinator.setSlotSelection('facet.pane.2', [testNode]);
       const prevPaneConfig: SymbolsPaneConfig = {
         id: 'facet.pane.2',
-        role: 'symbols',
+        role: PaneRole.Symbols,
         title: 'Members',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'name',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
       };

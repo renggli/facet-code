@@ -11,7 +11,10 @@ import {
   type DirectoriesPaneConfig,
   type FilesPaneConfig,
   type HierarchyPaneConfig,
+  PaneInputSource,
+  PaneRole,
   type ReferencesPaneConfig,
+  SortOption,
   type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
@@ -90,11 +93,11 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
 
       const hierConfig: HierarchyPaneConfig = {
         id: 'facet.pane.1',
-        role: 'hierarchy',
+        role: PaneRole.Hierarchy,
         title: 'Hierarchy',
         visible: true,
-        inputSource: 'project',
-        sort: 'name',
+        inputSource: PaneInputSource.Project,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
         subclassTypes: ['class'],
@@ -117,11 +120,11 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
 
       const hierConfig: HierarchyPaneConfig = {
         id: 'facet.pane.1',
-        role: 'hierarchy',
+        role: PaneRole.Hierarchy,
         title: 'Hierarchy Flat',
         visible: true,
-        inputSource: 'project',
-        sort: 'name',
+        inputSource: PaneInputSource.Project,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
         subclassTypes: ['class'],
@@ -162,11 +165,11 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
       coordinator.setCachedWorkspaceTypes([baseClass, subStruct]);
       const classOnlyConfig: HierarchyPaneConfig = {
         id: 'facet.pane.1',
-        role: 'hierarchy',
+        role: PaneRole.Hierarchy,
         title: 'Hierarchy Class Only',
         visible: true,
-        inputSource: 'project',
-        sort: 'name',
+        inputSource: PaneInputSource.Project,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
         subclassTypes: ['class'],
@@ -185,11 +188,11 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
       ]);
       const classAndStructConfig: HierarchyPaneConfig = {
         id: 'facet.pane.1',
-        role: 'hierarchy',
+        role: PaneRole.Hierarchy,
         title: 'Hierarchy With Struct',
         visible: true,
-        inputSource: 'project',
-        sort: 'name',
+        inputSource: PaneInputSource.Project,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
         subclassTypes: ['class', 'struct'],
@@ -264,11 +267,11 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
 
       const hierConfig: HierarchyPaneConfig = {
         id: 'facet.pane.1',
-        role: 'hierarchy',
+        role: PaneRole.Hierarchy,
         title: 'Open Editors Hierarchy',
         visible: true,
-        inputSource: 'openEditors',
-        sort: 'name',
+        inputSource: PaneInputSource.OpenEditors,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
         subclassTypes: ['class'],
@@ -295,16 +298,16 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
       coordinator.setSlotSelection('facet.pane.1', [fileUri]);
       (coordinator as unknown as { getPreviousPane: (id: string) => unknown }).getPreviousPane = () => ({
         id: 'facet.pane.1',
-        role: 'files',
+        role: PaneRole.Files,
       });
 
       const hierConfig: HierarchyPaneConfig = {
         id: 'facet.pane.2',
-        role: 'hierarchy',
+        role: PaneRole.Hierarchy,
         title: 'Downstream Hierarchy',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'name',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
         subclassTypes: ['class'],
@@ -341,7 +344,7 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
 
       const dirPane: DirectoriesPaneConfig = createDirectoriesPane('facet.pane.1');
       const filesPane: FilesPaneConfig = createFilesPane('facet.pane.2', {
-        inputSource: 'previousPane',
+        inputSource: PaneInputSource.PreviousPane,
         tree: false,
       });
 
@@ -386,9 +389,9 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
       const filesPane: FilesPaneConfig = createFilesPane('facet.pane.1');
       const symbolsPane: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
         title: 'Types',
-        inputSource: 'previousPane',
+        inputSource: PaneInputSource.PreviousPane,
         tree: false,
-        sort: 'name',
+        sort: SortOption.Name,
       });
 
       await manager.applyVisiblePanes([filesPane, symbolsPane]);
@@ -461,14 +464,14 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
 
       const typesPane: SymbolsPaneConfig = createSymbolsPane('facet.pane.1', {
         title: 'Types',
-        inputSource: 'project',
+        inputSource: PaneInputSource.Project,
         tree: false,
       });
       const membersPane: SymbolsPaneConfig = createSymbolsPane('facet.pane.2', {
         title: 'Members',
-        inputSource: 'previousPane',
+        inputSource: PaneInputSource.PreviousPane,
         tree: false,
-        sort: 'name',
+        sort: SortOption.Name,
       });
 
       await manager.applyVisiblePanes([typesPane, membersPane]);
@@ -530,20 +533,20 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
       const membersPane: SymbolsPaneConfig = createSymbolsPane('facet.pane.1');
       const refPane: ReferencesPaneConfig = {
         id: 'facet.pane.2',
-        role: 'references',
+        role: PaneRole.References,
         title: 'References',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'position',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Position,
         filters: createDefaultFilters(),
       };
       const defPane: DefinitionsPaneConfig = {
         id: 'facet.pane.2',
-        role: 'definitions',
+        role: PaneRole.Definitions,
         title: 'Definitions',
         visible: true,
-        inputSource: 'previousPane',
-        sort: 'position',
+        inputSource: PaneInputSource.PreviousPane,
+        sort: SortOption.Position,
         filters: createDefaultFilters(),
       };
 

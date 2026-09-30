@@ -4,6 +4,9 @@ import {
   createDefaultFilters,
   type HierarchyPaneConfig,
   matchesPaneFilters,
+  PaneInputSource,
+  PaneRole,
+  SortOption,
   type SymbolKindKey,
 } from '../../models/paneConfig';
 import {
@@ -17,14 +20,19 @@ import {
 import type { PaneCapabilities, PaneDefinition, PaneExecutionContext, PaneOutput } from '../paneDefinition';
 
 export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConfig, FacetSymbolNode> {
-  public readonly role = 'hierarchy';
+  public readonly role = PaneRole.Hierarchy;
   public readonly title = 'Hierarchy';
   public readonly icon = 'type-hierarchy';
   public readonly description = 'Type inheritance and subtype hierarchy';
 
   public readonly capabilities: PaneCapabilities = {
-    supportedInputs: ['project', 'openEditors', 'activeEditor', 'previousPane'],
-    supportedSorts: ['position', 'name', 'category'],
+    supportedInputs: [
+      PaneInputSource.Project,
+      PaneInputSource.OpenEditors,
+      PaneInputSource.ActiveEditor,
+      PaneInputSource.PreviousPane,
+    ],
+    supportedSorts: [SortOption.Position, SortOption.Name, SortOption.Category],
     hasTreeToggle: true,
     hasFilter: true,
   };
@@ -32,11 +40,11 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
   public defaultConfig(slotId: string): HierarchyPaneConfig {
     return {
       id: slotId,
-      role: 'hierarchy',
+      role: PaneRole.Hierarchy,
       title: 'Hierarchy',
       visible: true,
-      inputSource: 'project',
-      sort: 'name',
+      inputSource: PaneInputSource.Project,
+      sort: SortOption.Name,
       filters: createDefaultFilters(),
       tree: true,
       subclassTypes: ['class', 'interface', 'struct'],
@@ -78,14 +86,14 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
 
     let rawTypes: FacetSymbolNode[] = [];
 
-    if (config.inputSource === 'project') {
+    if (config.inputSource === PaneInputSource.Project) {
       let workspaceTypes = context.coordinator.getCachedWorkspaceTypes();
       if (workspaceTypes.length === 0) {
         workspaceTypes = await context.coordinator.resolver.resolveWorkspaceTypes('');
         context.coordinator.setCachedWorkspaceTypes(workspaceTypes);
       }
       rawTypes = workspaceTypes;
-    } else if (config.inputSource === 'activeEditor') {
+    } else if (config.inputSource === PaneInputSource.ActiveEditor) {
       if (config.pinned && config.pinnedUri) {
         try {
           const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(config.pinnedUri));
@@ -97,7 +105,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
       } else {
         rawTypes = context.coordinator.getCachedDocumentSymbols().filter((s) => isTypeKind(s.kind));
       }
-    } else if (config.inputSource === 'openEditors') {
+    } else if (config.inputSource === PaneInputSource.OpenEditors) {
       const openUris = context.coordinator.getOpenEditorUris();
       for (const uri of openUris) {
         try {
@@ -109,7 +117,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
           // ignore
         }
       }
-    } else if (config.inputSource === 'previousPane') {
+    } else if (config.inputSource === PaneInputSource.PreviousPane) {
       const prev = context.upstreamOutput.symbols ?? context.upstreamOutput.items ?? [];
       const symbolTypes = prev.filter((s): s is FacetSymbolNode => {
         if (!s || typeof s !== 'object') {
@@ -345,7 +353,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
   ): FacetSymbolNode[] {
     const config = context.config;
 
-    if (config.inputSource === 'previousPane') {
+    if (config.inputSource === PaneInputSource.PreviousPane) {
       const prev =
         context.upstreamOutput.symbols && context.upstreamOutput.symbols.length > 0
           ? context.upstreamOutput.symbols
@@ -384,7 +392,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
       return selTypes;
     }
 
-    if (config.inputSource === 'activeEditor') {
+    if (config.inputSource === PaneInputSource.ActiveEditor) {
       const docSymbols = context.coordinator.getCachedDocumentSymbols().filter((s) => isTypeKind(s.kind));
       if (docSymbols.length > 0) {
         return docSymbols;

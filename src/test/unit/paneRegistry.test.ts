@@ -1,7 +1,7 @@
 import * as assert from 'node:assert';
 import { FacetCoordinator } from '../../coordinator/facetCoordinator';
 import { PanePipelineManager } from '../../coordinator/panePipelineManager';
-import type { PaneRole } from '../../models/paneConfig';
+import { PaneRole } from '../../models/paneConfig';
 import { createDefaultPaneRegistry, PaneRegistry } from '../../panes/paneRegistry';
 import { RelationsTreeProvider } from '../../providers/relationsTreeProvider';
 import { SymbolResolver } from '../../services/symbolResolver';
@@ -9,19 +9,7 @@ import { SymbolResolver } from '../../services/symbolResolver';
 suite('PaneRegistry & Modular Pane Architecture Test Suite', () => {
   test('createDefaultPaneRegistry registers all 11 standard pane roles', () => {
     const registry = createDefaultPaneRegistry();
-    const expectedRoles: PaneRole[] = [
-      'directories',
-      'files',
-      'symbols',
-      'hierarchy',
-      'definitions',
-      'declarations',
-      'implementations',
-      'references',
-      'callers',
-      'problems',
-      'changes',
-    ];
+    const expectedRoles: PaneRole[] = Object.values(PaneRole);
 
     for (const role of expectedRoles) {
       assert.ok(registry.has(role), `Role ${role} should be registered`);
