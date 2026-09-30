@@ -7,7 +7,7 @@ import {
   PaneInputSource,
   PaneRole,
   SortOption,
-  type SymbolKindKey,
+  SymbolKindKey,
 } from '../../models/paneConfig';
 import {
   buildTypeHierarchy,
@@ -47,7 +47,7 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
       sort: SortOption.Name,
       filters: createDefaultFilters(),
       tree: true,
-      subclassTypes: ['class', 'interface', 'struct'],
+      subclassTypes: [SymbolKindKey.Class, SymbolKindKey.Interface, SymbolKindKey.Struct],
     };
   }
 
@@ -205,13 +205,13 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
     // Tree view (default): show all super classes, subclasses of parents, and subclasses
     let allowedKinds: vscode.SymbolKind[] | undefined;
     if (subclassTypes && subclassTypes.length > 0) {
-      const keyMap: Record<string, vscode.SymbolKind> = {
-        class: vscode.SymbolKind.Class,
-        interface: vscode.SymbolKind.Interface,
-        struct: vscode.SymbolKind.Struct,
-        enum: vscode.SymbolKind.Enum,
-      };
-      allowedKinds = subclassTypes.map((k) => keyMap[k]).filter((k): k is vscode.SymbolKind => k !== undefined);
+      const keyMap = new Map<SymbolKindKey, vscode.SymbolKind>([
+        [SymbolKindKey.Class, vscode.SymbolKind.Class],
+        [SymbolKindKey.Interface, vscode.SymbolKind.Interface],
+        [SymbolKindKey.Struct, vscode.SymbolKind.Struct],
+        [SymbolKindKey.Enum, vscode.SymbolKind.Enum],
+      ]);
+      allowedKinds = subclassTypes.map((k) => keyMap.get(k)).filter((k): k is vscode.SymbolKind => k !== undefined);
     }
 
     const allTreeNodes: FacetSymbolNode[] = [];
@@ -305,12 +305,12 @@ export class HierarchyPaneDefinition implements PaneDefinition<HierarchyPaneConf
     }
 
     if (picked.action === 'subclasses') {
-      const current = config.subclassTypes ?? ['class', 'struct'];
+      const current = config.subclassTypes ?? [SymbolKindKey.Class, SymbolKindKey.Struct];
       const subclassOptions = [
-        { label: 'Class', key: 'class' as SymbolKindKey, picked: current.includes('class') },
-        { label: 'Interface', key: 'interface' as SymbolKindKey, picked: current.includes('interface') },
-        { label: 'Struct', key: 'struct' as SymbolKindKey, picked: current.includes('struct') },
-        { label: 'Enum', key: 'enum' as SymbolKindKey, picked: current.includes('enum') },
+        { label: 'Class', key: SymbolKindKey.Class, picked: current.includes(SymbolKindKey.Class) },
+        { label: 'Interface', key: SymbolKindKey.Interface, picked: current.includes(SymbolKindKey.Interface) },
+        { label: 'Struct', key: SymbolKindKey.Struct, picked: current.includes(SymbolKindKey.Struct) },
+        { label: 'Enum', key: SymbolKindKey.Enum, picked: current.includes(SymbolKindKey.Enum) },
       ];
       const selected = await vscode.window.showQuickPick(subclassOptions, {
         canPickMany: true,

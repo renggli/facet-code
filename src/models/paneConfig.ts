@@ -35,90 +35,91 @@ export enum RelationMode {
   Declarations = 'declarations',
 }
 
-export type SymbolKindKey =
-  | 'array'
-  | 'boolean'
-  | 'class'
-  | 'constant'
-  | 'constructor'
-  | 'enumMember'
-  | 'enum'
-  | 'event'
-  | 'field'
-  | 'file'
-  | 'function'
-  | 'interface'
-  | 'key'
-  | 'method'
-  | 'module'
-  | 'namespace'
-  | 'null'
-  | 'number'
-  | 'object'
-  | 'operator'
-  | 'package'
-  | 'property'
-  | 'string'
-  | 'struct'
-  | 'typeParameter'
-  | 'variable';
+export enum SymbolKindKey {
+  Array = 'array',
+  Boolean = 'boolean',
+  Class = 'class',
+  Constant = 'constant',
+  Constructor = 'constructor',
+  EnumMember = 'enumMember',
+  Enum = 'enum',
+  Event = 'event',
+  Field = 'field',
+  File = 'file',
+  Function = 'function',
+  Interface = 'interface',
+  Key = 'key',
+  Method = 'method',
+  Module = 'module',
+  Namespace = 'namespace',
+  Null = 'null',
+  Number = 'number',
+  Object = 'object',
+  Operator = 'operator',
+  Package = 'package',
+  Property = 'property',
+  String = 'string',
+  Struct = 'struct',
+  TypeParameter = 'typeParameter',
+  Variable = 'variable',
+}
 
 export const ALL_SYMBOL_FILTER_OPTIONS: { key: SymbolKindKey; label: string; kind: vscode.SymbolKind }[] = [
-  { key: 'array', label: 'Array', kind: vscode.SymbolKind.Array },
-  { key: 'boolean', label: 'Boolean', kind: vscode.SymbolKind.Boolean },
-  { key: 'class', label: 'Class', kind: vscode.SymbolKind.Class },
-  { key: 'constant', label: 'Constant', kind: vscode.SymbolKind.Constant },
-  { key: 'constructor', label: 'Constructor', kind: vscode.SymbolKind.Constructor },
-  { key: 'enumMember', label: 'Enum Member', kind: vscode.SymbolKind.EnumMember },
-  { key: 'enum', label: 'Enum', kind: vscode.SymbolKind.Enum },
-  { key: 'event', label: 'Event', kind: vscode.SymbolKind.Event },
-  { key: 'field', label: 'Field', kind: vscode.SymbolKind.Field },
-  { key: 'file', label: 'File', kind: vscode.SymbolKind.File },
-  { key: 'function', label: 'Function', kind: vscode.SymbolKind.Function },
-  { key: 'interface', label: 'Interface', kind: vscode.SymbolKind.Interface },
-  { key: 'key', label: 'Key', kind: vscode.SymbolKind.Key },
-  { key: 'method', label: 'Method', kind: vscode.SymbolKind.Method },
-  { key: 'module', label: 'Module', kind: vscode.SymbolKind.Module },
-  { key: 'namespace', label: 'Namespace', kind: vscode.SymbolKind.Namespace },
-  { key: 'null', label: 'Null', kind: vscode.SymbolKind.Null },
-  { key: 'number', label: 'Number', kind: vscode.SymbolKind.Number },
-  { key: 'object', label: 'Object', kind: vscode.SymbolKind.Object },
-  { key: 'operator', label: 'Operator', kind: vscode.SymbolKind.Operator },
-  { key: 'package', label: 'Package', kind: vscode.SymbolKind.Package },
-  { key: 'property', label: 'Property', kind: vscode.SymbolKind.Property },
-  { key: 'string', label: 'String', kind: vscode.SymbolKind.String },
-  { key: 'struct', label: 'Struct', kind: vscode.SymbolKind.Struct },
-  { key: 'typeParameter', label: 'Type Parameter', kind: vscode.SymbolKind.TypeParameter },
-  { key: 'variable', label: 'Variable', kind: vscode.SymbolKind.Variable },
+  { key: SymbolKindKey.Array, label: 'Array', kind: vscode.SymbolKind.Array },
+  { key: SymbolKindKey.Boolean, label: 'Boolean', kind: vscode.SymbolKind.Boolean },
+  { key: SymbolKindKey.Class, label: 'Class', kind: vscode.SymbolKind.Class },
+  { key: SymbolKindKey.Constant, label: 'Constant', kind: vscode.SymbolKind.Constant },
+  { key: SymbolKindKey.Constructor, label: 'Constructor', kind: vscode.SymbolKind.Constructor },
+  { key: SymbolKindKey.EnumMember, label: 'Enum Member', kind: vscode.SymbolKind.EnumMember },
+  { key: SymbolKindKey.Enum, label: 'Enum', kind: vscode.SymbolKind.Enum },
+  { key: SymbolKindKey.Event, label: 'Event', kind: vscode.SymbolKind.Event },
+  { key: SymbolKindKey.Field, label: 'Field', kind: vscode.SymbolKind.Field },
+  { key: SymbolKindKey.File, label: 'File', kind: vscode.SymbolKind.File },
+  { key: SymbolKindKey.Function, label: 'Function', kind: vscode.SymbolKind.Function },
+  { key: SymbolKindKey.Interface, label: 'Interface', kind: vscode.SymbolKind.Interface },
+  { key: SymbolKindKey.Key, label: 'Key', kind: vscode.SymbolKind.Key },
+  { key: SymbolKindKey.Method, label: 'Method', kind: vscode.SymbolKind.Method },
+  { key: SymbolKindKey.Module, label: 'Module', kind: vscode.SymbolKind.Module },
+  { key: SymbolKindKey.Namespace, label: 'Namespace', kind: vscode.SymbolKind.Namespace },
+  { key: SymbolKindKey.Null, label: 'Null', kind: vscode.SymbolKind.Null },
+  { key: SymbolKindKey.Number, label: 'Number', kind: vscode.SymbolKind.Number },
+  { key: SymbolKindKey.Object, label: 'Object', kind: vscode.SymbolKind.Object },
+  { key: SymbolKindKey.Operator, label: 'Operator', kind: vscode.SymbolKind.Operator },
+  { key: SymbolKindKey.Package, label: 'Package', kind: vscode.SymbolKind.Package },
+  { key: SymbolKindKey.Property, label: 'Property', kind: vscode.SymbolKind.Property },
+  { key: SymbolKindKey.String, label: 'String', kind: vscode.SymbolKind.String },
+  { key: SymbolKindKey.Struct, label: 'Struct', kind: vscode.SymbolKind.Struct },
+  { key: SymbolKindKey.TypeParameter, label: 'Type Parameter', kind: vscode.SymbolKind.TypeParameter },
+  { key: SymbolKindKey.Variable, label: 'Variable', kind: vscode.SymbolKind.Variable },
 ];
 
 export const SYMBOL_KIND_TO_KEY: Record<number, SymbolKindKey> = {
-  [vscode.SymbolKind.File]: 'file',
-  [vscode.SymbolKind.Module]: 'module',
-  [vscode.SymbolKind.Namespace]: 'namespace',
-  [vscode.SymbolKind.Package]: 'package',
-  [vscode.SymbolKind.Class]: 'class',
-  [vscode.SymbolKind.Method]: 'method',
-  [vscode.SymbolKind.Property]: 'property',
-  [vscode.SymbolKind.Field]: 'field',
-  [vscode.SymbolKind.Constructor]: 'constructor',
-  [vscode.SymbolKind.Enum]: 'enum',
-  [vscode.SymbolKind.Interface]: 'interface',
-  [vscode.SymbolKind.Function]: 'function',
-  [vscode.SymbolKind.Variable]: 'variable',
-  [vscode.SymbolKind.Constant]: 'constant',
-  [vscode.SymbolKind.String]: 'string',
-  [vscode.SymbolKind.Number]: 'number',
-  [vscode.SymbolKind.Boolean]: 'boolean',
-  [vscode.SymbolKind.Array]: 'array',
-  [vscode.SymbolKind.Object]: 'object',
-  [vscode.SymbolKind.Key]: 'key',
-  [vscode.SymbolKind.Null]: 'null',
-  [vscode.SymbolKind.EnumMember]: 'enumMember',
-  [vscode.SymbolKind.Struct]: 'struct',
-  [vscode.SymbolKind.Event]: 'event',
-  [vscode.SymbolKind.Operator]: 'operator',
-  [vscode.SymbolKind.TypeParameter]: 'typeParameter',
+  [vscode.SymbolKind.File]: SymbolKindKey.File,
+  [vscode.SymbolKind.Module]: SymbolKindKey.Module,
+  [vscode.SymbolKind.Namespace]: SymbolKindKey.Namespace,
+  [vscode.SymbolKind.Package]: SymbolKindKey.Package,
+  [vscode.SymbolKind.Class]: SymbolKindKey.Class,
+  [vscode.SymbolKind.Method]: SymbolKindKey.Method,
+  [vscode.SymbolKind.Property]: SymbolKindKey.Property,
+  [vscode.SymbolKind.Field]: SymbolKindKey.Field,
+  [vscode.SymbolKind.Constructor]: SymbolKindKey.Constructor,
+  [vscode.SymbolKind.Enum]: SymbolKindKey.Enum,
+  [vscode.SymbolKind.Interface]: SymbolKindKey.Interface,
+  [vscode.SymbolKind.Function]: SymbolKindKey.Function,
+  [vscode.SymbolKind.Variable]: SymbolKindKey.Variable,
+  [vscode.SymbolKind.Constant]: SymbolKindKey.Constant,
+  [vscode.SymbolKind.String]: SymbolKindKey.String,
+  [vscode.SymbolKind.Number]: SymbolKindKey.Number,
+  [vscode.SymbolKind.Boolean]: SymbolKindKey.Boolean,
+  [vscode.SymbolKind.Array]: SymbolKindKey.Array,
+  [vscode.SymbolKind.Object]: SymbolKindKey.Object,
+  [vscode.SymbolKind.Key]: SymbolKindKey.Key,
+  [vscode.SymbolKind.Null]: SymbolKindKey.Null,
+  [vscode.SymbolKind.EnumMember]: SymbolKindKey.EnumMember,
+  [vscode.SymbolKind.Struct]: SymbolKindKey.Struct,
+  [vscode.SymbolKind.Event]: SymbolKindKey.Event,
+  [vscode.SymbolKind.Operator]: SymbolKindKey.Operator,
+  [vscode.SymbolKind.TypeParameter]: SymbolKindKey.TypeParameter,
 };
 
 export type PaneFilters = { [key: string]: boolean | undefined };

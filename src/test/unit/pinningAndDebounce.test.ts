@@ -9,6 +9,7 @@ import {
   PaneInputSource,
   PaneRole,
   SortOption,
+  SymbolKindKey,
   type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import type { FacetSymbolNode } from '../../models/symbolNode';
@@ -261,7 +262,7 @@ suite('Pinning & Cursor Debouncing Test Suite', () => {
         sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
-        subclassTypes: ['class'],
+        subclassTypes: [SymbolKindKey.Class],
       };
 
       await manager.applyVisiblePanes([hierPane]);

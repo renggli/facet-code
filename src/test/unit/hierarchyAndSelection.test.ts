@@ -15,6 +15,7 @@ import {
   PaneRole,
   type ReferencesPaneConfig,
   SortOption,
+  SymbolKindKey,
   type SymbolsPaneConfig,
 } from '../../models/paneConfig';
 import { type FacetSymbolNode, MemberCategory } from '../../models/symbolNode';
@@ -100,7 +101,7 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
         sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
-        subclassTypes: ['class'],
+        subclassTypes: [SymbolKindKey.Class],
       };
 
       const roots = await coordinator.getSlotChildren<FacetSymbolNode>(hierConfig);
@@ -127,7 +128,7 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
         sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
-        subclassTypes: ['class'],
+        subclassTypes: [SymbolKindKey.Class],
       };
 
       const list = await coordinator.getSlotChildren<FacetSymbolNode>(hierConfig);
@@ -172,7 +173,7 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
         sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
-        subclassTypes: ['class'],
+        subclassTypes: [SymbolKindKey.Class],
       };
 
       const rootsClassOnly = await coordinator.getSlotChildren<FacetSymbolNode>(classOnlyConfig);
@@ -195,7 +196,7 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
         sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: true,
-        subclassTypes: ['class', 'struct'],
+        subclassTypes: [SymbolKindKey.Class, SymbolKindKey.Struct],
       };
 
       const rootsWithStruct = await coordinator.getSlotChildren<FacetSymbolNode>(classAndStructConfig);
@@ -213,13 +214,13 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
       window.pushQuickPick({ action: 'subclasses' });
       // 2nd picker: user picks 'class' and 'interface'
       window.pushQuickPick([
-        { label: 'Class', key: 'class' },
-        { label: 'Interface', key: 'interface' },
+        { label: 'Class', key: SymbolKindKey.Class },
+        { label: 'Interface', key: SymbolKindKey.Interface },
       ]);
 
       const changed = await def.configureFilter(config);
       assert.strictEqual(changed, true);
-      assert.deepStrictEqual(config.subclassTypes, ['class', 'interface']);
+      assert.deepStrictEqual(config.subclassTypes, [SymbolKindKey.Class, SymbolKindKey.Interface]);
 
       // 1st picker: user picks 'kinds'
       window.pushQuickPick({ action: 'kinds' });
@@ -274,7 +275,7 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
         sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
-        subclassTypes: ['class'],
+        subclassTypes: [SymbolKindKey.Class],
       };
 
       const items = await coordinator.getSlotChildren<FacetSymbolNode>(hierConfig);
@@ -310,7 +311,7 @@ suite('Hierarchy Pane & Multi-Selection Union Test Suite', () => {
         sort: SortOption.Name,
         filters: createDefaultFilters(),
         tree: false,
-        subclassTypes: ['class'],
+        subclassTypes: [SymbolKindKey.Class],
       };
 
       const items = await coordinator.getSlotChildren<FacetSymbolNode>(hierConfig);
